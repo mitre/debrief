@@ -12,32 +12,43 @@
             <p>
                 Debrief shows analytics about operations and campaigns.
             </p>
-            <div class="toggle">
-                <label class="switch">
-                    <input type="checkbox" id="toggleViewableButtons" onchange="toggleButtons()">
-                    <div class="slider round">
-                        <span class="on">set 2</span><span class="off">set 1</span>
-                    </div>
-                </label>
-            </div>
-            <br><br>
-            <div id="set1">
-                <br><br>
-                <button id="doSomething" type="button" class="button-success atomic-button" style="margin-top:0;"
-                        onclick="doSomething()">do something</button>
-            </div>
-            <div id="set2" style="display:none;">
-                <select id="initialOptions" style="margin-top:-15px;" onchange="enableButton()">
-                    <option value="" disabled selected>Some options</option>
-                    {% for p in initial_data %}
-                        <option value="{{ p }}">{{ p }}</option>
-                    {% endfor %}}
+            <div>
+                <select id="operation-list" style="margin-bottom: 15px;" onchange="refresh();checkOpBtns()">
+                  <option id="operationDefault" value="" disabled selected>Operations</option>
+                  {% for op in operations %}
+                        {%  if op.start|length%}
+                            <option class="operationOption" id="{{ op.id }}-{{ op.name }}" value="{{ op.id }}">{{ op.name }} - {{ op.start }}</option>
+                        {% endif %}
+                  {% endfor %}
                 </select>
-                <br><br>
-                <button id="uploadFile" type="button" class="button-notready atomic-button" style="margin-top:0;"
-                        onclick="uploadFile()">upload file</button>
-                <input id="fileInput" type="file" name="name" style="display: none" />
             </div>
+<!--            <div class="toggle">-->
+<!--                <label class="switch">-->
+<!--                    <input type="checkbox" id="toggleViewableButtons" onchange="toggleButtons()">-->
+<!--                    <div class="slider round">-->
+<!--                        <span class="on">set 2</span><span class="off">set 1</span>-->
+<!--                    </div>-->
+<!--                </label>-->
+<!--            </div>-->
+            <div id="set1">
+                <button id="debrief-show-report" type="button" class="button-success atomic-button"
+                        style="margin-top:0;"
+                        onclick="doSomething()">Show Report</button>
+                <button id="doSomething" type="button" class="button-success atomic-button" style="margin-top:0;"
+                        onclick="doSomething()">Download PDF</button>
+            </div>
+<!--            <div id="set2" style="display:none;">-->
+<!--&lt;!&ndash;                <select id="initialOptions" style="margin-top:-15px;" onchange="enableButton()">&ndash;&gt;-->
+<!--&lt;!&ndash;                    <option value="" disabled selected>Some options</option>&ndash;&gt;-->
+<!--&lt;!&ndash;                    {% for p in initial_data %}&ndash;&gt;-->
+<!--&lt;!&ndash;                        <option value="{{ p }}">{{ p }}</option>&ndash;&gt;-->
+<!--&lt;!&ndash;                    {% endfor %}}&ndash;&gt;-->
+<!--&lt;!&ndash;                </select>&ndash;&gt;-->
+<!--                <br><br>-->
+<!--                <button id="uploadFile" type="button" class="button-notready atomic-button" style="margin-top:0;"-->
+<!--                        onclick="uploadFile()">upload file</button>-->
+<!--                <input id="fileInput" type="file" name="name" style="display: none" />-->
+<!--            </div>-->
         </div>
         <!--    this is the DIV for the right section    -->
         <div class="column" style="flex:75%">

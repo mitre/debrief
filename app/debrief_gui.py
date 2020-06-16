@@ -14,13 +14,16 @@ class DebriefGui(BaseWorld):
         self.services = services
         self.debrief_svc = DebriefService(services)
         self.auth_svc = services.get('auth_svc')
+        self.data_svc = services.get('data_svc')
         self.file_svc = services.get('file_svc')
         self.log = logging.getLogger('debrief_gui')
 
     @check_authorization
     @template('debrief.html')
     async def splash(self, request):
-        return dict(initial_data=['option 1', 'option 2', 'option 3'])
+        access = dict(access=tuple(await self.auth_svc.get_permissions(request)))
+        operations = [o.display for o in await self.data_svc.locate('operations', match=access)]
+        return dict(operations=operations)
 
     @check_authorization
     async def debrief_core(self, request):

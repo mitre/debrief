@@ -1,11 +1,11 @@
 import logging
 
 
-class SkeletonService:
+class DebriefService:
     def __init__(self, services):
         self.services = services
         self.file_svc = services.get('file_svc')
-        self.log = logging.getLogger('skeleton_svc')
+        self.log = logging.getLogger('debrief_svc')
 
     async def something(self):
         return 'I did something'

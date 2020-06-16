@@ -8,7 +8,7 @@ function enableButton(){
 }
 
 function doSomething(){
-    restRequest('POST', {'index':'do_something'}, displayOutput, '/plugin/skeleton/api');
+    restRequest('POST', {'index':'do_something'}, displayOutput, '/plugin/debrief/api');
 }
 
 function uploadFile(){
@@ -30,10 +30,10 @@ function processFile(filename){
                 'option': $('#initialOptions').val(),
                 'filename': filename
                 }
-    restRequest('POST', data, displayOutput, '/plugin/skeleton/api');
+    restRequest('POST', data, displayOutput, '/plugin/debrief/api');
 }
 
-function restPostFile(file, callback=null, endpoint='/plugin/skeleton/upload'){
+function restPostFile(file, callback=null, endpoint='/plugin/debrief/upload'){
     let fd = new FormData();
     fd.append('file', file);
     $.ajax({

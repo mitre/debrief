@@ -1,7 +1,24 @@
-.log-box {
-    background-color: var(--primary-background);
-    padding: 10px;
-    border-radius: 7px;
-    width: 95%;
-    margin: 7px;
+#debrief-operation-list {
+    height: 100px;
+    margin-bottom: 15px;
+    background-color: black;
+    color: var(--font-color);
+}
+
+.report-table {
+    color: white;
+    width: 100%;
+    border-spacing: 5px;
+}
+.report-table img {
+    height: 18px;
+    margin: 5px;
+}
+.report-table input {
+    background-color: inherit;
+    color: white;
+}
+
+.report-table th {
+    text-align: left;
 }

@@ -31,10 +31,11 @@ class DebriefGui(BaseWorld):
         data = dict(await request.json())
         operations = [o.display for o in await self.data_svc.locate('operations', match=await self._get_access(request))
                       if str(o.id) in data.get('operations')]
-        return web.json_response(dict(hello=operations))
+        return web.json_response(dict(operations=operations))
 
     async def graph(self, request):
         try:
-            return web.json_response(dict(hello='yo'))
+            graph = await self.debrief_svc.build_agent_d3()
+            return web.json_response(graph)
         except Exception as e:
             self.log.error(repr(e), exc_info=True)

@@ -16,7 +16,6 @@ $( document ).ready(function() {
         clearReport();
         let operations = $(e.target).val();
         restRequest('POST', {'operations': operations}, displayReport, '/plugin/debrief/report');
-        console.log(operations);
     });
 
     function clearReport(){
@@ -25,12 +24,9 @@ $( document ).ready(function() {
     }
 
     function displayReport(data){
-        console.log(data);
         let operations = data['operations'];
         updateReportGraph(operations);
         operations.forEach(function (op, index) {
-            console.log(op);
-            console.log(op.name);
             updateOperationTable(op);
             updateStepTable(op);
         })
@@ -78,7 +74,5 @@ $( document ).ready(function() {
         return 'queued';
     }
 
-    function updateReportGraph(operations){
-        console.log(operations);
-    }
+
 });

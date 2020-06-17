@@ -17,14 +17,15 @@ class DebriefService:
         for agent in agents:
             if agent.unique not in id_store.keys():
                 id_store[agent.unique] = max(id_store.values()) + 1
-                node = dict(name=agent.display_name, id=agent.unique,
+                node = dict(name=agent.display_name,
+                            id=id_store[agent.unique],
                             group=agent.group,
                             type='agent',
                             img=agent.platform)
                 graph_output['nodes'].append(node)
 
                 link = dict(source=0,
-                            target=agent.unique,
+                            target=id_store[agent.unique],
                             type=agent.contact)
                 graph_output['links'].append(link)
         return graph_output

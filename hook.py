@@ -13,6 +13,5 @@ async def enable(services):
     app.router.add_static('/debrief', 'plugins/debrief/static/', append_version=True)
     app.router.add_route('GET', '/plugin/debrief/gui', debrief_gui.splash)
     app.router.add_route('POST', '/plugin/debrief/report', debrief_gui.report)
-    app.router.add_route('POST', '/plugin/debrief/graph', debrief_gui.graph)
-    app.router.add_route('GET', '/plugin/debrief/network_json', debrief_gui.network_json)
+    app.router.add_route('*', '/plugin/debrief/graph', debrief_gui.graph)
 

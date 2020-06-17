@@ -15,6 +15,7 @@ $( document ).ready(function() {
     $('#debrief-operation-list').change(function (e){
         clearReport();
         let operations = $(e.target).val();
+        updateReportGraph(operations);
         restRequest('POST', {'operations': operations}, displayReport, '/plugin/debrief/report');
     });
 
@@ -25,7 +26,6 @@ $( document ).ready(function() {
 
     function displayReport(data){
         let operations = data['operations'];
-        updateReportGraph(operations);
         operations.forEach(function (op, index) {
             updateOperationTable(op);
             updateStepTable(op);

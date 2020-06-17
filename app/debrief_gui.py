@@ -35,7 +35,8 @@ class DebriefGui(BaseWorld):
 
     async def graph(self, request):
         try:
-            graph = await self.debrief_svc.build_agent_d3()
+            operations = request.rel_url.query['operations'].split(',')
+            graph = await self.debrief_svc.build_operation_d3(operations)
             return web.json_response(graph)
         except Exception as e:
             self.log.error(repr(e), exc_info=True)

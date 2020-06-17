@@ -16,8 +16,9 @@ let simulation = d3.forceSimulation()
 function updateReportGraph(operations){
     $('#debrief-graph-svg').innerHTML = "";
     d3.selectAll("svg > *").remove();
-
-    d3.json("/plugin/debrief/graph", function (error, graph) {
+    let url = "/plugin/debrief/graph?operations=" + operations.join();
+    console.log(operations, url);
+    d3.json(url, function (error, graph) {
         console.log(graph);
         if (error) throw error;
         writeGraph(graph);
@@ -50,7 +51,7 @@ function writeGraph(graph) {
       .data(graph.nodes)
       .enter().append("text")
         .attr("class", "label")
-        .text(function(d) { return d.id; });
+        .text(function(d) { return d.type + ':' + d.name; });
 
   simulation
       .nodes(graph.nodes)

@@ -8,52 +8,72 @@
         <div class="topleft duk-icon"><img onclick="removeSection('debrief-section')" src="/gui/img/x.png"></div>
         <div class="column section-border" style="flex:25%;text-align:left;padding:15px;">
             <h1 style="font-size:70px;margin-top:-20px;">Debrief</h1>
-            <h2 style="margin-top:-50px">Campaign report</h2>
-            <p>
-                Debrief shows analytics about operations and campaigns.
-            </p>
+            <h2 style="margin-top:-50px">Campaign Analytics</h2>
             <div>
-                <select id="operation-list" style="margin-bottom: 15px;" onchange="refresh();checkOpBtns()">
-                  <option id="operationDefault" value="" disabled selected>Operations</option>
+                Operations:
+                <select id="debrief-operation-list" size="5" style="height: 100px; margin-bottom: 15px;"
+                        data-placeholder="No operations to show."
+                        multiple>
                   {% for op in operations %}
                         {%  if op.start|length%}
-                            <option class="operationOption" id="{{ op.id }}-{{ op.name }}" value="{{ op.id }}">{{ op.name }} - {{ op.start }}</option>
+                            <option class="operationOption" id="{{ op.id }}-{{ op.name }}" value="{{ op.id }}">{{ op.name }}</option>
                         {% endif %}
                   {% endfor %}
                 </select>
             </div>
-<!--            <div class="toggle">-->
-<!--                <label class="switch">-->
-<!--                    <input type="checkbox" id="toggleViewableButtons" onchange="toggleButtons()">-->
-<!--                    <div class="slider round">-->
-<!--                        <span class="on">set 2</span><span class="off">set 1</span>-->
-<!--                    </div>-->
-<!--                </label>-->
-<!--            </div>-->
-            <div id="set1">
-                <button id="debrief-show-report" type="button" class="button-success atomic-button"
+            <div id="debrief-download">
+                <button id="debrief-download-raw" type="button" class="button-success atomic-button"
                         style="margin-top:0;"
-                        onclick="doSomething()">Show Report</button>
+                        onclick="showReport()">Download JSON</button>
                 <button id="doSomething" type="button" class="button-success atomic-button" style="margin-top:0;"
-                        onclick="doSomething()">Download PDF</button>
+                        onclick="alert('not implemented')">Download PDF</button>
             </div>
-<!--            <div id="set2" style="display:none;">-->
-<!--&lt;!&ndash;                <select id="initialOptions" style="margin-top:-15px;" onchange="enableButton()">&ndash;&gt;-->
-<!--&lt;!&ndash;                    <option value="" disabled selected>Some options</option>&ndash;&gt;-->
-<!--&lt;!&ndash;                    {% for p in initial_data %}&ndash;&gt;-->
-<!--&lt;!&ndash;                        <option value="{{ p }}">{{ p }}</option>&ndash;&gt;-->
-<!--&lt;!&ndash;                    {% endfor %}}&ndash;&gt;-->
-<!--&lt;!&ndash;                </select>&ndash;&gt;-->
-<!--                <br><br>-->
-<!--                <button id="uploadFile" type="button" class="button-notready atomic-button" style="margin-top:0;"-->
-<!--                        onclick="uploadFile()">upload file</button>-->
-<!--                <input id="fileInput" type="file" name="name" style="display: none" />-->
-<!--            </div>-->
         </div>
-        <!--    this is the DIV for the right section    -->
+
         <div class="column" style="flex:75%">
             <label for="dataDisplay">Output</label><br>
             <textarea id="dataDisplay" class="column log-box" rows="4"></textarea>
+
+            <div class="row">
+                <div class="column report-box" style="flex:33.33%">
+                    <p class="report-header">Name</p>
+                    <h4 id="report-name"></h4>
+                    <p id="report-name-duration"></p>
+                </div>
+                <div class="column report-box" style="flex:33.33%">
+                    <p class="report-header">Adversary</p>
+                    <h4 id="report-adversary"></h4>
+                    <p id="report-adversary-desc"></p>
+                </div>
+                <div class="column report-box" style="flex:33.33%">
+                    <p class="report-header">Group</p>
+                    <h4 id="report-group"></h4>
+                    <p id="report-group-cnt"></p>
+                </div>
+            </div>
+            <div class="row">
+                <div class="column report-box" style="flex:100%;">
+                    <p class="report-header">Steps</p>
+                    <table id="report-steps" align="center" border=1 frame=void rules=rows>
+                        <th>Status</th>
+                        <th>Host</th>
+                        <th>Ability</th>
+                        <th>Technique</th>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="row">
+                <div class="column report-box" style="flex:100%;">
+                    <p class="report-header">facts</p>
+                    <table id="report-facts" align="center" border=1 frame=void rules=rows>
+                        <th>Property</th>
+                        <th>Values</th>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
+
 </div>

@@ -3,11 +3,12 @@ import logging
 from aiohttp import web
 from aiohttp_jinja2 import template
 
-from app.service.auth_svc import check_authorization
+from app.service.auth_svc import for_all_public_methods, check_authorization
 from app.utility.base_world import BaseWorld
 from plugins.debrief.app.debrief_svc import DebriefService
 
 
+@for_all_public_methods(check_authorization)
 class DebriefGui(BaseWorld):
 
     def __init__(self, services):
@@ -18,40 +19,22 @@ class DebriefGui(BaseWorld):
         self.file_svc = services.get('file_svc')
         self.log = logging.getLogger('debrief_gui')
 
-    @check_authorization
+    async def _get_access(self, request):
+        return dict(access=tuple(await self.auth_svc.get_permissions(request)))
+
     @template('debrief.html')
     async def splash(self, request):
-        access = dict(access=tuple(await self.auth_svc.get_permissions(request)))
-        operations = [o.display for o in await self.data_svc.locate('operations', match=access)]
+        operations = [o.display for o in await self.data_svc.locate('operations', match=await self._get_access(request))]
         return dict(operations=operations)
 
-    @check_authorization
-    async def debrief_core(self, request):
+    async def report(self, request):
+        data = dict(await request.json())
+        operations = [o.display for o in await self.data_svc.locate('operations', match=await self._get_access(request))
+                      if str(o.id) in data.get('operations')]
+        return web.json_response(dict(hello=operations))
+
+    async def graph(self, request):
         try:
-            data = dict(await request.json())
-            index = data.pop('index')
-            options = dict(
-                DELETE=dict(),
-                PUT=dict(),
-                POST=dict(
-                    do_something=lambda d: self.something(),
-                    process_file=lambda d: self.process_file(d)  # d is the data dict with index popped off
-                )
-            )
-            if index not in options[request.method]:
-                return web.HTTPBadRequest(text='index: %s is not a valid index for the debrief plugin' % index)
-            return web.json_response(await options[request.method][index](data))
+            return web.json_response(dict(hello='yo'))
         except Exception as e:
             self.log.error(repr(e), exc_info=True)
-
-    async def something(self):
-        response = await self.debrief_svc.something()
-        return dict(output=response)
-
-    async def process_file(self, data):
-        await self.debrief_svc.do_file_thing(data['filename'], data['option'])
-        return dict(output='%s: successfully did something with %s' % (data['option'], data['filename']))
-
-    @check_authorization
-    async def store_file(self, request):
-        return await self.file_svc.save_multipart_file_upload(request, 'plugins/debrief/data/uploads/')

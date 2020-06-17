@@ -51,7 +51,7 @@ class DebriefService:
                         id_store['agent' + agent.unique] = max(id_store.values()) + 1
                     graph_output['links'].append(dict(source=link_graph_id, target=id_store['agent' + agent.unique], type='next_link'))
                 except:
-                    print('no' + link.paw)
+                    continue
 
         return graph_output
 

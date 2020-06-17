@@ -5,28 +5,8 @@ class DebriefService:
     def __init__(self, services):
         self.services = services
         self.file_svc = services.get('file_svc')
-        self.file_svc = services.get('file_svc')
+        self.data_svc = services.get('data_svc')
         self.log = logging.getLogger('debrief_svc')
-
-    async def build_fact_d3(self):
-        graph_output = dict(nodes=[], links=[])
-        id_store = dict(default=0)
-
-        operations = await self.data_svc.locate('operations')
-        for op in operations:
-            for fact in op.all_facts():
-                if fact.unique not in id_store.keys():
-                    id_store[fact.unique] = node_id = max(id_store.values()) + 1
-                    node = dict(name=fact.value, label=fact.value, id=node_id, group=node_id, img='fact')
-                    graph_output['nodes'].append(node)
-
-            for relationship in op.all_relationships():
-                if relationship.edge:
-                    link = dict(source=id_store.get(''.join(relationship.source)),
-                                target=id_store.get(''.join(relationship.target)),
-                                type=relationship.edge)
-                    graph_output['links'].append(link)
-        return graph_output
 
     async def build_agent_d3(self):
         graph_output = dict(nodes=[], links=[])

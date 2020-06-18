@@ -1,7 +1,9 @@
 import json
 import logging
+
 from aiohttp import web
 from aiohttp_jinja2 import template
+from reportlab.pdfgen import canvas
 
 from app.service.auth_svc import for_all_public_methods, check_authorization
 from app.utility.base_world import BaseWorld
@@ -18,6 +20,10 @@ class DebriefGui(BaseWorld):
         self.data_svc = services.get('data_svc')
         self.file_svc = services.get('file_svc')
         self.log = logging.getLogger('debrief_gui')
+
+        # suppress Python Image Library debug logs
+        pil = logging.getLogger('PIL')
+        pil.setLevel(logging.INFO)
 
     async def _get_access(self, request):
         return dict(access=tuple(await self.auth_svc.get_permissions(request)))
@@ -40,3 +46,41 @@ class DebriefGui(BaseWorld):
             return web.json_response(graph)
         except Exception as e:
             self.log.error(repr(e), exc_info=True)
+
+    async def download_pdf(self, request):
+        data = dict(await request.json())
+        if data['operation_id'] and len(data['operation_id']) == 1:
+            op_id = data['operation_id'].pop()
+            operation = (await self.data_svc.locate('operations', match=dict(id=int(op_id))))[0]
+            filename = operation.name + '_' + operation.start.strftime('%Y-%m-%d_%H-%M-%S')
+            pdf_bytes = self._build_pdf(filename, operation)
+            return web.json_response(dict(filename=filename, pdf_bytes=pdf_bytes))
+        return web.json_response('None or multiple operations selected')
+
+    def _build_pdf(self, filename, operation):
+        c = canvas.Canvas(filename + '.pdf', bottomup=0)
+        c.setTitle(filename)
+        self._draw_logo(c)
+        c.setFont('Helvetica-Bold', 20)
+        c.drawString(100, 100, operation.name)
+        c.setFont('Helvetica', 15)
+        c.drawString(100, 140, 'Steps')
+        self._draw_steps(c, operation.chain)
+        c.showPage()
+        return c.getpdfdata().decode('utf-8', errors='ignore')
+
+    @staticmethod
+    def _draw_logo(cnvs):
+        cnvs.saveState()
+        cnvs.translate(15, 15)
+        cnvs.scale(1, -1)
+        cnvs.drawImage('./static/img/back-red.png', 80, 0, -80, -60)
+        cnvs.restoreState()
+
+    @staticmethod
+    def _draw_steps(cnvs, chain):
+        cnvs.setFont('Helvetica', 12)
+        y = 140
+        for link in chain:
+            y += 20
+            cnvs.drawString(100, y, link.collect.strftime('%Y-%m-%d %H:%M:%S') + ' ' + link.ability.name)

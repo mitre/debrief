@@ -77,17 +77,22 @@ $( document ).ready(function() {
 
 function downloadPDF() {
     function callback(data) {
-        stream('Downloading PDF report: '+ data['filename'] + '.pdf');
+        if (typeof data == 'string') {
+            stream('Select a single operation to generate a PDF report');
+        }
+        else {
+            stream('Downloading PDF report: '+ data['filename'] + '.pdf');
 
-        var file = new Blob([data['pdf_bytes']], { type: 'application/pdf' });
-        var fileURL = URL.createObjectURL(file);
+            var file = new Blob([data['pdf_bytes']], { type: 'application/pdf' });
+            var fileURL = URL.createObjectURL(file);
 
-        let downloadAnchorNode = document.createElement('a');
-        downloadAnchorNode.setAttribute('href', fileURL);
-        downloadAnchorNode.setAttribute('download', data['filename'] + '.pdf');
-        document.body.appendChild(downloadAnchorNode);
-        downloadAnchorNode.click();
-        downloadAnchorNode.remove();
+            let downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute('href', fileURL);
+            downloadAnchorNode.setAttribute('download', data['filename'] + '.pdf');
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
     }
     restRequest('POST', {'operation_id': $('#debrief-operation-list').val()}, callback, '/plugin/debrief/pdf');
 }

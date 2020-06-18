@@ -49,11 +49,13 @@ class DebriefGui(BaseWorld):
 
     async def download_pdf(self, request):
         data = dict(await request.json())
-        op_id = data['operation_id'].pop()
-        operation = (await self.data_svc.locate('operations', match=dict(id=int(op_id))))[0]
-        filename = operation.name + '_' + operation.start.strftime('%Y-%m-%d_%H-%M-%S')
-        pdf_bytes = self._build_pdf(filename, operation)
-        return web.json_response(dict(filename=filename, pdf_bytes=pdf_bytes))
+        if data['operation_id'] and len(data['operation_id']) == 1:
+            op_id = data['operation_id'].pop()
+            operation = (await self.data_svc.locate('operations', match=dict(id=int(op_id))))[0]
+            filename = operation.name + '_' + operation.start.strftime('%Y-%m-%d_%H-%M-%S')
+            pdf_bytes = self._build_pdf(filename, operation)
+            return web.json_response(dict(filename=filename, pdf_bytes=pdf_bytes))
+        return web.json_response('None or multiple operations selected')
 
     def _build_pdf(self, filename, operation):
         c = canvas.Canvas(filename + '.pdf', bottomup=0)
@@ -68,7 +70,7 @@ class DebriefGui(BaseWorld):
         return c.getpdfdata().decode('utf-8', errors='ignore')
 
     @staticmethod
-    def _draw_logo(self, cnvs):
+    def _draw_logo(cnvs):
         cnvs.saveState()
         cnvs.translate(15, 15)
         cnvs.scale(1, -1)
@@ -76,7 +78,7 @@ class DebriefGui(BaseWorld):
         cnvs.restoreState()
 
     @staticmethod
-    def _draw_steps(self, cnvs, chain):
+    def _draw_steps(cnvs, chain):
         cnvs.setFont('Helvetica', 12)
         y = 140
         for link in chain:

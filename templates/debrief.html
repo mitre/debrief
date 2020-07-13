@@ -32,12 +32,11 @@
         </div>
 
         <div class="column" style="flex:85%;">
-            <h3>Graph</h3>
             <div id="debrief-graph" class="row" style="background-color: black; height: 400px; background-image: none;">
                 <svg id="debrief-graph-svg" width="1200" height="400"></svg>
             </div>
 
-            <h3>Operations</h3>
+            <h3>Stats</h3>
             <div class="row">
                 <table id="report-operations" class="report-table" border=1 frame=void rules=rows>
                     <thead>
@@ -45,13 +44,10 @@
                         <th>State</th>
                         <th>Planner</th>
                         <th>Objective</th>
+                        <th>Time</th>
                     </thead>
                     <tbody></tbody>
                 </table>
-            </div>
-
-            <h3>Stats</h3>
-            <div class="row">
             </div>
 
             <h3>Steps</h3>
@@ -71,4 +67,17 @@
         </div>
     </div>
 
+</div>
+
+<div id="debrief-step-modal" class="modal">
+    <form class="modal-content ability-viewer">
+        <div class="imgcontainer">
+          <span onclick="resetDebriefStepModal();" class="close" title="Close Modal">&times;</span>
+        </div>
+        <div class="container" style="text-align:left">
+            <code id="debrief-step-modal-cmd"></code>
+            <hr>
+            <pre id="debrief-step-modal-view" style="text-align: left;max-width:800px;"></pre>
+        </div>
+    </form>
 </div>

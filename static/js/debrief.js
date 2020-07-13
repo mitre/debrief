@@ -38,6 +38,7 @@ $( document ).ready(function() {
             "<td style='text-transform: capitalize;'>"+op.state+"</td>" +
             "<td>"+op.planner.name+"</td>" +
             "<td>"+op.objective.name+"</td>" +
+            "<td>"+op.start+"</td>" +
             "</tr>");
     }
 
@@ -49,7 +50,8 @@ $( document ).ready(function() {
                 "<td>"+step.ability.name+"</td>" +
                 "<td>"+step.paw+"</td>" +
                 "<td>"+op.name+"</td>" +  //
-                "<td><button>Show Command</button></td>" +
+                "<td><button data-encoded-cmd='"+step.command +"' onclick='findResults(this,"+step.id+")'>Show" +
+                " Command</button></td>" +
                 "</tr>");
         })
 
@@ -83,8 +85,8 @@ function downloadPDF() {
         else {
             stream('Downloading PDF report: '+ data['filename'] + '.pdf');
 
-            var file = new Blob([data['pdf_bytes']], { type: 'application/pdf' });
-            var fileURL = URL.createObjectURL(file);
+            let file = new Blob([data['pdf_bytes']], { type: 'application/pdf' });
+            let fileURL = URL.createObjectURL(file);
 
             let downloadAnchorNode = document.createElement('a');
             downloadAnchorNode.setAttribute('href', fileURL);
@@ -95,4 +97,27 @@ function downloadPDF() {
         }
     }
     restRequest('POST', {'operation_id': $('#debrief-operation-list').val()}, callback, '/plugin/debrief/pdf');
+}
+
+function findResults(elem, lnk){
+    function loadResults(data){
+        if (data) {
+            let res = atob(data.output);
+            $.each(data.link.facts, function (k, v) {
+                let regex = new RegExp(String.raw`${v.value}`, "g");
+                res = res.replace(regex, "<span class='highlight'>" + v.value + "</span>");
+            });
+            $('#debrief-step-modal-view').html(res);
+        }
+    }
+    document.getElementById('debrief-step-modal').style.display='block';
+    $('#debrief-step-modal-cmd').html(atob($(elem).attr('data-encoded-cmd')));
+    restRequest('POST', {'index':'result','link_id':lnk}, loadResults);
+}
+
+function resetDebriefStepModal() {
+    let modal = $('#debrief-step-modal');
+    modal.hide();
+    modal.find('#debrief-step-modal-cmd').text('');
+    modal.find('#debrief-step-modal-view').text('');
 }

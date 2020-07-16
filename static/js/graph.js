@@ -9,6 +9,8 @@ let graph_simulation = createForceSimulation();
 let fact_simulation = createForceSimulation();
 let simulationDict = {"graph": graph_simulation, "facts": fact_simulation}
 
+let tooltip = d3.select('#tooltip');
+
 function createForceSimulation() {
     return d3.forceSimulation()
             .force("link", d3.forceLink().id(function(d) { return d.id; }))
@@ -91,7 +93,20 @@ function writeGraph(graph, svg, type) {
          .style("stroke", "#424242")
          .style("stroke-width", "1px")
          .attr("cx", function (d) { return d.x+5; })
-         .attr("cy", function(d) { return d.y-3; });
+         .attr("cy", function(d) { return d.y-3; })
+         .on("mouseover", function(d) {
+            tooltip.transition()
+                .duration(200)
+                .style("opacity", .9);
+            tooltip.html(generateTooltipHTML(d))
+                .style("left", d.x+48 + "px")
+                .style("top", d.y-40 + "px");
+            })
+        .on("mouseout", function(d) {
+            tooltip.transition()
+                .duration(500)
+                .style("opacity", 0)
+            });
 
     label
     		.attr("x", function(d) { return d.x; })
@@ -117,3 +132,21 @@ function writeGraph(graph, svg, type) {
   }
 }
 
+function generateTooltipHTML(d) {
+    let props = ['type', 'name', 'score', 'collected_by', 'technique_id'];
+    let ret = "";
+    props.forEach(function(prop) {
+        if (d[prop]) {
+            if (prop == 'type') {
+                ret += 'trait: ' + d[prop] + '<br/>';
+            }
+            else if (prop == 'name') {
+                ret += 'value: ' + d[prop] + '<br/>';
+            }
+            else {
+                ret += prop + ": " + d[prop] + '<br/>';
+            }
+        }
+    })
+    return ret
+}

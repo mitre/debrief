@@ -55,4 +55,24 @@ class DebriefService:
 
         return graph_output
 
+    async def build_fact_d3(self, operation_ids):
+        graph_output = dict(nodes=[], links=[])
+        id_store = dict(default=0)
+
+        for op_id in operation_ids:
+            operation = (await self.data_svc.locate('operations', match=dict(id=int(op_id))))[0]
+            for fact in operation.all_facts():
+                if fact.unique not in id_store.keys():
+                    id_store[fact.unique] = node_id = max(id_store.values()) + 1
+                    node = dict(name=fact.value, id=node_id, type=fact.trait)
+                    graph_output['nodes'].append(node)
+
+            for relationship in operation.all_relationships():
+                if relationship.edge:
+                    link = dict(source=id_store.get(''.join(relationship.source.unique)),
+                                target=id_store.get(''.join(relationship.target.unique)),
+                                type=relationship.edge)
+                    graph_output['links'].append(link)
+        return graph_output
+
 

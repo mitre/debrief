@@ -57,6 +57,14 @@ class DebriefGui(BaseWorld):
             return web.json_response(dict(filename=filename, pdf_bytes=pdf_bytes))
         return web.json_response('None or multiple operations selected')
 
+    async def fact_graph(self, request):
+        try:
+            operations = request.rel_url.query['operations'].split(',')
+            graph = await self.debrief_svc.build_fact_d3(operations)
+            return web.json_response(graph)
+        except Exception as e:
+            self.log.error(repr(e), exc_info=True)
+
     def _build_pdf(self, filename, operation):
         c = canvas.Canvas(filename + '.pdf', bottomup=0)
         c.setTitle(filename)
@@ -84,3 +92,4 @@ class DebriefGui(BaseWorld):
         for link in chain:
             y += 20
             cnvs.drawString(100, y, link.collect.strftime('%Y-%m-%d %H:%M:%S') + ' ' + link.ability.name)
+

@@ -66,3 +66,16 @@
 .section-content {
     flex:75%;padding:15px;text-align: left
 }
+
+div.tooltip {
+    position: absolute;
+    text-align: left;
+    width: auto;
+    height: auto;
+    padding: 5px;
+    font: 12px sans-serif;
+    background: #750b20;
+    border: 0px;
+    border-radius: 8px;
+    pointer-events: none;
+}

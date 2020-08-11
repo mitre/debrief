@@ -64,8 +64,7 @@ class DebriefService:
             for fact in operation.all_facts():
                 if fact.unique not in id_store.keys():
                     id_store[fact.unique] = node_id = max(id_store.values()) + 1
-                    node = dict(name=fact.value, id=node_id, type=fact.trait, score=fact.score,
-                                collected_by=fact.collected_by, technique_id=fact.technique_id)
+                    node = dict(name=fact.value, id=node_id, type=fact.trait, attrs=self.get_pub_attrs(fact))
                     graph_output['nodes'].append(node)
 
             for relationship in operation.all_relationships():
@@ -76,4 +75,6 @@ class DebriefService:
                     graph_output['links'].append(link)
         return graph_output
 
-
+    @staticmethod
+    def get_pub_attrs(fact):
+        return {k: v for k, v in vars(fact).items() if not k.startswith('_')}

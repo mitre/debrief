@@ -133,20 +133,11 @@ function writeGraph(graph, svg, type) {
 }
 
 function generateTooltipHTML(d) {
-    let props = ['type', 'name', 'score', 'collected_by', 'technique_id'];
     let ret = "";
-    props.forEach(function(prop) {
-        if (d[prop]) {
-            if (prop == 'type') {
-                ret += 'trait: ' + d[prop] + '<br/>';
-            }
-            else if (prop == 'name') {
-                ret += 'value: ' + d[prop] + '<br/>';
-            }
-            else {
-                ret += prop + ": " + d[prop] + '<br/>';
-            }
+    for (var key in d['attrs']) {
+        if (d['attrs'][key]) {
+            ret += key + ": " + d['attrs'][key] + '<br/>';
         }
-    })
-    return ret
+    }
+    return ret;
 }

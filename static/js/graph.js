@@ -134,10 +134,17 @@ function writeGraph(graph, svg, type) {
 
 function generateTooltipHTML(d) {
     let ret = "";
-    for (var key in d['attrs']) {
-        if (d['attrs'][key]) {
-            ret += key + ": " + d['attrs'][key] + '<br/>';
-        }
+    if (d["type"] == "operation") {
+        ret += "name: " + d["name"] + "<br/>";
+        ret += "op_id: " + d["id"] + "<br/>";
+        return ret;
     }
-    return ret;
+    else {
+        for (var key in d["attrs"]) {
+            if (d["attrs"][key]) {
+                ret += key + ": " + d["attrs"][key] + "<br/>";
+            }
+        }
+        return ret;
+    }
 }

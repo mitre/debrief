@@ -77,6 +77,13 @@ $( document ).ready(function() {
     }
 });
 
+function switchGraphView(btn) {
+    $(".op-svg").hide();
+    $(".graph-switch").attr("disabled", false);
+    $("#graph-switch-" + $(btn).val()).attr("disabled", true);
+    $("#debrief-" + $(btn).val() + "-svg").show();
+}
+
 function downloadPDF() {
     function callback(data) {
         if (typeof data == 'string') {

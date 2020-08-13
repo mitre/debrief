@@ -1,17 +1,23 @@
+class Graph {
+    constructor(type, svg) {
+        this.type = type;
+        this.svg = svg;
+        this.simulation = createForceSimulation(1200, 400);
+    }
+}
+
+let graphSvg = new Graph("graph", d3.select("#debrief-graph-svg")),
+    factSvg = new Graph("fact", d3.select("#debrief-fact-svg")),
+    tacticSvg = new Graph("tactic", d3.select("#debrief-tactic-svg")),
+    techniqueSvg = new Graph("technique", d3.select("#debrief-technique-svg"))
+
+let graphs = {"graph": graphSvg, "fact": factSvg, "tactic": tacticSvg, "technique": techniqueSvg}
+
 let colors = d3.scaleOrdinal(d3.schemeCategory10);
-
-let graph_svg = d3.select("#debrief-graph-svg"),
-    fact_svg = d3.select("#debrief-fact-svg"),
-    width = +graph_svg.attr("width"),
-    height = +graph_svg.attr("height");
-
-let graph_simulation = createForceSimulation();
-let fact_simulation = createForceSimulation();
-let simulationDict = {"graph": graph_simulation, "facts": fact_simulation}
 
 let tooltip = d3.select('#tooltip');
 
-function createForceSimulation() {
+function createForceSimulation(width, height) {
     return d3.forceSimulation()
             .force("link", d3.forceLink().id(function(d) { return d.id; }))
                 .force('charge', d3.forceManyBody()
@@ -23,20 +29,20 @@ function createForceSimulation() {
 }
 
 async function updateReportGraph(operations){
-    $('#debrief-graph-svg').innerHTML = "";
-    $('#debrief-fact-svg').innerHTML = "";
+    $('.debrief-svg').innerHTML = "";
     d3.selectAll("svg > *").remove();
-    await buildGraph(graph_svg, 'graph', operations);
-    await buildGraph(fact_svg, 'facts', operations);
+
+    for (var type in graphs) {
+        await buildGraph(graphs[type].svg, type, operations)
+    }
+
 }
 
-async function buildGraph(svg, graphUrl, operations) {
-    let url = "/plugin/debrief/" + graphUrl + "?operations=" + operations.join();
-    console.log(operations, url);
+async function buildGraph(svg, type, operations) {
+    let url = "/plugin/debrief/graph?type=" + type + "&operations=" + operations.join();
     d3.json(url, function (error, graph) {
-        console.log(graph);
         if (error) throw error;
-        writeGraph(graph, svg, graphUrl);
+        writeGraph(graph, svg, type);
     });
 }
 
@@ -71,7 +77,7 @@ function writeGraph(graph, svg, type) {
         .attr("class", "label")
         .text(function(d) { return d.type + ':' + d.name; });
 
-  let simulation = simulationDict[type];
+  let simulation = graphs[type].simulation;
 
   simulation
       .nodes(graph.nodes)
@@ -130,9 +136,8 @@ function writeGraph(graph, svg, type) {
       d.fy = d3.event.y
       if (!d3.event.active) simulation.alphaTarget(0);
   }
-}
 
-function generateTooltipHTML(d) {
+  function generateTooltipHTML(d) {
     let ret = "";
     if (d["type"] == "operation") {
         ret += "name: " + d["name"] + "<br/>";
@@ -154,5 +159,6 @@ function generateTooltipHTML(d) {
             }
         }
     }
-    return ret;
+    return ret
+  }
 }

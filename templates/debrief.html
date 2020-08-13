@@ -32,8 +32,13 @@
         </div>
 
         <div class="column" style="flex:85%;">
-            <div id="debrief-graph" class="row" style="background-color: black; height: 400px; background-image: none;">
-                <svg id="debrief-graph-svg" width="1200" height="400"></svg>
+            <div id="debrief-graph" class="row">
+                <button id="graph-switch-technique" class="graph-switch" value="technique" onclick="switchGraphView(this)">Technique</button>
+                <button id="graph-switch-tactic" class="graph-switch" value="tactic" onclick="switchGraphView(this)">Tactic</button>
+                <button id="graph-switch-graph" class="graph-switch" disabled value="graph" onclick="switchGraphView(this)">Default</button>
+                <svg id="debrief-graph-svg" class="op-svg debrief-svg" width="1200" height="400"></svg>
+                <svg id="debrief-tactic-svg" class="op-svg debrief-svg" width="1200" height="400" style="display: none"></svg>
+                <svg id="debrief-technique-svg" class="op-svg debrief-svg" width="1200" height="400" style="display: none"></svg>
             </div>
 
             <h3>Stats</h3>
@@ -67,7 +72,7 @@
             <h3>Fact Graph</h3>
             <div id="fact-graph" class="row" style="background-color: black; height: 400px; background-image: none;">
                 <div class="tooltip" id="tooltip" style="opacity: 0"></div>
-                <svg id="debrief-fact-svg" width="1200" height="400"></svg>
+                <svg id="debrief-fact-svg" class="debrief-svg" width="1200" height="400"></svg>
             </div>
 
         </div>

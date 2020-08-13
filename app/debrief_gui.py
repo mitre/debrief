@@ -51,9 +51,16 @@ class DebriefGui(BaseWorld):
         return web.json_response(dict(operations=operations))
 
     async def graph(self, request):
+        graphs = {
+            'graph': self.debrief_svc.build_operation_d3,
+            'fact': self.debrief_svc.build_fact_d3,
+            'tactic': self.debrief_svc.build_tactic_d3,
+            'technique': self.debrief_svc.build_technique_d3
+        }
         try:
+            graph_type = request.rel_url.query['type']
             operations = request.rel_url.query['operations'].split(',')
-            graph = await self.debrief_svc.build_operation_d3(operations)
+            graph = await graphs[graph_type](operations)
             return web.json_response(graph)
         except Exception as e:
             self.log.error(repr(e), exc_info=True)
@@ -71,14 +78,6 @@ class DebriefGui(BaseWorld):
             self._clean_downloads()
             return web.json_response(dict(filename=filename, pdf_bytes=pdf_bytes))
         return web.json_response('No or multiple operations selected')
-
-    async def fact_graph(self, request):
-        try:
-            operations = request.rel_url.query['operations'].split(',')
-            graph = await self.debrief_svc.build_fact_d3(operations)
-            return web.json_response(graph)
-        except Exception as e:
-            self.log.error(repr(e), exc_info=True)
 
     @staticmethod
     def _build_pdf(operations, agents, filename):

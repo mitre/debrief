@@ -96,7 +96,10 @@ function downloadPDF() {
             downloadAnchorNode.remove();
         }
     }
-    restRequest('POST', {'operation_id': $('#debrief-operation-list').val()}, callback, '/plugin/debrief/pdf');
+    let s = new XMLSerializer().serializeToString(document.getElementById("debrief-graph-svg"))
+    let encodedData = window.btoa(s);
+    console.log(encodedData)
+    restRequest('POST', {'operation_id': $('#debrief-operation-list').val(), 'graph': encodedData}, callback, '/plugin/debrief/pdf');
 }
 
 function findResults(elem, lnk){

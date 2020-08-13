@@ -137,14 +137,22 @@ function generateTooltipHTML(d) {
     if (d["type"] == "operation") {
         ret += "name: " + d["name"] + "<br/>";
         ret += "op_id: " + d["id"] + "<br/>";
-        return ret;
+    }
+    else if (d["type"] == "tactic" || d["type"] == "technique_name") {
+        let p = d["attrs"][d["type"]]
+        ret += d["type"] + ": " + p + "<br/>";
+        for (let key in d["attrs"]) {
+            if (key != d["type"]) {
+                ret += key + ": " + d["attrs"][key] + "<br/>";
+            }
+        }
     }
     else {
-        for (var key in d["attrs"]) {
+        for (let key in d["attrs"]) {
             if (d["attrs"][key]) {
                 ret += key + ": " + d["attrs"][key] + "<br/>";
             }
         }
-        return ret;
     }
+    return ret;
 }

@@ -95,10 +95,12 @@ class DebriefService:
             operation = (await self.data_svc.locate('operations', match=dict(id=int(op_id))))[0]
             graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id))
             previous_prop_graph_id = None
-            for p in self._get_by_prop_order(operation.chain, prop):
+            for p, lnks in self._get_by_prop_order(operation.chain, prop):
                 i = max(id_store.values()) + 1
                 prop_graph_id = id_store[prop + p + str(i)] = i
-                graph_output['nodes'].append(dict(type=prop, name=p, id=prop_graph_id))
+                p_attrs = {prop: p}
+                p_attrs.update({lnk.unique: lnk.ability.name for lnk in lnks})
+                graph_output['nodes'].append(dict(type=prop, name=p, id=prop_graph_id, attrs=p_attrs))
 
                 if not previous_prop_graph_id:
                     graph_output['links'].append(dict(source=op_id, target=prop_graph_id, type='next_link'))
@@ -115,9 +117,11 @@ class DebriefService:
     @staticmethod
     def _get_by_prop_order(chain, prop):
         current = getattr(chain[0].ability, prop)
-        ordered = [current]
-        for lnk in chain:
+        ordered = [(current, [chain[0]])]
+        for lnk in chain[1:]:
             if getattr(lnk.ability, prop) != current and lnk.cleanup == 0:
                 current = getattr(lnk.ability, prop)
-                ordered.append(current)
+                ordered.append((current, [lnk]))
+            else:
+                next(p for p in ordered if p[0] == current)[1].append(lnk)
         return ordered

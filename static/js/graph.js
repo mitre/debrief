@@ -1,21 +1,20 @@
 class Graph {
-    constructor(type, svg) {
+    constructor(type, svg, tooltip) {
         this.type = type;
         this.svg = svg;
+        this.tooltip = tooltip;
         this.simulation = createForceSimulation(1200, 400);
     }
 }
 
-let graphSvg = new Graph("graph", d3.select("#debrief-graph-svg")),
-    factSvg = new Graph("fact", d3.select("#debrief-fact-svg")),
-    tacticSvg = new Graph("tactic", d3.select("#debrief-tactic-svg")),
-    techniqueSvg = new Graph("technique", d3.select("#debrief-technique-svg"))
+let graphSvg = new Graph("graph", d3.select("#debrief-graph-svg"), null),
+    tacticSvg = new Graph("tactic", d3.select("#debrief-tactic-svg"), d3.select('#op-tooltip')),
+    techniqueSvg = new Graph("technique", d3.select("#debrief-technique-svg"), d3.select('#op-tooltip')),
+    factSvg = new Graph("fact", d3.select("#debrief-fact-svg"), d3.select('#fact-tooltip'))
 
-let graphs = {"graph": graphSvg, "fact": factSvg, "tactic": tacticSvg, "technique": techniqueSvg}
+let graphs = [graphSvg, factSvg, tacticSvg, techniqueSvg];
 
 let colors = d3.scaleOrdinal(d3.schemeCategory10);
-
-let tooltip = d3.select('#tooltip');
 
 function createForceSimulation(width, height) {
     return d3.forceSimulation()
@@ -28,33 +27,32 @@ function createForceSimulation(width, height) {
             .force("center", d3.forceCenter(width / 2, height / 2));
 }
 
-async function updateReportGraph(operations){
+function updateReportGraph(operations){
     $('.debrief-svg').innerHTML = "";
     d3.selectAll("svg > *").remove();
 
-    for (var type in graphs) {
-        await buildGraph(graphs[type].svg, type, operations)
-    }
-
-}
-
-async function buildGraph(svg, type, operations) {
-    let url = "/plugin/debrief/graph?type=" + type + "&operations=" + operations.join();
-    d3.json(url, function (error, graph) {
-        if (error) throw error;
-        writeGraph(graph, svg, type);
+    graphs.forEach(function(graphObj) {
+        buildGraph(graphObj, operations)
     });
 }
 
-function writeGraph(graph, svg, type) {
+function buildGraph(graphObj, operations) {
+    let url = "/plugin/debrief/graph?type=" + graphObj.type + "&operations=" + operations.join();
+    d3.json(url, function (error, graph) {
+        if (error) throw error;
+        writeGraph(graph, graphObj);
+    });
+}
 
-  var link = svg.append("g")
+function writeGraph(graph, graphObj) {
+
+  var link = graphObj.svg.append("g")
                 .style("stroke", "#aaa")
                 .selectAll("line")
                 .data(graph.links)
                 .enter().append("line");
 
-  var node = svg.append("g")
+  var node = graphObj.svg.append("g")
       .attr("class", "nodes")
       .selectAll("circle")
       .data(graph.nodes)
@@ -69,7 +67,7 @@ function writeGraph(graph, svg, type) {
           .on("drag", dragged)
           .on("end", dragended));
 
-  var label = svg.append("g")
+  var label = graphObj.svg.append("g")
       .attr("class", "labels")
       .selectAll("text")
       .data(graph.nodes)
@@ -77,7 +75,7 @@ function writeGraph(graph, svg, type) {
         .attr("class", "label")
         .text(function(d) { return d.type + ':' + d.name; });
 
-  let simulation = graphs[type].simulation;
+  let simulation = graphObj.simulation;
 
   simulation
       .nodes(graph.nodes)
@@ -101,18 +99,22 @@ function writeGraph(graph, svg, type) {
          .attr("cx", function (d) { return d.x+5; })
          .attr("cy", function(d) { return d.y-3; })
          .on("mouseover", function(d) {
-            tooltip.transition()
-                .duration(200)
-                .style("opacity", .9);
-            tooltip.html(generateTooltipHTML(d))
-                .style("left", d.x+48 + "px")
-                .style("top", d.y-40 + "px");
-            })
+            if (graphObj.tooltip) {
+                graphObj.tooltip.transition()
+                    .duration(200)
+                    .style("opacity", .9);
+                graphObj.tooltip.html(generateTooltipHTML(d))
+                    .style("left", d.x+50 + "px")
+                    .style("top", d.y + "px");
+            }
+        })
         .on("mouseout", function(d) {
-            tooltip.transition()
-                .duration(500)
-                .style("opacity", 0)
-            });
+            if (graphObj.tooltip) {
+                graphObj.tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+            }
+        });
 
     label
     		.attr("x", function(d) { return d.x; })

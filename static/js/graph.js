@@ -46,11 +46,26 @@ function buildGraph(graphObj, operations) {
 
 function writeGraph(graph, graphObj) {
 
+  graphObj.svg.append('defs').append('marker')
+        .attrs({'id':'arrowhead'+graphObj.type,
+            'viewBox':'-0 -5 10 10',
+            'refX':30,
+            'refY':0,
+            'orient':'auto',
+            'markerWidth':8,
+            'markerHeight':8,
+            'xoverflow':'visible'})
+        .append('svg:path')
+        .attr('d', 'M 0,-5 L 10 ,0 L 0,5')
+        .attr('fill', '#999')
+        .style('stroke','none');
+
   var link = graphObj.svg.append("g")
                 .style("stroke", "#aaa")
                 .selectAll("line")
                 .data(graph.links)
-                .enter().append("line");
+                .enter().append("line")
+                .attr('marker-end','url(#arrowhead' + graphObj.type + ')');
 
   var node = graphObj.svg.append("g")
       .attr("class", "nodes")
@@ -82,14 +97,16 @@ function writeGraph(graph, graphObj) {
       .on("tick", ticked);
 
   simulation.force("link")
-      .links(graph.links);
+      .links(graph.links)
+      .distance(50)
 
   function ticked() {
     link
-        .attr("x1", function(d) { return d.source.x; })
-        .attr("y1", function(d) { return d.source.y; })
-        .attr("x2", function(d) { return d.target.x; })
-        .attr("y2", function(d) { return d.target.y; });
+        .attr("x1", function(d) { return d.source.x+6; })
+        .attr("y1", function(d) { return d.source.y-2; })
+        .attr("x2", function(d) { return d.target.x+6; })
+        .attr("y2", function(d) { return d.target.y-2; });
+
 
     node
          .attr("r", 16)

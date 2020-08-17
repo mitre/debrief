@@ -1,30 +1,44 @@
 class Graph {
-    constructor(type, svg, tooltip) {
+    constructor(id, type, tooltip) {
+        this.id = id;
         this.type = type;
-        this.svg = svg;
+        this.svg = d3.select(id);
         this.tooltip = tooltip;
-        this.simulation = createForceSimulation(1200, 400);
+        this.simulation = createForceSimulation(1100, 400);
     }
 }
 
-let graphSvg = new Graph("graph", d3.select("#debrief-graph-svg"), null),
-    tacticSvg = new Graph("tactic", d3.select("#debrief-tactic-svg"), d3.select('#op-tooltip')),
-    techniqueSvg = new Graph("technique", d3.select("#debrief-technique-svg"), d3.select('#op-tooltip')),
-    factSvg = new Graph("fact", d3.select("#debrief-fact-svg"), d3.select('#fact-tooltip'))
+var link_lengths = {'http': 100, 'next_link': 50};
 
-let graphs = [graphSvg, factSvg, tacticSvg, techniqueSvg];
+var graphSvg = new Graph("#debrief-graph-svg", "graph", null),
+    tacticSvg = new Graph("#debrief-tactic-svg", "tactic", d3.select('#op-tooltip')),
+    techniqueSvg = new Graph("#debrief-technique-svg", "technique", d3.select('#op-tooltip')),
+    factSvg = new Graph("#debrief-fact-svg", "fact", d3.select('#fact-tooltip'))
 
-let colors = d3.scaleOrdinal(d3.schemeCategory10);
+var graphs = [graphSvg, factSvg, tacticSvg, techniqueSvg];
+
+var imgs = {
+    "c2": "debrief/img/cloud.svg",
+    "operation": "gui/img/operation.png",
+    "link": "debrief/img/link.svg",
+    "fact": "debrief/img/star.svg",
+    "darwin": "gui/img/darwin.png",
+    "windows": "gui/img/windows.png",
+    "linux": "gui/img/linux.png",
+    "tactic": "debrief/img/tactic.svg",
+    "technique_name": "debrief/img/technique.svg"}
+
+var colors = d3.scaleOrdinal(d3.schemeCategory10);
 
 function createForceSimulation(width, height) {
     return d3.forceSimulation()
             .force("link", d3.forceLink().id(function(d) { return d.id; }))
-                .force('charge', d3.forceManyBody()
-              .strength(-200)
-              .theta(0.8)
-              .distanceMax(150)
-            )
-            .force("center", d3.forceCenter(width / 2, height / 2));
+            .force('charge', d3.forceManyBody()
+                .strength(-200)
+                .theta(0.8)
+                .distanceMax(150))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force('collision', d3.forceCollide().radius(16));
 }
 
 function updateReportGraph(operations){
@@ -33,6 +47,7 @@ function updateReportGraph(operations){
 
     graphs.forEach(function(graphObj) {
         buildGraph(graphObj, operations)
+        graphObj.simulation.alpha(1).restart();
     });
 }
 
@@ -46,7 +61,7 @@ function buildGraph(graphObj, operations) {
 
 function writeGraph(graph, graphObj) {
 
-  graphObj.svg.append('defs').append('marker')
+    graphObj.svg.append('defs').append('marker')
         .attrs({'id':'arrowhead'+graphObj.type,
             'viewBox':'-0 -5 10 10',
             'refX':30,
@@ -60,101 +75,103 @@ function writeGraph(graph, graphObj) {
         .attr('fill', '#999')
         .style('stroke','none');
 
-  var link = graphObj.svg.append("g")
+    var container = graphObj.svg.append("g")
+
+    var link = container.append("g")
                 .style("stroke", "#aaa")
                 .selectAll("line")
                 .data(graph.links)
                 .enter().append("line")
                 .attr('marker-end','url(#arrowhead' + graphObj.type + ')');
 
-  var node = graphObj.svg.append("g")
-      .attr("class", "nodes")
-      .selectAll("circle")
-      .data(graph.nodes)
-      .enter()
-      .append("circle")
+    container.selectAll('g.nodes').remove();
+    var nodes = container.append("g")
+        .attr("class", "nodes")
+        .selectAll("g")
+        .data(graph.nodes)
+        .enter().append("g")
+            .attr("class", "node")
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended));
+
+    nodes.append("circle")
         .attr("r", 16)
         .style("fill", "#efefef")
         .style("stroke", "#424242")
         .style("stroke-width", "1px")
-        .call(d3.drag()
-          .on("start", dragstarted)
-          .on("drag", dragged)
-          .on("end", dragended));
 
-  var label = graphObj.svg.append("g")
-      .attr("class", "labels")
-      .selectAll("text")
-      .data(graph.nodes)
-      .enter().append("text")
+    nodes.append("text")
         .attr("class", "label")
-        .text(function(d) { return d.type + ':' + d.name; });
+        .attr("x", "18")
+        .attr("y", "8")
+        .style("font-size", "12px").style("fill", "#333")
+        .text(function(d) { return d.name; });
 
-  let simulation = graphObj.simulation;
-
-  simulation
-      .nodes(graph.nodes)
-      .on("tick", ticked);
-
-  simulation.force("link")
-      .links(graph.links)
-      .distance(50)
-
-  function ticked() {
-    link
-        .attr("x1", function(d) { return d.source.x+6; })
-        .attr("y1", function(d) { return d.source.y-2; })
-        .attr("x2", function(d) { return d.target.x+6; })
-        .attr("y2", function(d) { return d.target.y-2; });
-
-
-    node
-         .attr("r", 16)
-         .style("fill", "#efefef")
-         .style("stroke", "#424242")
-         .style("stroke-width", "1px")
-         .attr("cx", function (d) { return d.x+5; })
-         .attr("cy", function(d) { return d.y-3; })
-         .on("mouseover", function(d) {
-            if (graphObj.tooltip) {
-                graphObj.tooltip.transition()
-                    .duration(200)
-                    .style("opacity", .9);
-                graphObj.tooltip.html(generateTooltipHTML(d))
-                    .style("left", d.x+50 + "px")
-                    .style("top", d.y + "px");
-            }
+    nodes.append("svg:image")
+        .attr("href", function(d) {
+            if (d.img)
+                return imgs[d.img]
         })
-        .on("mouseout", function(d) {
-            if (graphObj.tooltip) {
-                graphObj.tooltip.transition()
-                    .duration(500)
-                    .style("opacity", 0);
-            }
-        });
+        .attr("x", "-16")
+        .attr("y", "-8")
+        .attr("height", 16)
+        .attr("width", 32);
 
-    label
-    		.attr("x", function(d) { return d.x; })
-            .attr("y", function (d) { return d.y; })
-            .style("font-size", "10px").style("fill", "#333");
-  }
+    let simulation = graphObj.simulation;
 
-  function dragstarted(d) {
+    simulation
+        .nodes(graph.nodes)
+        .on("tick", ticked)
+        .force('link')
+        .links(graph.links)
+        .distance(function(d) {return link_lengths[d.type];});
+
+    function ticked() {
+        link
+            .attr("x1", function(d) { return d.source.x; })
+            .attr("y1", function(d) { return d.source.y; })
+            .attr("x2", function(d) { return d.target.x; })
+            .attr("y2", function(d) { return d.target.y; });
+
+        nodes
+            .attr('transform', function(d) {return 'translate(' + d.x + ',' + d.y + ')';})
+            .on("mouseover", function(d) {
+                if (graphObj.tooltip) {
+                    graphObj.tooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                    graphObj.tooltip.html(generateTooltipHTML(d))
+                        .style("left", d.x+50 + "px")
+                        .style("top", d.y + "px");
+                }
+            })
+            .on("mouseout", function(d) {
+                if (graphObj.tooltip) {
+                    graphObj.tooltip.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                }
+            });
+    }
+
+    function dragstarted(d) {
       if (!d3.event.active) simulation.alphaTarget(0.3).restart()
       d.fx = d.x
       d.fy = d.y
-  }
+    }
 
-  function dragged(d) {
+    function dragged(d) {
       d.fx = d3.event.x
       d.fy = d3.event.y
-  }
+    }
 
-  function dragended(d) {
+    function dragended(d) {
       d.fx = d3.event.x
       d.fy = d3.event.y
       if (!d3.event.active) simulation.alphaTarget(0);
-  }
+    }
 
   function generateTooltipHTML(d) {
     let ret = "";

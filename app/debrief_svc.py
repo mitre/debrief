@@ -12,7 +12,7 @@ class DebriefService:
         print(operation_ids)
         graph_output = dict(nodes=[], links=[])
         id_store = dict(c2=0)
-        graph_output['nodes'].append(dict(name="C2", type='c2', label='server', id=0, img='server'))
+        graph_output['nodes'].append(dict(name="C2", type='c2', label='server', id=0, img='c2'))
 
         agents = await self.data_svc.locate('agents')
         for agent in agents:
@@ -32,11 +32,11 @@ class DebriefService:
 
         for op_id in operation_ids:
             operation = (await self.data_svc.locate('operations', match=dict(id=int(op_id))))[0]
-            graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id))
+            graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation'))
             previous_link_graph_id = None
             for link in operation.chain:
                 link_graph_id = id_store['link' + link.unique] = max(id_store.values()) + 1
-                graph_output['nodes'].append(dict(type='link', name='link:'+link.unique, id=link_graph_id))
+                graph_output['nodes'].append(dict(type='link', name='link:'+link.unique, id=link_graph_id, img='link'))
 
                 if not previous_link_graph_id:
                     graph_output['links'].append(dict(source=op_id, target=link_graph_id, type='next_link'))
@@ -93,14 +93,14 @@ class DebriefService:
 
         for op_id in operation_ids:
             operation = (await self.data_svc.locate('operations', match=dict(id=int(op_id))))[0]
-            graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id))
+            graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation'))
             previous_prop_graph_id = None
             for p, lnks in self._get_by_prop_order(operation.chain, prop):
                 i = max(id_store.values()) + 1
                 prop_graph_id = id_store[prop + p + str(i)] = i
                 p_attrs = {prop: p}
                 p_attrs.update({lnk.unique: lnk.ability.name for lnk in lnks})
-                graph_output['nodes'].append(dict(type=prop, name=p, id=prop_graph_id, attrs=p_attrs))
+                graph_output['nodes'].append(dict(type=prop, name=p, id=prop_graph_id, attrs=p_attrs, img=prop))
 
                 if not previous_prop_graph_id:
                     graph_output['links'].append(dict(source=op_id, target=prop_graph_id, type='next_link'))

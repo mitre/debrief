@@ -10,12 +10,12 @@
 <!--    <div class="row" style="background-image: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('/debrief/img/debrief.jpg'); background-position:right bottom;">-->
     <div class="row">
         <div class="topleft duk-icon"><img onclick="removeSection('debrief-section')" src="/gui/img/x.png"></div>
-        <div class="column section-border" style="flex:25%;text-align:left;padding:15px;">
+        <div class="column section-border" style="flex:20%;text-align:left;padding:15px;">
             <h1 style="font-size:70px;margin-top:-20px;">Debrief</h1>
             <h2 style="margin-top:-50px">Campaign Analytics</h2>
             <div>
                 Operations:
-                <select id="debrief-operation-list" size="5" data-placeholder="No operations to show." multiple>
+                <select id="debrief-operation-list" size="5" data-placeholder="No operations to show." multiple style="overflow-y:auto">
                   {% for op in operations %}
                         {%  if op.start|length%}
                             <option class="operationOption" id="{{ op.id }}-{{ op.name }}" value="{{ op.id }}">{{ op.name }}</option>
@@ -31,15 +31,15 @@
             </div>
         </div>
 
-        <div class="column" style="flex:85%;">
+        <div class="column" style="flex:80%;">
             <div id="debrief-graph" class="row">
                 <button id="graph-switch-technique" class="graph-switch" value="technique" onclick="switchGraphView(this)">Technique</button>
                 <button id="graph-switch-tactic" class="graph-switch" value="tactic" onclick="switchGraphView(this)">Tactic</button>
                 <button id="graph-switch-graph" class="graph-switch" disabled value="graph" onclick="switchGraphView(this)">Default</button>
                 <div class="tooltip" id="op-tooltip" style="opacity: 0"></div>
-                <svg id="debrief-graph-svg" class="op-svg debrief-svg" width="1200" height="400"></svg>
-                <svg id="debrief-tactic-svg" class="op-svg debrief-svg" width="1200" height="400" style="display: none"></svg>
-                <svg id="debrief-technique-svg" class="op-svg debrief-svg" width="1200" height="400" style="display: none"></svg>
+                <svg id="debrief-graph-svg" class="op-svg debrief-svg" width="1100" height="400"></svg>
+                <svg id="debrief-tactic-svg" class="op-svg debrief-svg" width="1100" height="400" style="display: none"></svg>
+                <svg id="debrief-technique-svg" class="op-svg debrief-svg" width="1100" height="400" style="display: none"></svg>
             </div>
 
             <h3>Stats</h3>
@@ -73,7 +73,7 @@
             <h3>Fact Graph</h3>
             <div id="fact-graph" class="row" style="background-color: black; height: 400px; background-image: none;">
                 <div class="tooltip" id="fact-tooltip" style="opacity: 0"></div>
-                <svg id="debrief-fact-svg" class="debrief-svg" width="1200" height="400"></svg>
+                <svg id="debrief-fact-svg" class="debrief-svg" width="1100" height="400"></svg>
             </div>
 
         </div>

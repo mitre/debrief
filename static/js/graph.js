@@ -8,7 +8,8 @@ class Graph {
     }
 }
 
-var link_lengths = {'http': 100, 'next_link': 50};
+var link_lengths = {'http': 100, 'next_link': 50, 'has_agent': 50, 'relationship': 50};
+var node_charges = {'c2': -200, 'operation': -100, 'agent': -200, 'link': -150, 'fact': -50, 'tactic': -200, 'technique_name': -200}
 
 var graphSvg = new Graph("#debrief-graph-svg", "graph", null),
     tacticSvg = new Graph("#debrief-tactic-svg", "tactic", d3.select('#op-tooltip')),
@@ -34,9 +35,9 @@ function createForceSimulation(width, height) {
     return d3.forceSimulation()
             .force("link", d3.forceLink().id(function(d) { return d.id; }))
             .force('charge', d3.forceManyBody()
-                .strength(-200)
+                .strength(function(d) { return node_charges.hasOwnProperty(d.type) ? node_charges[d.type] : -200 })
                 .theta(0.8)
-                .distanceMax(150))
+                .distanceMax(100))
             .force("center", d3.forceCenter(width / 2, height / 2))
             .force('collision', d3.forceCollide().radius(16));
 }
@@ -82,6 +83,7 @@ function writeGraph(graph, graphObj) {
                 .selectAll("line")
                 .data(graph.links)
                 .enter().append("line")
+                .attr("class", function(d) { return d.type;})
                 .attr('marker-end','url(#arrowhead' + graphObj.type + ')');
 
     container.selectAll('g.nodes').remove();
@@ -90,7 +92,7 @@ function writeGraph(graph, graphObj) {
         .selectAll("g")
         .data(graph.nodes)
         .enter().append("g")
-            .attr("class", "node")
+            .attr("class", function(d) { return "node " + d.type; })
             .call(d3.drag()
                 .on("start", dragstarted)
                 .on("drag", dragged)

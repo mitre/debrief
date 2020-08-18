@@ -14,7 +14,7 @@
             <h1 style="font-size:70px;margin-top:-20px;">Debrief</h1>
             <h2 style="margin-top:-50px">Campaign Analytics</h2>
             <div>
-                Operations:
+                <h4>OPERATIONS:</h4>
                 <select id="debrief-operation-list" size="5" data-placeholder="No operations to show." multiple style="overflow-y:auto">
                   {% for op in operations %}
                         {%  if op.start|length%}
@@ -22,6 +22,17 @@
                         {% endif %}
                   {% endfor %}
                 </select>
+            </div>
+            <div>
+                <h4>GRAPH OPTIONS</h4>
+                <h5>Display Options</h5>
+                <input type="checkbox" id="show-labels" value="labels" checked onclick="toggleLabels(this)">
+                <label for="show-labels">Show labels</label><br>
+                <input type="checkbox" id="show-images" value="images" checked onclick="toggleIcons(this)">
+                <label for="show-images">Show icons</label>
+                <h5>Data Options</h5>
+                <input type="checkbox" id="show-steps" value="steps" checked onclick="toggleSteps(this)">
+                <label for="show-steps">Show operation steps</label>
             </div>
             <div id="debrief-download">
                 <button id="debrief-download-raw" type="button" class="button-success atomic-button"

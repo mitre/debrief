@@ -16,6 +16,7 @@ $( document ).ready(function() {
         clearReport();
         let operations = $(e.target).val();
         updateReportGraph(operations);
+        $('input[type="checkbox"]').prop("checked", true);
         restRequest('POST', {'operations': operations}, displayReport, '/plugin/debrief/report');
     });
 
@@ -158,4 +159,33 @@ function getGraphData() {
     })
 
     return encodedGraphs
+}
+
+function toggleLabels(input) {
+    if($(input).prop("checked")) {
+        $("#debrief-graph text").show();
+    }
+    else {
+        $("#debrief-graph text").hide();
+    }
+}
+
+function toggleSteps(input) {
+    if($(input).prop("checked")) {
+        $("#debrief-graph .link").show()
+        $("#debrief-graph-svg .next_link").show()
+    }
+    else {
+        $("#debrief-graph .link").hide()
+        $("#debrief-graph-svg .next_link").hide()
+    }
+}
+
+function toggleIcons(input) {
+    if($(input).prop("checked")) {
+        d3.selectAll("#debrief-graph image").style("visibility", "visible");
+    }
+    else {
+        d3.selectAll("#debrief-graph image").style("visibility", "hidden");
+    }
 }

@@ -91,3 +91,10 @@ button.graph-switch {
     float: right;
     width: auto;
 }
+
+h5 {
+    margin: 10px 0px 5px;
+}
+label {
+    font-size: 14px;
+}

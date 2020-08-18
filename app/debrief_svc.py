@@ -52,6 +52,10 @@ class DebriefService:
                     graph_output['links'].append(dict(source=link_graph_id, target=id_store['agent' + agent.unique], type='next_link'))
                 except:
                     continue
+            for agent in operation.agents:
+                graph_output['links'].append(dict(source=op_id,
+                                                  target=id_store['agent' + agent.unique],
+                                                  type='has_agent'))
         return graph_output
 
     async def build_fact_d3(self, operation_ids):

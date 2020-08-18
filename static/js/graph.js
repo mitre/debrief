@@ -4,9 +4,15 @@ class Graph {
         this.type = type;
         this.svg = d3.select(id);
         this.tooltip = tooltip;
-        this.simulation = createForceSimulation(1100, 400);
+        this.simulation = createForceSimulation();
     }
 }
+
+var width = 1100,
+    height = 400
+
+$('svg').attr("width", width);
+$('svg').attr("height", height);
 
 var link_lengths = {'http': 100, 'next_link': 50, 'has_agent': 50, 'relationship': 50};
 var node_charges = {'c2': -200, 'operation': -100, 'agent': -200, 'link': -150, 'fact': -50, 'tactic': -200, 'technique_name': -200}
@@ -31,7 +37,7 @@ var imgs = {
 
 var colors = d3.scaleOrdinal(d3.schemeCategory10);
 
-function createForceSimulation(width, height) {
+function createForceSimulation() {
     return d3.forceSimulation()
             .force("link", d3.forceLink().id(function(d) { return d.id; }))
             .force('charge', d3.forceManyBody()
@@ -49,6 +55,10 @@ function updateReportGraph(operations){
     graphs.forEach(function(graphObj) {
         buildGraph(graphObj, operations)
         graphObj.simulation.alpha(1).restart();
+        graphObj.svg.call(d3.zoom().scaleExtent([0.5, 5]).on("zoom", function() {
+            d3.select(graphObj.id + " .container")
+                .attr("transform", "translate(" + d3.event.transform.x + "," + d3.event.transform.y + ")scale(" + d3.event.transform.k + ")");
+        }));
     });
 }
 
@@ -77,6 +87,9 @@ function writeGraph(graph, graphObj) {
         .style('stroke','none');
 
     var container = graphObj.svg.append("g")
+                        .attr("class", "container")
+                        .attr("width", width)
+                        .attr("height", height)
 
     var link = container.append("g")
                 .style("stroke", "#aaa")

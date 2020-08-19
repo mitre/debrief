@@ -11,8 +11,11 @@ class Graph {
 var width = 1100,
     height = 400
 
-$('svg').attr("width", width);
-$('svg').attr("height", height);
+$('.svg-container').attr("width", width);
+$('.svg-container').attr("height", height);
+
+$('svg').width('100%')
+$('svg').height('100%')
 
 var link_lengths = {'http': 100, 'next_link': 50, 'has_agent': 50, 'relationship': 50};
 var node_charges = {'c2': -200, 'operation': -100, 'agent': -200, 'link': -150, 'fact': -50, 'tactic': -200, 'technique_name': -200}
@@ -26,14 +29,25 @@ var graphs = [graphSvg, factSvg, tacticSvg, techniqueSvg];
 
 var imgs = {
     "c2": "debrief/img/cloud.svg",
-    "operation": "gui/img/operation.png",
+    "operation": "debrief/img/operation.svg",
     "link": "debrief/img/link.svg",
     "fact": "debrief/img/star.svg",
-    "darwin": "gui/img/darwin.png",
-    "windows": "gui/img/windows.png",
-    "linux": "gui/img/linux.png",
+    "darwin": "debrief/img/darwin.svg",
+    "windows": "debrief/img/windows.svg",
+    "linux": "debrief/img/linux.svg",
     "tactic": "debrief/img/tactic.svg",
     "technique_name": "debrief/img/technique.svg"}
+
+for (var key in imgs) {
+    getImage(key, imgs[key])
+}
+
+function getImage(i, value) {
+    $.get(value, function(data) {
+        data.documentElement.id = i + "-img"
+        $('#images').append(data.documentElement);
+    })
+}
 
 var colors = d3.scaleOrdinal(d3.schemeCategory10);
 
@@ -50,7 +64,7 @@ function createForceSimulation() {
 
 function updateReportGraph(operations){
     $('.debrief-svg').innerHTML = "";
-    d3.selectAll("svg > *").remove();
+    d3.selectAll(".debrief-svg > *").remove();
 
     graphs.forEach(function(graphObj) {
         buildGraph(graphObj, operations)
@@ -88,8 +102,8 @@ function writeGraph(graph, graphObj) {
 
     var container = graphObj.svg.append("g")
                         .attr("class", "container")
-                        .attr("width", width)
-                        .attr("height", height)
+                        .attr("width", "100%")
+                        .attr("height", "100%")
 
     var link = container.append("g")
                 .style("stroke", "#aaa")
@@ -122,17 +136,24 @@ function writeGraph(graph, graphObj) {
         .attr("x", "18")
         .attr("y", "8")
         .style("font-size", "12px").style("fill", "#333")
-        .text(function(d) { return d.name; });
+        .text(function(d) {
+            if (d.type != 'link') {
+                return d.name;
+            }
+        });
 
-    nodes.append("svg:image")
-        .attr("href", function(d) {
-            if (d.img)
-                return imgs[d.img]
+    nodes.append("g")
+        .html(function(d) {
+            if ($("#" + d.img + "-img").length > 0) {
+                let c = $("#" + d.img + "-img")[0].cloneNode(true)
+                $(c).removeAttr("id")
+                $(c).attr("width", 32)
+                $(c).attr("height", 16)
+                $(c).attr("x", "-16")
+                $(c).attr("y", "-8")
+                return c.outerHTML
+            }
         })
-        .attr("x", "-16")
-        .attr("y", "-8")
-        .attr("height", 16)
-        .attr("width", 32);
 
     let simulation = graphObj.simulation;
 

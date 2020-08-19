@@ -63,15 +63,15 @@ class DebriefService:
             operation = (await self.data_svc.locate('operations', match=dict(id=int(op_id))))[0]
             graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id))
             for fact in operation.all_facts():
-                if 'fact' + fact.unique + op_id not in id_store.keys():
-                    id_store['fact' + fact.unique + op_id] = node_id = max(id_store.values()) + 1
+                if 'fact' + fact.unique + operation.source.id not in id_store.keys():
+                    id_store['fact' + fact.unique + operation.source.id] = node_id = max(id_store.values()) + 1
                     node = dict(name=fact.value, id=node_id, type=fact.trait, attrs=self.get_pub_attrs(fact))
                     graph_output['nodes'].append(node)
 
             for relationship in operation.all_relationships():
                 if relationship.edge:
-                    link = dict(source=id_store.get('fact' + relationship.source.unique + op_id),
-                                target=id_store.get('fact' + relationship.target.unique + op_id),
+                    link = dict(source=id_store.get('fact' + relationship.source.unique + operation.source.id),
+                                target=id_store.get('fact' + relationship.target.unique + operation.source.id),
                                 type=relationship.edge)
                     graph_output['links'].append(link)
 

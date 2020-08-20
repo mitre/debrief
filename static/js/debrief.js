@@ -96,10 +96,7 @@ function downloadPDF() {
             downloadAnchorNode.remove();
         }
     }
-    let s = new XMLSerializer().serializeToString(document.getElementById("debrief-graph-svg"))
-    let encodedData = window.btoa(s);
-    console.log(encodedData)
-    restRequest('POST', {'operation_id': $('#debrief-operation-list').val(), 'graph': encodedData}, callback, '/plugin/debrief/pdf');
+    restRequest('POST', {'operations': $('#debrief-operation-list').val(), 'graphs': getGraphData()}, callback, '/plugin/debrief/pdf');
 }
 
 function findResults(elem, lnk){
@@ -123,4 +120,35 @@ function resetDebriefStepModal() {
     modal.hide();
     modal.find('#debrief-step-modal-cmd').text('');
     modal.find('#debrief-step-modal-view').text('');
+}
+
+function getGraphData() {
+    let encodedGraphs = {}
+
+    $(".debrief-svg").each(function(idx, svg) {
+        $("#copy").append($(svg).clone().prop("id", "copy-svg"))
+        $("#copy-svg .container").attr("transform", "scale(5)")
+
+//        resize svg viewBox to fit content
+        var copy = $("#copy-svg")[0];
+        if (copy.style.display == "none") {
+            copy.style.display = "";
+        }
+        var bbox = copy.getBBox();
+        var viewBox = [bbox.x - 10, bbox.y - 10, bbox.width + 20, bbox.height + 20].join(" ");
+        copy.setAttribute("viewBox", viewBox);
+
+//        re-enable any hidden nodes
+        $("#copy svg .link").show()
+        $("#copy svg .next_link").show()
+        $("#copy svg text").show()
+
+        let serializedSvg = new XMLSerializer().serializeToString($("#copy-svg")[0])
+        let encodedData = window.btoa(serializedSvg);
+        let graphKey = $(svg).attr("id").split("-")[1]
+        encodedGraphs[graphKey] = encodedData
+        $("#copy").html("")
+    })
+
+    return encodedGraphs
 }

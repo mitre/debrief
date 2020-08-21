@@ -64,23 +64,23 @@ class DebriefService:
 
         for op_id in operation_ids:
             operation = (await self.data_svc.locate('operations', match=dict(id=int(op_id))))[0]
-            graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id))
+            graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation'))
             for fact in operation.all_facts():
                 if 'fact' + fact.unique + operation.source.id not in id_store.keys():
                     id_store['fact' + fact.unique + operation.source.id] = node_id = max(id_store.values()) + 1
-                    node = dict(name=fact.value, id=node_id, type=fact.trait, attrs=self.get_pub_attrs(fact))
+                    node = dict(name=fact.value, id=node_id, type='fact', attrs=self._get_pub_attrs(fact), img='fact')
                     graph_output['nodes'].append(node)
 
             for relationship in operation.all_relationships():
                 if relationship.edge:
                     link = dict(source=id_store.get('fact' + relationship.source.unique + operation.source.id),
                                 target=id_store.get('fact' + relationship.target.unique + operation.source.id),
-                                type=relationship.edge)
+                                type='relationship')
                     graph_output['links'].append(link)
 
-            for n in graph_output['nodes']:
+            for n in graph_output['nodes'][1:]:
                 if not next((lnk for lnk in graph_output['links'] if lnk['target'] == n['id']), None):
-                    link = dict(source=op_id, target=n['id'], type='has_fact')
+                    link = dict(source=op_id, target=n['id'], type='relationship')
                     graph_output['links'].append(link)
 
         return graph_output
@@ -115,7 +115,7 @@ class DebriefService:
         return graph_output
 
     @staticmethod
-    def get_pub_attrs(fact):
+    def _get_pub_attrs(fact):
         return {k: v for k, v in vars(fact).items() if not k.startswith('_')}
 
     @staticmethod

@@ -17,7 +17,7 @@ $('.svg-container').attr("height", height);
 $('svg').width('100%')
 $('svg').height('100%')
 
-var link_lengths = {'http': 100, 'next_link': 50, 'has_agent': 50, 'relationship': 50};
+var link_lengths = {'http': 100, 'next_link': 50, 'has_agent': 50, 'relationship': 100};
 var node_charges = {'c2': -200, 'operation': -100, 'agent': -200, 'link': -150, 'fact': -50, 'tactic': -200, 'technique_name': -200}
 
 var graphSvg = new Graph("#debrief-graph-svg", "graph", null),
@@ -45,6 +45,7 @@ for (var key in imgs) {
 function getImage(i, value) {
     $.get(value, function(data) {
         data.documentElement.id = i + "-img"
+        data.documentElement.classList.add("svg-icon")
         $('#images').append(data.documentElement);
     })
 }
@@ -218,16 +219,16 @@ function writeGraph(graph, graphObj) {
     else if (d["type"] == "tactic" || d["type"] == "technique_name") {
         let p = d["attrs"][d["type"]]
         ret += d["type"] + ": " + p + "<br/>";
-        for (let key in d["attrs"]) {
-            if (key != d["type"]) {
-                ret += key + ": " + d["attrs"][key] + "<br/>";
+        for (let attr in d["attrs"]) {
+            if (attr != d["type"]) {
+                ret += attr + ": " + d["attrs"][attr] + "<br/>";
             }
         }
     }
     else {
-        for (let key in d["attrs"]) {
-            if (d["attrs"][key]) {
-                ret += key + ": " + d["attrs"][key] + "<br/>";
+        for (let attr in d["attrs"]) {
+            if (d["attrs"][attr]) {
+                ret += attr + ": " + d["attrs"][attr] + "<br/>";
             }
         }
     }

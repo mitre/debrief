@@ -147,9 +147,10 @@ function getGraphData() {
         copy.setAttribute("viewBox", viewBox);
 
 //        re-enable any hidden nodes
-        $("#copy svg .link").show()
-        $("#copy svg .next_link").show()
-        $("#copy svg text").show()
+        $("#copy-svg .link").show()
+        $("#copy-svg .next_link").show()
+        $("#copy-svg .svg-icon").show()
+        $("#copy-svg text").show()
 
         let serializedSvg = new XMLSerializer().serializeToString($("#copy-svg")[0])
         let encodedData = window.btoa(serializedSvg);
@@ -183,9 +184,9 @@ function toggleSteps(input) {
 
 function toggleIcons(input) {
     if($(input).prop("checked")) {
-        d3.selectAll("#debrief-graph image").style("visibility", "visible");
+        $("#debrief-graph .svg-icon").show();
     }
     else {
-        d3.selectAll("#debrief-graph image").style("visibility", "hidden");
+       $("#debrief-graph .svg-icon").hide();
     }
 }

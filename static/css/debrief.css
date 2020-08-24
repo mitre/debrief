@@ -5,6 +5,13 @@
     color: var(--font-color);
 }
 
+#debrief-graph {
+    background-color: black;
+    height: 400px;
+    background-image: none;
+    display: block;
+}
+
 .report-table {
     color: white;
     width: 100%;
@@ -78,4 +85,16 @@ div.tooltip {
     border: 0px;
     border-radius: 8px;
     pointer-events: none;
+}
+
+button.graph-switch {
+    float: right;
+    width: auto;
+}
+
+h5 {
+    margin: 10px 0px 5px;
+}
+label {
+    font-size: 14px;
 }

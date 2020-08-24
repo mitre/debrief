@@ -16,6 +16,7 @@ $( document ).ready(function() {
         clearReport();
         let operations = $(e.target).val();
         updateReportGraph(operations);
+        $('input[type="checkbox"]').prop("checked", true);
         restRequest('POST', {'operations': operations}, displayReport, '/plugin/debrief/report');
     });
 
@@ -76,6 +77,13 @@ $( document ).ready(function() {
         return 'queued';
     }
 });
+
+function switchGraphView(btn) {
+    $(".op-svg").hide();
+    $(".graph-switch").attr("disabled", false);
+    $("#graph-switch-" + $(btn).val()).attr("disabled", true);
+    $("#debrief-" + $(btn).val() + "-svg").show();
+}
 
 function downloadPDF() {
     function callback(data) {
@@ -139,9 +147,10 @@ function getGraphData() {
         copy.setAttribute("viewBox", viewBox);
 
 //        re-enable any hidden nodes
-        $("#copy svg .link").show()
-        $("#copy svg .next_link").show()
-        $("#copy svg text").show()
+        $("#copy-svg .link").show()
+        $("#copy-svg .next_link").show()
+        $("#copy-svg .svg-icon").show()
+        $("#copy-svg text").show()
 
         let serializedSvg = new XMLSerializer().serializeToString($("#copy-svg")[0])
         let encodedData = window.btoa(serializedSvg);
@@ -151,4 +160,33 @@ function getGraphData() {
     })
 
     return encodedGraphs
+}
+
+function toggleLabels(input) {
+    if($(input).prop("checked")) {
+        $("#debrief-graph text").show();
+    }
+    else {
+        $("#debrief-graph text").hide();
+    }
+}
+
+function toggleSteps(input) {
+    if($(input).prop("checked")) {
+        $("#debrief-graph .link").show()
+        $("#debrief-graph-svg .next_link").show()
+    }
+    else {
+        $("#debrief-graph .link").hide()
+        $("#debrief-graph-svg .next_link").hide()
+    }
+}
+
+function toggleIcons(input) {
+    if($(input).prop("checked")) {
+        $("#debrief-graph .svg-icon").show();
+    }
+    else {
+       $("#debrief-graph .svg-icon").hide();
+    }
 }

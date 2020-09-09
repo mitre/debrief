@@ -74,7 +74,7 @@
     flex:75%;padding:15px;text-align: left
 }
 
-div.tooltip {
+div.d3-tooltip {
     position: absolute;
     text-align: left;
     width: auto;

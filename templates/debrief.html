@@ -47,7 +47,7 @@
                 <button id="graph-switch-technique" class="graph-switch" value="technique" onclick="switchGraphView(this)">Technique</button>
                 <button id="graph-switch-tactic" class="graph-switch" value="tactic" onclick="switchGraphView(this)">Tactic</button>
                 <button id="graph-switch-graph" class="graph-switch" disabled value="graph" onclick="switchGraphView(this)">Default</button>
-                <div class="tooltip" id="op-tooltip" style="opacity: 0"></div>
+                <div class="d3-tooltip" id="op-tooltip" style="opacity: 0"></div>
                 <svg id="debrief-graph-svg" class="op-svg debrief-svg"></svg>
                 <svg id="debrief-tactic-svg" class="op-svg debrief-svg" style="display: none"></svg>
                 <svg id="debrief-technique-svg" class="op-svg debrief-svg" style="display: none"></svg>
@@ -83,7 +83,7 @@
             </div>
             <h3>Fact Graph</h3>
             <div id="fact-graph" class="row svg-container" style="background-color: black; height: 400px; background-image: none;">
-                <div class="tooltip" id="fact-tooltip" style="opacity: 0"></div>
+                <div class="d3-tooltip" id="fact-tooltip" style="opacity: 0"></div>
                 <svg id="debrief-fact-svg" class="debrief-svg"></svg>
             </div>
 

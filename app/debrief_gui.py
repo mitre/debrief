@@ -118,8 +118,10 @@ class DebriefGui(BaseWorld):
         graph_files = dict()
         for file in glob.glob('./plugins/debrief/downloads/*.png'):
             graph_files[os.path.basename(file).split('.')[0]] = file
-        for name, path in graph_files.items():
-            story_obj.append_graph(name, path)
+        story_obj.append_graph('graph', graph_files['graph'])
+        story_obj.append_graph('tactic', graph_files['tactic'])
+        story_obj.append_graph('technique', graph_files['technique'])
+        story_obj.append_graph('fact', graph_files['fact'])
         story_obj.page_break()
 
         for o in operations:

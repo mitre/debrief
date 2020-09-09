@@ -46,8 +46,31 @@ function getImage(i, value) {
     $.get(value, function(data) {
         data.documentElement.id = i + "-img"
         data.documentElement.classList.add("svg-icon")
+        let svg = $(data.documentElement).clone();
         $('#images').append(data.documentElement);
+        addToLegend(i, svg[0]);
     })
+}
+
+function addToLegend(id, svg) {
+    svg.id += "-legend";
+    svg.setAttribute("width", 25);
+    svg.setAttribute("height", 25);
+    let liHTML = $("<li class='legend'></li>");
+    liHTML.append(svg);
+    id = id.replace("_", " ");
+    liHTML.append($("<label style='padding: 10px'>" + id + "</label>"));
+
+    if (id == "operation") {
+        $("#fact-legend-list").append(liHTML.clone());
+        $("#op-legend-list").append(liHTML);
+    }
+    else if (id == "fact") {
+        $("#fact-legend-list").append(liHTML);
+    }
+    else {
+        $("#op-legend-list").append(liHTML);
+    }
 }
 
 var colors = d3.scaleOrdinal(d3.schemeCategory10);

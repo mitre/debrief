@@ -99,6 +99,7 @@ class DebriefGui(BaseWorld):
         story_obj.append_text("OPERATIONS DEBRIEF", title, 6)
         story_obj.append_text("<i>Generated on %s</i>" % datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
                               styles['Normal'], 12)
+        story_obj.append_text(story_obj.get_description('debrief'), styles['Normal'], 12)
 
         story_obj.append_text('STATISTICS', styles['Heading2'], 0)
         story_obj.append_text(story_obj.get_description('statistics'), styles['Normal'], 12)

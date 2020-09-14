@@ -99,6 +99,7 @@ class DebriefGui(BaseWorld):
         story_obj.append_text("OPERATIONS DEBRIEF", title, 6)
         story_obj.append_text("<i>Generated on %s</i>" % datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
                               styles['Normal'], 12)
+        story_obj.append_text(story_obj.get_description('debrief'), styles['Normal'], 12)
 
         story_obj.append_text('STATISTICS', styles['Heading2'], 0)
         story_obj.append_text(story_obj.get_description('statistics'), styles['Normal'], 12)
@@ -118,8 +119,10 @@ class DebriefGui(BaseWorld):
         graph_files = dict()
         for file in glob.glob('./plugins/debrief/downloads/*.png'):
             graph_files[os.path.basename(file).split('.')[0]] = file
-        for name, path in graph_files.items():
-            story_obj.append_graph(name, path)
+        story_obj.append_graph('graph', graph_files['graph'])
+        story_obj.append_graph('tactic', graph_files['tactic'])
+        story_obj.append_graph('technique', graph_files['technique'])
+        story_obj.append_graph('fact', graph_files['fact'])
         story_obj.page_break()
 
         for o in operations:

@@ -74,7 +74,7 @@
     flex:75%;padding:15px;text-align: left
 }
 
-div.tooltip {
+div.d3-tooltip {
     position: absolute;
     text-align: left;
     width: auto;
@@ -97,4 +97,19 @@ h5 {
 }
 label {
     font-size: 14px;
+    text-transform: capitalize;
+}
+li.legend {
+    flex-direction: row;
+    display: flex;
+    align-items: center;
+}
+.legend-box {
+    position: absolute;
+    right: 25px;
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 10px;
+    width: 165px;
+    background-color: rgba(155, 155, 155, .6);
 }

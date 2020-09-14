@@ -154,7 +154,13 @@ class Story:
 
     @staticmethod
     def _descriptions(obj):
-        if obj == 'statistics':
+        if obj == 'debrief':
+            return 'This document covers the overall campaign analytics made up of the selected set of operations. ' \
+                   'The below sections contain general metadata about the selected operations as well as ' \
+                   'graphical views of the operations, the techniques and tactics used, and the facts discovered by ' \
+                   'the operations. The following sections include a more in depth review of each specific operation ' \
+                   'ran.'
+        elif obj == 'statistics':
             return 'An operation\'s planner makes up the decision making process. It contains logic for how a ' \
                    'running operation should make decisions about which abilities to use and in what order. An ' \
                    'objective is a collection of fact targets, called goals, which can be tied to adversaries. ' \

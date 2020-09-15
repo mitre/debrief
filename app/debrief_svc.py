@@ -9,7 +9,6 @@ class DebriefService:
         self.log = logging.getLogger('debrief_svc')
 
     async def build_operation_d3(self, operation_ids):
-        print(operation_ids)
         graph_output = dict(nodes=[], links=[])
         id_store = dict(c2=0)
         graph_output['nodes'].append(dict(name="C2", type='c2', label='server', id=0, img='c2'))
@@ -69,7 +68,7 @@ class DebriefService:
             for fact in operation.all_facts():
                 if 'fact' + fact.unique + operation.source.id not in id_store.keys():
                     id_store['fact' + fact.unique + operation.source.id] = node_id = max(id_store.values()) + 1
-                    node = dict(name=fact.value, id=node_id, type='fact', attrs=self._get_pub_attrs(fact), img='fact')
+                    node = dict(name=fact.trait, id=node_id, type='fact', attrs=self._get_pub_attrs(fact), img='fact')
                     op_nodes.append(node)
 
             for relationship in operation.all_relationships():

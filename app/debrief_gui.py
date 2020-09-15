@@ -105,7 +105,8 @@ class DebriefGui(BaseWorld):
         story_obj.append_text(story_obj.get_description('statistics'), styles['Normal'], 12)
         data = [['Name', 'State', 'Planner', 'Objective', 'Time']]
         for o in operations:
-            data.append([o.name, o.state, o.planner.name, o.objective.name, o.finish])
+            finish = o.finish if o.finish else 'Not finished'
+            data.append([o.name, o.state, o.planner.name, o.objective.name, finish])
         story_obj.append(story_obj.generate_table(data, '*'))
         story_obj.append_text('AGENTS', styles['Heading2'], 0)
         story_obj.append_text(story_obj.get_description('agents'), styles['Normal'], 12)
@@ -160,4 +161,3 @@ class DebriefGui(BaseWorld):
         imgs.extend(glob.glob('./plugins/debrief/downloads/*.svg'))
         for f in imgs:
             os.remove(f)
-

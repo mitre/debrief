@@ -45,8 +45,8 @@ for (var key in imgs) {
 function getImage(i, value) {
     $.get(value, function(data) {
         data.documentElement.id = i + "-img"
-        data.documentElement.classList.add("svg-icon")
         let svg = $(data.documentElement).clone();
+        data.documentElement.classList.add("svg-icon")
         $('#images').append(data.documentElement);
         addToLegend(i, svg[0]);
     })

@@ -1,23 +1,31 @@
 $( document ).ready(function() {
     $('#debrief-download-raw').click(function () {
         let operations = $('#debrief-operation-list').val();
-        operations.forEach(function (op_id, index) {
-            let postData = op_id ? {
-                'index': 'operation_report',
-                'op_id': op_id,
-                'agent_output': Number(1)
-            } : null;
-            // TODO: add filename = operation name, agent output selection
-            downloadReport('/api/rest', "operation", postData);
-        })
+        if (operations) {
+            operations.forEach(function (op_id, index) {
+                let postData = op_id ? {
+                    'index': 'operation_report',
+                    'op_id': op_id,
+                    'agent_output': Number(1)
+                } : null;
+                let time = new Date().toISOString().split('.')[0].replaceAll(':', '-');
+                let opName = $("#debrief-operation-list option[value='" + op_id + "']").text();
+                downloadReport('/api/rest', 'debrief_' + opName + '_' + time, postData);
+            })
+        }
+        else {
+            stream('Select at least one operation to generate the JSON report');
+        }
     });
 
     $('#debrief-operation-list').change(function (e){
         clearReport();
         let operations = $(e.target).val();
-        updateReportGraph(operations);
-        $('input[type="checkbox"]').prop("checked", true);
-        restRequest('POST', {'operations': operations}, displayReport, '/plugin/debrief/report');
+        if (operations) {
+            updateReportGraph(operations);
+            $('.debrief-display-opt').prop("checked", true);
+            restRequest('POST', {'operations': operations}, displayReport, '/plugin/debrief/report');
+        }
     });
 
     function clearReport(){
@@ -88,7 +96,7 @@ function switchGraphView(btn) {
 function downloadPDF() {
     function callback(data) {
         if (typeof data == 'string') {
-            stream('Select a single operation to generate a PDF report');
+            stream('Select at least one operation to generate a PDF report');
         }
         else {
             stream('Downloading PDF report: '+ data['filename'] + '.pdf');

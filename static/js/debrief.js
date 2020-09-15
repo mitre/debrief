@@ -23,7 +23,7 @@ $( document ).ready(function() {
         let operations = $(e.target).val();
         if (operations) {
             updateReportGraph(operations);
-            $('input[type="checkbox"]').prop("checked", true);
+            $('.debrief-display-opt').prop("checked", true);
             restRequest('POST', {'operations': operations}, displayReport, '/plugin/debrief/report');
         }
     });

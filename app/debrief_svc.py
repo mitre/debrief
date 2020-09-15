@@ -43,14 +43,11 @@ class DebriefService:
                     graph_output['links'].append(dict(source=previous_link_graph_id, target=link_graph_id, type='next_link'))
                 previous_link_graph_id = link_graph_id
 
-                # link to agent
-                try:
-                    agent = (await self.data_svc.locate('agents', dict(paw=link.paw)))[0]
-                    if 'agent' + agent.unique not in id_store.keys():
-                        id_store['agent' + agent.unique] = max(id_store.values()) + 1
-                    graph_output['links'].append(dict(source=link_graph_id, target=id_store['agent' + agent.unique], type='next_link'))
-                except:
-                    continue
+                agent = (await self.data_svc.locate('agents', dict(paw=link.paw)))[0]
+                if 'agent' + agent.unique not in id_store.keys():
+                    id_store['agent' + agent.unique] = max(id_store.values()) + 1
+                graph_output['links'].append(dict(source=link_graph_id, target=id_store['agent' + agent.unique], type='next_link'))
+
             for agent in operation.agents:
                 graph_output['links'].append(dict(source=op_id,
                                                   target=id_store['agent' + agent.unique],
@@ -100,19 +97,20 @@ class DebriefService:
             operation = (await self.data_svc.locate('operations', match=dict(id=int(op_id))))[0]
             graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation'))
             previous_prop_graph_id = None
-            for p, lnks in self._get_by_prop_order(operation.chain, prop):
-                i = max(id_store.values()) + 1
-                prop_graph_id = id_store[prop + p + str(i)] = i
-                p_attrs = {prop: p}
-                p_attrs.update({lnk.unique: lnk.ability.name for lnk in lnks})
-                graph_output['nodes'].append(dict(type=prop, name=p, id=prop_graph_id, attrs=p_attrs, img=prop))
+            if len(operation.chain) > 0:
+                for p, lnks in self._get_by_prop_order(operation.chain, prop):
+                    i = max(id_store.values()) + 1
+                    prop_graph_id = id_store[prop + p + str(i)] = i
+                    p_attrs = {prop: p}
+                    p_attrs.update({lnk.unique: lnk.ability.name for lnk in lnks})
+                    graph_output['nodes'].append(dict(type=prop, name=p, id=prop_graph_id, attrs=p_attrs, img=prop))
 
-                if not previous_prop_graph_id:
-                    graph_output['links'].append(dict(source=op_id, target=prop_graph_id, type='next_link'))
-                else:
-                    graph_output['links'].append(
-                        dict(source=previous_prop_graph_id, target=prop_graph_id, type='next_link'))
-                previous_prop_graph_id = prop_graph_id
+                    if not previous_prop_graph_id:
+                        graph_output['links'].append(dict(source=op_id, target=prop_graph_id, type='next_link'))
+                    else:
+                        graph_output['links'].append(
+                            dict(source=previous_prop_graph_id, target=prop_graph_id, type='next_link'))
+                    previous_prop_graph_id = prop_graph_id
         return graph_output
 
     @staticmethod

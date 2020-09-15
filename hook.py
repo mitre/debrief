@@ -15,4 +15,3 @@ async def enable(services):
     app.router.add_route('POST', '/plugin/debrief/report', debrief_gui.report)
     app.router.add_route('*', '/plugin/debrief/graph', debrief_gui.graph)
     app.router.add_route('POST', '/plugin/debrief/pdf', debrief_gui.download_pdf)
-

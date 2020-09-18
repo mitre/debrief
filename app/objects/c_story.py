@@ -1,9 +1,9 @@
 import base64
 from reportlab.lib import colors
-from reportlab.lib import utils
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph, Spacer, Table, TableStyle, PageBreak, Image
+from svglib.svglib import svg2rlg
 
 
 class Story:
@@ -49,15 +49,15 @@ class Story:
 
     def append_graph(self, name, path):
         styles = getSampleStyleSheet()
-        graph = self._get_image(path, width=4*inch)
-        if name == 'tactic':
-            graph._restrictSize(2 * inch, 1 * inch)
         if name == 'graph':
             self.append_text('Operations Graph', styles['Heading3'], 12)
         else:
             self.append_text('%s Graph' % name.capitalize(), styles['Heading3'], 0)
         self.append_text(self.get_description(name), styles['Normal'], 12)
-        self.append(graph)
+
+        graph = svg2rlg(path)
+        aspect = graph.height / float(graph.width)
+        self.append(Image(graph, width=4*inch, height=(4*inch * aspect)))
 
     def generate_op_steps(self, operation):
         steps = [['Time', 'Status', 'Agent', 'Name', 'Command', 'Facts']]
@@ -125,13 +125,6 @@ class Story:
 
         # Release the canvas
         canvas.restoreState()
-
-    @staticmethod
-    def _get_image(path, width=1 * inch):
-        img = utils.ImageReader(path)
-        iw, ih = img.getSize()
-        aspect = ih / float(iw)
-        return Image(path, width=width, height=(width * aspect))
 
     @staticmethod
     def _status_name(status):

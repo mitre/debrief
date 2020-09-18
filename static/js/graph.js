@@ -23,9 +23,10 @@ var node_charges = {'c2': -200, 'operation': -100, 'agent': -200, 'link': -150, 
 var graphSvg = new Graph("#debrief-graph-svg", "graph", null),
     tacticSvg = new Graph("#debrief-tactic-svg", "tactic", d3.select('#op-tooltip')),
     techniqueSvg = new Graph("#debrief-technique-svg", "technique", d3.select('#op-tooltip')),
-    factSvg = new Graph("#debrief-fact-svg", "fact", d3.select('#fact-tooltip'))
+    factSvg = new Graph("#debrief-fact-svg", "fact", d3.select('#fact-tooltip')),
+    elasticSvg = new Graph("#debrief-elastic-svg", "elastic", d3.select('#fact-tooltip'))
 
-var graphs = [graphSvg, factSvg, tacticSvg, techniqueSvg];
+var graphs = [graphSvg, factSvg, tacticSvg, techniqueSvg, elasticSvg];
 
 var imgs = {
     "c2": "debrief/img/cloud.svg",

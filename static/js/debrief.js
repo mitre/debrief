@@ -86,8 +86,8 @@ $( document ).ready(function() {
     }
 });
 
-function switchGraphView(btn) {
-    $(".op-svg").hide();
+function switchGraphView(btn, graphClass=".op-svg") {
+    $(graphClass).hide();
     $(".graph-switch").attr("disabled", false);
     $("#graph-switch-" + $(btn).val()).attr("disabled", true);
     $("#debrief-" + $(btn).val() + "-svg").show();

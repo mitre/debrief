@@ -55,7 +55,8 @@ class DebriefGui(BaseWorld):
             'graph': self.debrief_svc.build_operation_d3,
             'fact': self.debrief_svc.build_fact_d3,
             'tactic': self.debrief_svc.build_tactic_d3,
-            'technique': self.debrief_svc.build_technique_d3
+            'technique': self.debrief_svc.build_technique_d3,
+            'elastic': self.debrief_svc.build_elastic_d3
         }
         try:
             graph_type = request.rel_url.query['type']

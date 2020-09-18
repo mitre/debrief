@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 
 
 class DebriefService:
@@ -51,8 +52,51 @@ class DebriefService:
             for agent in operation.agents:
                 graph_output['links'].append(dict(source=op_id,
                                                   target=id_store['agent' + agent.unique],
-                                                  type='has_agent'))
+                                                  type='next_link'))
         return graph_output
+
+    # async def build_elasticsearch_result_d3(self, operation_ids):
+    async def build_elastic_d3(self, operation_ids):
+        def edge_builder(src_id, src_attrs, target_id, target_attrs):
+            if src_attrs['process.entity_id'] == target_attrs['process.parent.entity_id']:
+                return dict(source=src_id, target=target_id, type='next_link')
+            else:
+                return None
+
+        graph_output = dict(nodes=[], links=[])
+        id_store = dict(default=0)
+
+        for op_id in operation_ids:
+            collapsed_results = defaultdict(dict)
+            operation = (await self.data_svc.locate('operations', match=dict(id=int(op_id))))[0]
+            # graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation'))
+            op_nodes = []
+            interesting_values = set()
+            interesting_fields = {'process.pid', 'process.parent.pid', 'process.command_line'}
+            for rel in operation.all_relationships():
+                if rel.source.trait == "elasticsearch.result.id" and rel.edge == "has_property":
+                    collapsed_results[rel.source.value][rel.target.trait] = rel.target.value
+                else:
+                    # Restrict the values that we add to the node attrs
+                    interesting_values.add(rel.source.value)
+                    interesting_values.add(rel.target.value)
+
+            for elastic_id, full_attrs in collapsed_results.items():
+                graph_output['nodes'].append(dict(
+                    id=elastic_id,
+                    name='',
+                    attrs={k: v for k, v in full_attrs.items() if (str(v) in interesting_values or k in interesting_fields)},
+                    type='fact'
+                ))
+
+            for src_id, src_attrs in collapsed_results.items():
+                for dest_id, dest_attrs in collapsed_results.items():
+                    new_edge = edge_builder(src_id, src_attrs, dest_id, dest_attrs)
+                    if new_edge:
+                        graph_output['links'].append(new_edge)
+                        pass
+
+            return graph_output
 
     async def build_fact_d3(self, operation_ids):
         graph_output = dict(nodes=[], links=[])

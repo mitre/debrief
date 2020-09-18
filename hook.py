@@ -4,7 +4,7 @@ from plugins.debrief.app.debrief_gui import DebriefGui
 name = 'Debrief'
 description = 'some good bones'
 address = '/plugin/debrief/gui'
-access = BaseWorld.Access.RED
+access = BaseWorld.Access.APP
 
 
 async def enable(services):

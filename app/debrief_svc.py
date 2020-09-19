@@ -63,13 +63,10 @@ class DebriefService:
                 return None
 
         graph_output = dict(nodes=[], links=[])
-        id_store = dict(default=0)
 
         for op_id in operation_ids:
             collapsed_results = defaultdict(dict)
             operation = (await self.data_svc.locate('operations', match=dict(id=int(op_id))))[0]
-            # graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation'))
-            op_nodes = []
             interesting_values = set()
             interesting_fields = {'process.pid', 'process.parent.pid', 'process.command_line'}
             for rel in operation.all_relationships():

@@ -86,7 +86,8 @@ class DebriefService:
                     id=elastic_id,
                     name='',
                     attrs={k: v for k, v in full_attrs.items() if (str(v) in interesting_values or k in interesting_fields)},
-                    type='fact'
+                    type='elastic_result',
+                    img='elastic_result'
                 ))
 
             for src_id, src_attrs in collapsed_results.items():

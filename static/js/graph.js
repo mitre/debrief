@@ -18,7 +18,7 @@ $('svg').width('100%')
 $('svg').height('100%')
 
 var link_lengths = {'http': 100, 'next_link': 50, 'has_agent': 50, 'relationship': 100};
-var node_charges = {'c2': -200, 'operation': -100, 'agent': -200, 'link': -150, 'fact': -50, 'tactic': -200, 'technique_name': -200}
+var node_charges = {'c2': -200, 'operation': -100, 'agent': -200, 'link': -150, 'fact': -50, 'tactic': -200, 'technique_name': -200, 'elastic_result': -100}
 
 var graphSvg = new Graph("#debrief-graph-svg", "graph", null),
     tacticSvg = new Graph("#debrief-tactic-svg", "tactic", d3.select('#op-tooltip')),
@@ -37,7 +37,8 @@ var imgs = {
     "windows": "debrief/img/windows.svg",
     "linux": "debrief/img/linux.svg",
     "tactic": "debrief/img/tactic.svg",
-    "technique_name": "debrief/img/technique.svg"}
+    "technique_name": "debrief/img/technique.svg",
+    "elastic_result": "debrief/img/elastic.svg"}
 
 for (var key in imgs) {
     getImage(key, imgs[key])
@@ -66,7 +67,7 @@ function addToLegend(id, svg) {
         $("#fact-legend-list").append(liHTML.clone());
         $("#op-legend-list").append(liHTML);
     }
-    else if (id == "fact") {
+    else if (id == "fact" || id == "elastic result") {
         $("#fact-legend-list").append(liHTML);
     }
     else {

@@ -52,10 +52,9 @@ class DebriefService:
             for agent in operation.agents:
                 graph_output['links'].append(dict(source=op_id,
                                                   target=id_store['agent' + agent.unique],
-                                                  type='next_link'))
+                                                  type='has_agent'))
         return graph_output
 
-    # async def build_elasticsearch_result_d3(self, operation_ids):
     async def build_elastic_d3(self, operation_ids):
         def edge_builder(src_id, src_attrs, target_id, target_attrs):
             if src_attrs['process.entity_id'] == target_attrs['process.parent.entity_id']:

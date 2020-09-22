@@ -1,4 +1,6 @@
 import base64
+
+from lxml import etree as ET
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
@@ -55,6 +57,7 @@ class Story:
             self.append_text('%s Graph' % name.capitalize(), styles['Heading3'], 0)
         self.append_text(self.get_description(name), styles['Normal'], 12)
 
+        self._adjust_icon_svgs(path)
         graph = svg2rlg(path)
         aspect = graph.height / float(graph.width)
         self.append(Image(graph, width=4*inch, height=(4*inch * aspect)))
@@ -125,6 +128,18 @@ class Story:
 
         # Release the canvas
         canvas.restoreState()
+
+    @staticmethod
+    def _adjust_icon_svgs(path):
+        svg = ET.parse(path)
+        for icon_svg in svg.getroot().iter("{http://www.w3.org/2000/svg}svg"):
+            if icon_svg.get('id') == 'copy-svg':
+                continue
+            viewbox = [int(float(val)) for val in icon_svg.get('viewBox').split()]
+            aspect = viewbox[2] / viewbox[3]
+            icon_svg.set('width', str(round(float(icon_svg.get('height')) * aspect)))
+            icon_svg.set('x', '-' + str(int(icon_svg.get('width')) / 2))
+        svg.write(open(path, 'wb'))
 
     @staticmethod
     def _status_name(status):

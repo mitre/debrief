@@ -30,11 +30,8 @@ class DebriefGui(BaseWorld):
         self.file_svc = services.get('file_svc')
         self.log = logging.getLogger('debrief_gui')
 
-        # suppress Python Image Library and svglib debug logs
-        pil = logging.getLogger('PIL')
-        pil.setLevel(logging.INFO)
-        svglib = logging.getLogger('svglib')
-        svglib.setLevel(logging.INFO)
+        self._suppress_logs('PIL')
+        self._suppress_logs('svglib')
 
     async def _get_access(self, request):
         return dict(access=tuple(await self.auth_svc.get_permissions(request)))
@@ -160,3 +157,8 @@ class DebriefGui(BaseWorld):
         imgs.extend(glob.glob('./plugins/debrief/downloads/*.svg'))
         for f in imgs:
             os.remove(f)
+
+    @staticmethod
+    def _suppress_logs(library):
+        lib = logging.getLogger(library)
+        lib.setLevel(logging.INFO)

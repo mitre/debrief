@@ -159,7 +159,8 @@ function getGraphData() {
         $("#copy-svg .next_link").show()
         $("#copy-svg .link .icons").children('.svg-icon').show();
         $("#copy-svg .link .icons").children('.hidden').remove();
-        $("#copy-svg text").show()
+        $("#copy-svg text").show();
+        $("#copy-svg text").css("fill", "#333");
 
         let serializedSvg = new XMLSerializer().serializeToString($("#copy-svg")[0])
         let encodedData = window.btoa(serializedSvg);

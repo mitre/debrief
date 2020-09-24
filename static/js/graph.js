@@ -191,7 +191,7 @@ function writeGraph(graph, graphObj) {
         .attr("class", "label")
         .attr("x", "18")
         .attr("y", "8")
-        .style("font-size", "12px").style("fill", "#333")
+        .style("font-size", "12px").style("fill", "white")
         .text(function(d) {
             if (d.type != 'link') {
                 return d.name;

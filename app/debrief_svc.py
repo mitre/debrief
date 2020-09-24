@@ -36,7 +36,7 @@ class DebriefService:
             for link in operation.chain:
                 link_graph_id = id_store['link' + link.unique] = max(id_store.values()) + 1
                 graph_output['nodes'].append(dict(type='link', name='link:'+link.unique, id=link_graph_id,
-                                                  status=link.status, img='link'))
+                                                  status=link.status, img=link.ability.tactic))
 
                 if not previous_link_graph_id:
                     graph_output['links'].append(dict(source=op_id, target=link_graph_id, type='next_link'))
@@ -104,7 +104,7 @@ class DebriefService:
                     prop_graph_id = id_store[prop + p + str(i)] = i
                     p_attrs = {prop: p}
                     p_attrs.update({lnk.unique: lnk.ability.name for lnk in lnks})
-                    graph_output['nodes'].append(dict(type=prop, name=p, id=prop_graph_id, attrs=p_attrs, img=prop))
+                    graph_output['nodes'].append(dict(type=prop, name=p, id=prop_graph_id, attrs=p_attrs, img=p))
 
                     if not previous_prop_graph_id:
                         graph_output['links'].append(dict(source=op_id, target=prop_graph_id, type='next_link'))

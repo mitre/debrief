@@ -32,7 +32,9 @@
                 <label for="show-images">Show icons</label>
                 <h5>Data Options</h5>
                 <input type="checkbox" id="show-steps" class="debrief-display-opt" value="steps" checked onclick="toggleSteps(this)">
-                <label for="show-steps">Show operation steps</label>
+                <label for="show-steps">Show operation steps</label><br>
+                <input type="checkbox" id="show-tactic-icons" class="debrief-display-opt" value="tactic-icons" checked onclick="toggleTacticIcons(this)">
+                <label for="show-tactic-icons">Show steps as tactics</label>
             </div>
             <div id="debrief-download">
                 <button id="debrief-download-raw" type="button" class="button-success atomic-button"
@@ -49,7 +51,7 @@
                 <button id="graph-switch-graph" class="graph-switch" disabled value="graph" onclick="switchGraphView(this)">Default</button>
                 <div id="op-legend" class="legend-box">
                     <h4>Legend</h4>
-                    <ul id="op-legend-list" style="padding: 0px; margin: 0px"></ul>
+                    <ul id="op-legend-list" style="padding: 0px; margin: 0px; height: 320px; overflow-y: auto;"></ul>
                 </div>
                 <div class="d3-tooltip" id="op-tooltip" style="opacity: 0"></div>
                 <svg id="debrief-graph-svg" class="op-svg debrief-svg"></svg>

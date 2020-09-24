@@ -157,7 +157,8 @@ function getGraphData() {
 //        re-enable any hidden nodes
         $("#copy-svg .link").show()
         $("#copy-svg .next_link").show()
-        $("#copy-svg .svg-icon").show()
+        $("#copy-svg .link .icons").children('.svg-icon').show();
+        $("#copy-svg .link .icons").children('.hidden').remove();
         $("#copy-svg text").show()
 
         let serializedSvg = new XMLSerializer().serializeToString($("#copy-svg")[0])
@@ -188,6 +189,15 @@ function toggleSteps(input) {
         $("#debrief-graph .link").hide()
         $("#debrief-graph-svg .next_link").hide()
     }
+}
+
+function toggleTacticIcons(input) {
+    let showing = $("#debrief-graph .link .icons").children(".svg-icon:not(hidden)");
+    let hidden = $("#debrief-graph .link .icons").children(".hidden");
+    showing.hide();
+    hidden.show();
+    showing.addClass("hidden");
+    hidden.removeClass("hidden");
 }
 
 function toggleIcons(input) {

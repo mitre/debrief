@@ -36,7 +36,17 @@ var imgs = {
     "windows": "debrief/img/windows.svg",
     "linux": "debrief/img/linux.svg",
     "tactic": "debrief/img/tactic.svg",
-    "technique_name": "debrief/img/technique.svg"}
+    "technique_name": "debrief/img/technique.svg",
+    "collection": "debrief/img/collection.svg",
+    "credential-access": "debrief/img/credaccess.svg",
+    "defense-evasion": "debrief/img/defevasion.svg",
+    "discovery": "debrief/img/discovery.svg",
+    "execution": "debrief/img/execution.svg",
+    "exfiltration": "debrief/img/exfil.svg",
+    "impact": "debrief/img/impact.svg",
+    "lateral-movement": "debrief/img/latmove.svg",
+    "persistence": "debrief/img/persistence.svg",
+    "privilege-escalation": "debrief/img/privesc.svg"}
 
 for (var key in imgs) {
     getImage(key, imgs[key])
@@ -54,12 +64,12 @@ function getImage(i, value) {
 
 function addToLegend(id, svg) {
     svg.id += "-legend";
-    svg.setAttribute("width", 25);
-    svg.setAttribute("height", 25);
+    svg.setAttribute("width", 22);
+    svg.setAttribute("height", 22);
     let liHTML = $("<li class='legend'></li>");
     liHTML.append(svg);
     id = id.replace("_", " ");
-    liHTML.append($("<label style='padding: 10px'>" + id + "</label>"));
+    liHTML.append($("<label style='padding: 7px 10px; font-size: 12px'>" + id + "</label>"));
 
     if (id == "operation") {
         $("#fact-legend-list").append(liHTML.clone());
@@ -71,6 +81,21 @@ function addToLegend(id, svg) {
     else {
         $("#op-legend-list").append(liHTML);
     }
+    let sortedLegend = $("#op-legend-list").children().sort(function(a, b) {
+        let aLabel = $(a).children('label').html();
+        let bLabel = $(b).children('label').html();
+        if (aLabel < bLabel) {
+            return -1;
+        }
+        else if (aLabel == bLabel) {
+            return 0;
+        }
+        else {
+            return 1;
+        }
+    })
+    $("#op-legend-list").html(sortedLegend);
+
 }
 
 var colors = d3.scaleOrdinal(d3.schemeCategory10);
@@ -174,19 +199,24 @@ function writeGraph(graph, graphObj) {
         });
 
     nodes.append("g")
+        .attr("class", "icons")
         .html(function(d) {
-            if ($("#" + d.img + "-img").length > 0) {
-                let c = $("#" + d.img + "-img")[0].cloneNode(true)
-                $(c).removeAttr("id")
-                $(c).attr("width", 32)
-                $(c).attr("height", 16)
-                $(c).attr("x", "-16")
-                $(c).attr("y", "-8")
-                if (d.status && d.status == -2) {
-                    $($(c).children()[0]).attr("fill", "white");
-                }
-                return c.outerHTML
+            let c;
+            if (d.img.indexOf(" ") == -1 && $("#" + d.img + "-img").length > 0) {
+                c = $("#" + d.img + "-img")[0].cloneNode(true);
             }
+            else {
+                c = $("#" + d.type + "-img")[0].cloneNode(true);
+            }
+            c = updateIconAttr(c, d);
+            let l = "";
+            if (d.type == "link") {
+                l = $("#link-img")[0].cloneNode(true);
+                l = updateIconAttr(l, d);
+                $(l).addClass("hidden");
+                $(l).hide();
+            }
+            return c.outerHTML + l.outerHTML;
         })
 
     let simulation = graphObj.simulation;
@@ -267,6 +297,18 @@ function writeGraph(graph, graphObj) {
     }
     return ret
   }
+}
+
+function updateIconAttr(svg, link) {
+    $(svg).removeAttr("id");
+    $(svg).attr("width", 32);
+    $(svg).attr("height", 16);
+    $(svg).attr("x", "-16");
+    $(svg).attr("y", "-8");
+    if (link.status && link.status == -2) {
+        $($(svg).children()[0]).attr("fill", "white");
+    }
+    return svg;
 }
 
 function statusColor(status) {

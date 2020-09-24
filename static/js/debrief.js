@@ -202,9 +202,9 @@ function toggleTacticIcons(input) {
 
 function toggleIcons(input) {
     if($(input).prop("checked")) {
-        $("#debrief-graph .svg-icon").show();
+        $("#debrief-graph .svg-icon:not(.hidden)").show();
     }
     else {
-       $("#debrief-graph .svg-icon").hide();
+        $("#debrief-graph .svg-icon:not(.hidden)").hide();
     }
 }

@@ -35,7 +35,8 @@ class DebriefService:
             previous_link_graph_id = None
             for link in operation.chain:
                 link_graph_id = id_store['link' + link.unique] = max(id_store.values()) + 1
-                graph_output['nodes'].append(dict(type='link', name='link:'+link.unique, id=link_graph_id, img='link'))
+                graph_output['nodes'].append(dict(type='link', name='link:'+link.unique, id=link_graph_id,
+                                                  status=link.status, img='link'))
 
                 if not previous_link_graph_id:
                     graph_output['links'].append(dict(source=op_id, target=link_graph_id, type='next_link'))

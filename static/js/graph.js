@@ -151,7 +151,14 @@ function writeGraph(graph, graphObj) {
 
     nodes.append("circle")
         .attr("r", 16)
-        .style("fill", "#efefef")
+        .style("fill", function(d) {
+            if (d.status || d.status == 0) {
+                return statusColor(d.status);
+            }
+            else {
+                return "#efefef";
+            }
+        })
         .style("stroke", "#424242")
         .style("stroke-width", "1px")
 
@@ -175,6 +182,9 @@ function writeGraph(graph, graphObj) {
                 $(c).attr("height", 16)
                 $(c).attr("x", "-16")
                 $(c).attr("y", "-8")
+                if (d.status && d.status == -2) {
+                    $($(c).children()[0]).attr("fill", "white");
+                }
                 return c.outerHTML
             }
         })
@@ -257,4 +267,23 @@ function writeGraph(graph, graphObj) {
     }
     return ret
   }
+}
+
+function statusColor(status) {
+    if (status === 0) {
+        return '#44AA99';
+    } else if (status === -2) {
+        return 'black';
+    } else if (status === 1) {
+        return '#CC3311';
+    } else if (status === 124) {
+        return 'cornflowerblue';
+    } else if (status === -3) {
+        return '#FFB000';
+    } else if (status === -4) {
+        return 'white';
+    } else if (status === -5) {
+        return '#EE3377';
+    }
+    return '#555555';
 }

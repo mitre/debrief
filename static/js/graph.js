@@ -208,11 +208,11 @@ function writeGraph(graph, graphObj) {
             else {
                 c = $("#" + d.type + "-img")[0].cloneNode(true);
             }
-            c = updateIconAttr(c, d);
+            c = updateIconAttr(c, d.status);
             let l = "";
             if (d.type == "link") {
                 l = $("#link-img")[0].cloneNode(true);
-                l = updateIconAttr(l, d);
+                l = updateIconAttr(l, d.status);
                 $(c).addClass("hidden");
                 $(c).hide();
             }
@@ -299,13 +299,13 @@ function writeGraph(graph, graphObj) {
   }
 }
 
-function updateIconAttr(svg, link) {
+function updateIconAttr(svg, status) {
     $(svg).removeAttr("id");
     $(svg).attr("width", 32);
     $(svg).attr("height", 16);
     $(svg).attr("x", "-16");
     $(svg).attr("y", "-8");
-    if (link.status && link.status == -2) {
+    if (status && status == -2) {
         $($(svg).children()[0]).attr("fill", "white");
     }
     return svg;

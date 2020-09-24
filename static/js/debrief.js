@@ -24,6 +24,7 @@ $( document ).ready(function() {
         if (operations) {
             updateReportGraph(operations);
             $('.debrief-display-opt').prop("checked", true);
+            $("#show-tactic-icons").prop("checked", false);
             restRequest('POST', {'operations': operations}, displayReport, '/plugin/debrief/report');
         }
     });

@@ -213,8 +213,8 @@ function writeGraph(graph, graphObj) {
             if (d.type == "link") {
                 l = $("#link-img")[0].cloneNode(true);
                 l = updateIconAttr(l, d);
-                $(l).addClass("hidden");
-                $(l).hide();
+                $(c).addClass("hidden");
+                $(c).hide();
             }
             return c.outerHTML + l.outerHTML;
         })

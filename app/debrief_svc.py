@@ -11,7 +11,7 @@ class DebriefService:
     async def build_operation_d3(self, operation_ids):
         graph_output = dict(nodes=[], links=[])
         id_store = dict(c2=0)
-        graph_output['nodes'].append(dict(name="C2", type='c2', label='server', id=0, img='c2'))
+        graph_output['nodes'].append(dict(name="C2 Server", type='c2', label='server', id=0, img='server'))
 
         agents = await self.data_svc.locate('agents')
         for agent in agents:

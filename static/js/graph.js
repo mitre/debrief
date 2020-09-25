@@ -28,7 +28,7 @@ var graphSvg = new Graph("#debrief-graph-svg", "graph", null),
 var graphs = [graphSvg, factSvg, tacticSvg, techniqueSvg];
 
 var imgs = {
-    "c2": "debrief/img/cloud.svg",
+    "server": "debrief/img/cloud.svg",
     "operation": "debrief/img/operation.svg",
     "link": "debrief/img/link.svg",
     "fact": "debrief/img/star.svg",
@@ -46,7 +46,9 @@ var imgs = {
     "impact": "debrief/img/impact.svg",
     "lateral-movement": "debrief/img/latmove.svg",
     "persistence": "debrief/img/persistence.svg",
-    "privilege-escalation": "debrief/img/privesc.svg"}
+    "privilege-escalation": "debrief/img/privesc.svg",
+    "initial-access": "debrief/img/access.svg",
+    "command-and-control": "debrief/img/commandcontrol.svg"}
 
 for (var key in imgs) {
     getImage(key, imgs[key])
@@ -129,6 +131,7 @@ function buildGraph(graphObj, operations) {
     let url = "/plugin/debrief/graph?type=" + graphObj.type + "&operations=" + operations.join();
     d3.json(url, function (error, graph) {
         if (error) throw error;
+        console.log(graph);
         writeGraph(graph, graphObj);
     });
 }

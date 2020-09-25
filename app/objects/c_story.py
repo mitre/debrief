@@ -1,9 +1,11 @@
 import base64
+
+from lxml import etree as ET
 from reportlab.lib import colors
-from reportlab.lib import utils
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph, Spacer, Table, TableStyle, PageBreak, Image
+from svglib.svglib import svg2rlg
 
 
 class Story:
@@ -49,15 +51,16 @@ class Story:
 
     def append_graph(self, name, path):
         styles = getSampleStyleSheet()
-        graph = self._get_image(path, width=4*inch)
-        if name == 'tactic':
-            graph._restrictSize(2 * inch, 1 * inch)
         if name == 'graph':
             self.append_text('Operations Graph', styles['Heading3'], 12)
         else:
             self.append_text('%s Graph' % name.capitalize(), styles['Heading3'], 0)
         self.append_text(self.get_description(name), styles['Normal'], 12)
-        self.append(graph)
+
+        self._adjust_icon_svgs(path)
+        graph = svg2rlg(path)
+        aspect = graph.height / float(graph.width)
+        self.append(Image(graph, width=4*inch, height=(4*inch * aspect)))
 
     def generate_op_steps(self, operation):
         steps = [['Time', 'Status', 'Agent', 'Name', 'Command', 'Facts']]
@@ -127,11 +130,16 @@ class Story:
         canvas.restoreState()
 
     @staticmethod
-    def _get_image(path, width=1 * inch):
-        img = utils.ImageReader(path)
-        iw, ih = img.getSize()
-        aspect = ih / float(iw)
-        return Image(path, width=width, height=(width * aspect))
+    def _adjust_icon_svgs(path):
+        svg = ET.parse(path)
+        for icon_svg in svg.getroot().iter("{http://www.w3.org/2000/svg}svg"):
+            if icon_svg.get('id') == 'copy-svg':
+                continue
+            viewbox = [int(float(val)) for val in icon_svg.get('viewBox').split()]
+            aspect = viewbox[2] / viewbox[3]
+            icon_svg.set('width', str(round(float(icon_svg.get('height')) * aspect)))
+            icon_svg.set('x', '-' + str(int(icon_svg.get('width')) / 2))
+        svg.write(open(path, 'wb'))
 
     @staticmethod
     def _status_name(status):

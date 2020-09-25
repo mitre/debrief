@@ -1,5 +1,4 @@
 import base64
-import cairosvg
 import glob
 import logging
 import os
@@ -31,9 +30,8 @@ class DebriefGui(BaseWorld):
         self.file_svc = services.get('file_svc')
         self.log = logging.getLogger('debrief_gui')
 
-        # suppress Python Image Library debug logs
-        pil = logging.getLogger('PIL')
-        pil.setLevel(logging.INFO)
+        self._suppress_logs('PIL')
+        self._suppress_logs('svglib')
 
     async def _get_access(self, request):
         return dict(access=tuple(await self.auth_svc.get_permissions(request)))
@@ -68,7 +66,7 @@ class DebriefGui(BaseWorld):
     async def download_pdf(self, request):
         data = dict(await request.json())
         svg_data = data['graphs']
-        self._svgs_to_pngs(svg_data)
+        self._save_svgs(svg_data)
         if data['operations']:
             operations = [o for o in await self.data_svc.locate('operations', match=await self._get_access(request))
                           if str(o.id) in data.get('operations')]
@@ -118,7 +116,7 @@ class DebriefGui(BaseWorld):
 
         story_obj.append_text('OPERATIONS GRAPHS', styles['Heading2'], 0)
         graph_files = dict()
-        for file in glob.glob('./plugins/debrief/downloads/*.png'):
+        for file in glob.glob('./plugins/debrief/downloads/*.svg'):
             graph_files[os.path.basename(file).split('.')[0]] = file
         story_obj.append_graph('graph', graph_files['graph'])
         story_obj.append_graph('tactic', graph_files['tactic'])
@@ -146,13 +144,11 @@ class DebriefGui(BaseWorld):
         return pdf_value.decode('utf-8', errors='ignore')
 
     @staticmethod
-    def _svgs_to_pngs(svgs):
+    def _save_svgs(svgs):
         for filename, svg_bytes in svgs.items():
             save_location = './plugins/debrief/downloads/'
             with open(save_location + filename + '.svg', "wb") as fh:
                 fh.write(base64.b64decode(svg_bytes))
-            cairosvg.svg2png(url=save_location + filename + '.svg',
-                             write_to=save_location + filename + '.png')
 
     @staticmethod
     def _clean_downloads():
@@ -161,3 +157,8 @@ class DebriefGui(BaseWorld):
         imgs.extend(glob.glob('./plugins/debrief/downloads/*.svg'))
         for f in imgs:
             os.remove(f)
+
+    @staticmethod
+    def _suppress_logs(library):
+        lib = logging.getLogger(library)
+        lib.setLevel(logging.INFO)

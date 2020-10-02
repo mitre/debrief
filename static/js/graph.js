@@ -28,7 +28,7 @@ var graphSvg = new Graph("#debrief-graph-svg", "graph", null),
 var graphs = [graphSvg, factSvg, tacticSvg, techniqueSvg];
 
 var imgs = {
-    "c2": "debrief/img/cloud.svg",
+    "server": "debrief/img/cloud.svg",
     "operation": "debrief/img/operation.svg",
     "link": "debrief/img/link.svg",
     "fact": "debrief/img/star.svg",
@@ -36,7 +36,19 @@ var imgs = {
     "windows": "debrief/img/windows.svg",
     "linux": "debrief/img/linux.svg",
     "tactic": "debrief/img/tactic.svg",
-    "technique_name": "debrief/img/technique.svg"}
+    "technique_name": "debrief/img/technique.svg",
+    "collection": "debrief/img/collection.svg",
+    "credential-access": "debrief/img/credaccess.svg",
+    "defense-evasion": "debrief/img/defevasion.svg",
+    "discovery": "debrief/img/discovery.svg",
+    "execution": "debrief/img/execution.svg",
+    "exfiltration": "debrief/img/exfil.svg",
+    "impact": "debrief/img/impact.svg",
+    "lateral-movement": "debrief/img/latmove.svg",
+    "persistence": "debrief/img/persistence.svg",
+    "privilege-escalation": "debrief/img/privesc.svg",
+    "initial-access": "debrief/img/access.svg",
+    "command-and-control": "debrief/img/commandcontrol.svg"}
 
 for (var key in imgs) {
     getImage(key, imgs[key])
@@ -54,12 +66,12 @@ function getImage(i, value) {
 
 function addToLegend(id, svg) {
     svg.id += "-legend";
-    svg.setAttribute("width", 25);
-    svg.setAttribute("height", 25);
+    svg.setAttribute("width", 22);
+    svg.setAttribute("height", 22);
     let liHTML = $("<li class='legend'></li>");
     liHTML.append(svg);
     id = id.replace("_", " ");
-    liHTML.append($("<label style='padding: 10px'>" + id + "</label>"));
+    liHTML.append($("<label style='padding: 7px 10px; font-size: 12px'>" + id + "</label>"));
 
     if (id == "operation") {
         $("#fact-legend-list").append(liHTML.clone());
@@ -71,6 +83,21 @@ function addToLegend(id, svg) {
     else {
         $("#op-legend-list").append(liHTML);
     }
+    let sortedLegend = $("#op-legend-list").children().sort(function(a, b) {
+        let aLabel = $(a).children('label').html();
+        let bLabel = $(b).children('label').html();
+        if (aLabel < bLabel) {
+            return -1;
+        }
+        else if (aLabel == bLabel) {
+            return 0;
+        }
+        else {
+            return 1;
+        }
+    })
+    $("#op-legend-list").html(sortedLegend);
+
 }
 
 var colors = d3.scaleOrdinal(d3.schemeCategory10);
@@ -104,6 +131,7 @@ function buildGraph(graphObj, operations) {
     let url = "/plugin/debrief/graph?type=" + graphObj.type + "&operations=" + operations.join();
     d3.json(url, function (error, graph) {
         if (error) throw error;
+        console.log(graph);
         writeGraph(graph, graphObj);
     });
 }
@@ -151,7 +179,14 @@ function writeGraph(graph, graphObj) {
 
     nodes.append("circle")
         .attr("r", 16)
-        .style("fill", "#efefef")
+        .style("fill", function(d) {
+            if (d.status || d.status == 0) {
+                return statusColor(d.status);
+            }
+            else {
+                return "#efefef";
+            }
+        })
         .style("stroke", "#424242")
         .style("stroke-width", "1px")
 
@@ -159,7 +194,7 @@ function writeGraph(graph, graphObj) {
         .attr("class", "label")
         .attr("x", "18")
         .attr("y", "8")
-        .style("font-size", "12px").style("fill", "#333")
+        .style("font-size", "12px").style("fill", "white")
         .text(function(d) {
             if (d.type != 'link') {
                 return d.name;
@@ -167,16 +202,24 @@ function writeGraph(graph, graphObj) {
         });
 
     nodes.append("g")
+        .attr("class", "icons")
         .html(function(d) {
-            if ($("#" + d.img + "-img").length > 0) {
-                let c = $("#" + d.img + "-img")[0].cloneNode(true)
-                $(c).removeAttr("id")
-                $(c).attr("width", 32)
-                $(c).attr("height", 16)
-                $(c).attr("x", "-16")
-                $(c).attr("y", "-8")
-                return c.outerHTML
+            let c;
+            if (d.img.indexOf(" ") == -1 && $("#" + d.img + "-img").length > 0) {
+                c = $("#" + d.img + "-img")[0].cloneNode(true);
             }
+            else {
+                c = $("#" + d.type + "-img")[0].cloneNode(true);
+            }
+            c = updateIconAttr(c, d.status);
+            let l = "";
+            if (d.type == "link") {
+                l = $("#link-img")[0].cloneNode(true);
+                l = updateIconAttr(l, d.status);
+                $(c).addClass("hidden");
+                $(c).hide();
+            }
+            return c.outerHTML + l.outerHTML;
         })
 
     let simulation = graphObj.simulation;
@@ -257,4 +300,35 @@ function writeGraph(graph, graphObj) {
     }
     return ret
   }
+}
+
+function updateIconAttr(svg, status) {
+    $(svg).removeAttr("id");
+    $(svg).attr("width", 32);
+    $(svg).attr("height", 16);
+    $(svg).attr("x", "-16");
+    $(svg).attr("y", "-8");
+    if (status && status == -2) {
+        $($(svg).children()[0]).attr("fill", "white");
+    }
+    return svg;
+}
+
+function statusColor(status) {
+    if (status === 0) {
+        return '#44AA99';
+    } else if (status === -2) {
+        return 'black';
+    } else if (status === 1) {
+        return '#CC3311';
+    } else if (status === 124) {
+        return 'cornflowerblue';
+    } else if (status === -3) {
+        return '#FFB000';
+    } else if (status === -4) {
+        return 'white';
+    } else if (status === -5) {
+        return '#EE3377';
+    }
+    return '#555555';
 }

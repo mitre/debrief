@@ -11,7 +11,7 @@ class DebriefService:
     async def build_operation_d3(self, operation_ids):
         graph_output = dict(nodes=[], links=[])
         id_store = dict(c2=0)
-        graph_output['nodes'].append(dict(name="C2", type='c2', label='server', id=0, img='c2'))
+        graph_output['nodes'].append(dict(name="C2 Server", type='c2', label='server', id=0, img='server'))
 
         agents = await self.data_svc.locate('agents')
         for agent in agents:
@@ -35,7 +35,8 @@ class DebriefService:
             previous_link_graph_id = None
             for link in operation.chain:
                 link_graph_id = id_store['link' + link.unique] = max(id_store.values()) + 1
-                graph_output['nodes'].append(dict(type='link', name='link:'+link.unique, id=link_graph_id, img='link'))
+                graph_output['nodes'].append(dict(type='link', name='link:'+link.unique, id=link_graph_id,
+                                                  status=link.status, img=link.ability.tactic))
 
                 if not previous_link_graph_id:
                     graph_output['links'].append(dict(source=op_id, target=link_graph_id, type='next_link'))
@@ -103,7 +104,7 @@ class DebriefService:
                     prop_graph_id = id_store[prop + p + str(i)] = i
                     p_attrs = {prop: p}
                     p_attrs.update({lnk.unique: lnk.ability.name for lnk in lnks})
-                    graph_output['nodes'].append(dict(type=prop, name=p, id=prop_graph_id, attrs=p_attrs, img=prop))
+                    graph_output['nodes'].append(dict(type=prop, name=p, id=prop_graph_id, attrs=p_attrs, img=p))
 
                     if not previous_prop_graph_id:
                         graph_output['links'].append(dict(source=op_id, target=prop_graph_id, type='next_link'))

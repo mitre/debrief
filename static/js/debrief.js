@@ -24,6 +24,7 @@ $( document ).ready(function() {
         if (operations) {
             updateReportGraph(operations);
             $('.debrief-display-opt').prop("checked", true);
+            $("#show-tactic-icons").prop("checked", false);
             restRequest('POST', {'operations': operations}, displayReport, '/plugin/debrief/report');
         }
     });
@@ -157,8 +158,10 @@ function getGraphData() {
 //        re-enable any hidden nodes
         $("#copy-svg .link").show()
         $("#copy-svg .next_link").show()
-        $("#copy-svg .svg-icon").show()
-        $("#copy-svg text").show()
+        $("#copy-svg .link .icons").children('.svg-icon').show();
+        $("#copy-svg .link .icons").children('.hidden').remove();
+        $("#copy-svg text").show();
+        $("#copy-svg text").css("fill", "#333");
 
         let serializedSvg = new XMLSerializer().serializeToString($("#copy-svg")[0])
         let encodedData = window.btoa(serializedSvg);
@@ -190,11 +193,20 @@ function toggleSteps(input) {
     }
 }
 
+function toggleTacticIcons(input) {
+    let showing = $("#debrief-graph .link .icons").children(".svg-icon:not(hidden)");
+    let hidden = $("#debrief-graph .link .icons").children(".hidden");
+    showing.hide();
+    hidden.show();
+    showing.addClass("hidden");
+    hidden.removeClass("hidden");
+}
+
 function toggleIcons(input) {
     if($(input).prop("checked")) {
-        $("#debrief-graph .svg-icon").show();
+        $("#debrief-graph .svg-icon:not(.hidden)").show();
     }
     else {
-       $("#debrief-graph .svg-icon").hide();
+        $("#debrief-graph .svg-icon:not(.hidden)").hide();
     }
 }

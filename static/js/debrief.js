@@ -34,6 +34,7 @@ $( document ).ready(function() {
     function clearReport(){
         $("#report-operations tbody tr").remove();
         $("#report-steps tbody tr").remove();
+        $("#report-agents tbody tr").remove();
     }
 
     function displayReport(data){
@@ -42,6 +43,7 @@ $( document ).ready(function() {
             updateOperationTable(op);
             updateStepTable(op);
         })
+        updateAgentTable(data['agents']);
     }
 
     function updateOperationTable(op){
@@ -67,6 +69,20 @@ $( document ).ready(function() {
                 "</tr>");
         })
 
+    }
+
+    function updateAgentTable(agents) {
+        agents.forEach(function(agent) {
+            $("#report-agents tbody").append("<tr>" +
+                "<td>" + agent.paw + "</td>" +
+                "<td>" + agent.host + "</td>" +
+                "<td>" + agent.platform + "</td>" +
+                "<td>" + agent.username + "</td>" +
+                "<td>" + agent.privilege + "</td>" +
+                "<td>" + agent.exe_name + "</td>" +
+                "</tr>"
+            );
+        })
     }
 
     function statusName(status) {

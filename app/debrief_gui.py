@@ -46,7 +46,8 @@ class DebriefGui(BaseWorld):
         data = dict(await request.json())
         operations = [o.display for o in await self.data_svc.locate('operations', match=await self._get_access(request))
                       if str(o.id) in data.get('operations')]
-        return web.json_response(dict(operations=operations))
+        agents = [a.display for a in await self.data_svc.locate('agents', match=await self._get_access(request))]
+        return web.json_response(dict(operations=operations, agents=agents))
 
     async def graph(self, request):
         graphs = {

@@ -35,6 +35,7 @@ $( document ).ready(function() {
         $("#report-operations tbody tr").remove();
         $("#report-steps tbody tr").remove();
         $("#report-agents tbody tr").remove();
+        $("#report-tactics-techniques tbody tr").remove();
     }
 
     function displayReport(data){
@@ -44,6 +45,7 @@ $( document ).ready(function() {
             updateStepTable(op);
         })
         updateAgentTable(data['agents']);
+        updateTacticTechniqueTable(data['ttps']);
     }
 
     function updateOperationTable(op){
@@ -68,7 +70,45 @@ $( document ).ready(function() {
                 " Command</button></td>" +
                 "</tr>");
         })
+    }
 
+    function updateTacticTechniqueTable(ttps) {
+        function generateList(objList) {
+            let ret = "<ul style='padding: 0px'>";
+            objList.forEach(function(obj) {
+                ret += "<li>" + obj + "</li>"
+            })
+            ret += "</ul>"
+            return ret;
+        }
+        function generateTechniqueList(techniques) {
+            let arr = [];
+            for (let name in techniques) {
+                arr.push(techniques[name] + ": " + name);
+            }
+            return generateList(arr);
+        }
+        function generateStepList(steps) {
+            let ret = "<ul style='padding: 0px'>"
+            for (let opName in steps) {
+                ret += "<li style='color: grey'>" + opName + "</li>";
+                ret += "<ul>"
+                steps[opName].forEach(function(abilityName) {
+                    ret += "<li>" + abilityName + "</li>"
+                })
+                ret += "</ul>"
+            }
+            ret += "</ul>"
+            return ret;
+        }
+        for (let key in ttps) {
+            let tactic = ttps[key];
+            $("#report-tactics-techniques tbody").append("<tr>" +
+                "<td style='text-transform: capitalize;'>" + tactic.name + "</td>" +
+                "<td>" + generateTechniqueList(tactic.techniques) + "</td>" +
+                "<td>" + generateStepList(tactic.steps) + "</td>" +
+                "</tr");
+        }
     }
 
     function updateAgentTable(agents) {

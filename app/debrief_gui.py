@@ -44,10 +44,12 @@ class DebriefGui(BaseWorld):
 
     async def report(self, request):
         data = dict(await request.json())
-        operations = [o.display for o in await self.data_svc.locate('operations', match=await self._get_access(request))
+        operations = [o for o in await self.data_svc.locate('operations', match=await self._get_access(request))
                       if str(o.id) in data.get('operations')]
+        op_displays = [o.display for o in operations]
         agents = [a.display for a in await self.data_svc.locate('agents', match=await self._get_access(request))]
-        return web.json_response(dict(operations=operations, agents=agents))
+        ttps = self._generate_ttps(operations)
+        return web.json_response(dict(operations=op_displays, agents=agents, ttps=ttps))
 
     async def graph(self, request):
         graphs = {
@@ -77,6 +79,27 @@ class DebriefGui(BaseWorld):
             self._clean_downloads()
             return web.json_response(dict(filename=filename, pdf_bytes=pdf_bytes))
         return web.json_response('No or multiple operations selected')
+
+    @staticmethod
+    def _generate_ttps(operations):
+        ttps = dict()
+        for op in operations:
+            for link in op.chain:
+                if not link.cleanup:
+                    tactic_name = link.ability.tactic
+                    if tactic_name not in ttps.keys():
+                        tactic = dict(name=tactic_name,
+                                      techniques={link.ability.technique_name: link.ability.technique_id},
+                                      steps={op.name: [link.ability.name]})
+                        ttps[tactic_name] = tactic
+                    else:
+                        if link.ability.technique_name not in ttps[tactic_name]['techniques'].keys():
+                            ttps[tactic_name]['techniques'][link.ability.technique_name] = link.ability.technique_id
+                        if op.name not in ttps[tactic_name]['steps'].keys():
+                            ttps[tactic_name]['steps'][op.name] = [link.ability.name]
+                        elif link.ability.name not in ttps[tactic_name]['steps'][op.name]:
+                            ttps[tactic_name]['steps'][op.name].append(link.ability.name)
+        return dict(sorted(ttps.items()))
 
     @staticmethod
     def _build_pdf(operations, agents, filename):

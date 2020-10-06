@@ -36,18 +36,20 @@ class DebriefService:
             for link in operation.chain:
                 link_graph_id = id_store['link' + link.unique] = max(id_store.values()) + 1
                 graph_output['nodes'].append(dict(type='link', name='link:'+link.unique, id=link_graph_id,
-                                                  status=link.status, img=link.ability.tactic))
+                                                  status=link.status, operation=op_id, img=link.ability.tactic))
 
                 if not previous_link_graph_id:
                     graph_output['links'].append(dict(source=op_id, target=link_graph_id, type='next_link'))
                 else:
-                    graph_output['links'].append(dict(source=previous_link_graph_id, target=link_graph_id, type='next_link'))
+                    graph_output['links'].append(dict(source=previous_link_graph_id, target=link_graph_id,
+                                                      type='next_link'))
                 previous_link_graph_id = link_graph_id
 
                 agent = (await self.data_svc.locate('agents', dict(paw=link.paw)))[0]
                 if 'agent' + agent.unique not in id_store.keys():
                     id_store['agent' + agent.unique] = max(id_store.values()) + 1
-                graph_output['links'].append(dict(source=link_graph_id, target=id_store['agent' + agent.unique], type='next_link'))
+                graph_output['links'].append(dict(source=link_graph_id, target=id_store['agent' + agent.unique],
+                                                  type='next_link'))
 
             for agent in operation.agents:
                 graph_output['links'].append(dict(source=op_id,
@@ -66,7 +68,8 @@ class DebriefService:
             for fact in operation.all_facts():
                 if 'fact' + fact.unique + operation.source.id not in id_store.keys():
                     id_store['fact' + fact.unique + operation.source.id] = node_id = max(id_store.values()) + 1
-                    node = dict(name=fact.trait, id=node_id, type='fact', attrs=self._get_pub_attrs(fact), img='fact')
+                    node = dict(name=fact.trait, id=node_id, type='fact', operation=op_id,
+                                attrs=self._get_pub_attrs(fact), img='fact')
                     op_nodes.append(node)
 
             for relationship in operation.all_relationships():
@@ -104,7 +107,8 @@ class DebriefService:
                     prop_graph_id = id_store[prop + p + str(i)] = i
                     p_attrs = {prop: p}
                     p_attrs.update({lnk.unique: lnk.ability.name for lnk in lnks})
-                    graph_output['nodes'].append(dict(type=prop, name=p, id=prop_graph_id, attrs=p_attrs, img=p))
+                    graph_output['nodes'].append(dict(type=prop, name=p, id=prop_graph_id, operation=op_id,
+                                                      attrs=p_attrs, img=p))
 
                     if not previous_prop_graph_id:
                         graph_output['links'].append(dict(source=op_id, target=prop_graph_id, type='next_link'))

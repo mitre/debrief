@@ -194,7 +194,8 @@ class Story:
         elif obj == 'fact':
             return 'This graph displays the facts discovered by the operations run. Facts are attached to the ' \
                    'operation where they were discovered. Facts are also attached to the facts that led to their ' \
-                   'discovery.'
+                   'discovery. For readability, only the first 15 facts discovered in an operation are included in ' \
+                   'the graph.'
         elif obj == 'tactic':
             return 'This graph displays the order of tactics executed by the operation. A tactic explains the ' \
                    'general purpose or the "why" of a step.'

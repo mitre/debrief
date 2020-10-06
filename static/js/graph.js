@@ -1,3 +1,5 @@
+var factDisplayLimit = 15;
+
 class Graph {
     constructor(id, type, tooltip) {
         this.id = id;
@@ -133,6 +135,10 @@ function buildGraph(graphObj, operations) {
         if (error) throw error;
         console.log(graph);
         writeGraph(graph, graphObj);
+        if (graphObj.type == "fact") {
+            updateFactCounts(graph);
+            limitFactsDisplayed(operations);
+        }
     });
 }
 
@@ -162,6 +168,8 @@ function writeGraph(graph, graphObj) {
                 .selectAll("line")
                 .data(graph.links)
                 .enter().append("line")
+                .attr("data-source", function(d) { return d.source })
+                .attr("data-target", function(d) { return d.target })
                 .attr("class", function(d) { return d.type;})
                 .attr('marker-end','url(#arrowhead' + graphObj.type + ')');
 
@@ -171,6 +179,8 @@ function writeGraph(graph, graphObj) {
         .selectAll("g")
         .data(graph.nodes)
         .enter().append("g")
+            .attr("data-op", function(d) { return d.operation })
+            .attr("id", function(d) { return "node-" + d.id })
             .attr("class", function(d) { return "node " + d.type; })
             .call(d3.drag()
                 .on("start", dragstarted)
@@ -331,4 +341,42 @@ function statusColor(status) {
         return '#EE3377';
     }
     return '#555555';
+}
+
+function updateFactCounts(graph) {
+    let factCounts = getFactCounts(graph);
+    $("#fact-count").empty();
+    for (var fact in factCounts) {
+        let rowData = "<td class='fact-count'>" + factCounts[fact] + "</td><td>" + fact + "</td>";
+        $("#fact-count").append($("<tr>" + rowData + "</tr>"));
+    }
+}
+
+function getFactCounts(graph) {
+    let factDict = {};
+    for (var i in graph['nodes']) {
+        let fact = graph['nodes'][i];
+        if (fact.type == 'fact') {
+            if (fact.name in factDict) {
+                factDict[fact.name] += 1;
+            }
+            else {
+                factDict[fact.name] = 1;
+            }
+        }
+    }
+    return factDict;
+}
+
+function limitFactsDisplayed(operations) {
+    console.log(operations)
+    let hasOverFactLimit = operations.some(function(op) { return $("#debrief-fact-svg g.fact[data-op='" + op + "']").slice(factDisplayLimit).length > 0 })
+    if (hasOverFactLimit) {
+        $("#fact-limit-msg p").html("More than " + factDisplayLimit + " facts found in the operation(s) selected. For readability, only the first " + factDisplayLimit + " facts of each operation are displayed.");
+        $("#fact-limit-msg").show();
+        operations.forEach(function(opId) {
+            $("#debrief-fact-svg g.fact[data-op='" + opId + "']").slice(factDisplayLimit).remove();
+            $("#debrief-fact-svg line.relationship[data-source='" + opId + "']").slice(factDisplayLimit).remove();
+        })
+    }
 }

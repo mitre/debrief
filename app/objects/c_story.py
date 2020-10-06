@@ -66,7 +66,7 @@ class Story:
         steps = [['Time', 'Status', 'Agent', 'Name', 'Command', 'Facts']]
         for link in operation.chain:
             steps.append(
-                [link.finish, self._status_name(link.status), link.paw, link.ability.name, base64.b64decode(link.command),
+                [link.finish or '', self._status_name(link.status), link.paw, link.ability.name, base64.b64decode(link.command),
                  'Yes' if len([f for f in link.facts if f.score > 0]) > 0 else 'No'])
 
         return self.generate_table(steps, [.75*inch, .6*inch, .6*inch, .85*inch, 3*inch, .6*inch])

@@ -80,29 +80,7 @@ class DebriefGui(BaseWorld):
             return web.json_response(dict(filename=filename, pdf_bytes=pdf_bytes))
         return web.json_response('No or multiple operations selected')
 
-    @staticmethod
-    def _generate_ttps(operations):
-        ttps = dict()
-        for op in operations:
-            for link in op.chain:
-                if not link.cleanup:
-                    tactic_name = link.ability.tactic
-                    if tactic_name not in ttps.keys():
-                        tactic = dict(name=tactic_name,
-                                      techniques={link.ability.technique_name: link.ability.technique_id},
-                                      steps={op.name: [link.ability.name]})
-                        ttps[tactic_name] = tactic
-                    else:
-                        if link.ability.technique_name not in ttps[tactic_name]['techniques'].keys():
-                            ttps[tactic_name]['techniques'][link.ability.technique_name] = link.ability.technique_id
-                        if op.name not in ttps[tactic_name]['steps'].keys():
-                            ttps[tactic_name]['steps'][op.name] = [link.ability.name]
-                        elif link.ability.name not in ttps[tactic_name]['steps'][op.name]:
-                            ttps[tactic_name]['steps'][op.name].append(link.ability.name)
-        return dict(sorted(ttps.items()))
-
-    @staticmethod
-    def _build_pdf(operations, agents, filename):
+    def _build_pdf(self, operations, agents, filename):
         # pdf setup
         pdf_buffer = BytesIO()
         doc = SimpleDocTemplate(pdf_buffer, pagesize=letter,
@@ -148,6 +126,10 @@ class DebriefGui(BaseWorld):
         story_obj.append_graph('fact', graph_files['fact'])
         story_obj.page_break()
 
+        story_obj.append_text('TACTICS AND TECHNIQUES', styles['Heading2'], 0)
+        ttps = self._generate_ttps(operations)
+        story_obj.append(story_obj.generate_ttps(ttps))
+
         for o in operations:
             story_obj.append_text('STEPS IN OPERATION <font name=Courier-Bold size=17>%s</font>' % o.name.upper(),
                                   styles['Heading2'], 0)
@@ -166,6 +148,27 @@ class DebriefGui(BaseWorld):
         pdf_value = pdf_buffer.getvalue()
         pdf_buffer.close()
         return pdf_value.decode('utf-8', errors='ignore')
+
+    @staticmethod
+    def _generate_ttps(operations):
+        ttps = dict()
+        for op in operations:
+            for link in op.chain:
+                if not link.cleanup:
+                    tactic_name = link.ability.tactic
+                    if tactic_name not in ttps.keys():
+                        tactic = dict(name=tactic_name,
+                                      techniques={link.ability.technique_name: link.ability.technique_id},
+                                      steps={op.name: [link.ability.name]})
+                        ttps[tactic_name] = tactic
+                    else:
+                        if link.ability.technique_name not in ttps[tactic_name]['techniques'].keys():
+                            ttps[tactic_name]['techniques'][link.ability.technique_name] = link.ability.technique_id
+                        if op.name not in ttps[tactic_name]['steps'].keys():
+                            ttps[tactic_name]['steps'][op.name] = [link.ability.name]
+                        elif link.ability.name not in ttps[tactic_name]['steps'][op.name]:
+                            ttps[tactic_name]['steps'][op.name].append(link.ability.name)
+        return dict(sorted(ttps.items()))
 
     @staticmethod
     def _save_svgs(svgs):

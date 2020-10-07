@@ -73,8 +73,8 @@ $( document ).ready(function() {
     }
 
     function updateTacticTechniqueTable(ttps) {
-        function generateList(objList) {
-            let ret = "<ul style='padding: 0px'>";
+        function generateList(objList, innerList) {
+            let ret = innerList ? "<ul>" : "<ul style='padding: 0px'>";
             objList.forEach(function(obj) {
                 ret += "<li>" + obj + "</li>"
             })
@@ -86,17 +86,13 @@ $( document ).ready(function() {
             for (let name in techniques) {
                 arr.push(techniques[name] + ": " + name);
             }
-            return generateList(arr);
+            return generateList(arr, false);
         }
         function generateStepList(steps) {
             let ret = "<ul style='padding: 0px'>"
             for (let opName in steps) {
                 ret += "<li style='color: grey'>" + opName + "</li>";
-                ret += "<ul>"
-                steps[opName].forEach(function(abilityName) {
-                    ret += "<li>" + abilityName + "</li>"
-                })
-                ret += "</ul>"
+                ret += generateList(steps[opName], true);
             }
             ret += "</ul>"
             return ret;

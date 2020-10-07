@@ -143,7 +143,8 @@ class Story:
             viewbox = [int(float(val)) for val in icon_svg.get('viewBox').split()]
             aspect = viewbox[2] / viewbox[3]
             icon_svg.set('width', str(round(float(icon_svg.get('height')) * aspect)))
-            icon_svg.set('x', '-' + str(int(icon_svg.get('width')) / 2))
+            if not icon_svg.get('id') or 'legend' not in icon_svg.get('id'):
+                icon_svg.set('x', '-' + str(int(icon_svg.get('width')) / 2))
         svg.write(open(path, 'wb'))
 
     @staticmethod

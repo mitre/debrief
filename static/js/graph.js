@@ -59,7 +59,6 @@ for (var key in imgs) {
 function getImage(i, value) {
     $.get(value, function(data) {
         data.documentElement.id = i + "-img"
-        let svg = $(data.documentElement).clone();
         data.documentElement.classList.add("svg-icon")
         $('#images').append(data.documentElement);
     })

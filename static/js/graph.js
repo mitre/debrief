@@ -369,7 +369,6 @@ function getFactCounts(graph) {
 }
 
 function limitFactsDisplayed(operations) {
-    console.log(operations)
     let hasOverFactLimit = operations.some(function(op) { return $("#debrief-fact-svg g.fact[data-op='" + op + "']").slice(factDisplayLimit).length > 0 })
     if (hasOverFactLimit) {
         $("#fact-limit-msg p").html("More than " + factDisplayLimit + " facts found in the operation(s) selected. For readability, only the first " + factDisplayLimit + " facts of each operation are displayed.");

@@ -1,3 +1,6 @@
+var nodesOrderedByTime;
+var visualizeInterval;
+
 $( document ).ready(function() {
     $('#debrief-download-raw').click(function () {
         let operations = $('#debrief-operation-list').val();
@@ -46,6 +49,7 @@ $( document ).ready(function() {
         })
         updateAgentTable(data['agents']);
         updateTacticTechniqueTable(data['ttps']);
+        nodesOrderedByTime = getNodesOrderedByTime();
     }
 
     function updateOperationTable(op){
@@ -266,24 +270,63 @@ function toggleIcons(input) {
 }
 
 function visualizeTogglePlay() {
-
+    if ($("#graph-media-play").hasClass("paused")) {
+        if (!nodesOrderedByTime.find(node => node.style.display == "none")) {
+            visualizeBeginning();
+        }
+        $("#graph-media-play").removeClass("paused");
+        $("#graph-media-play").html("||");
+        visualizeInterval = setInterval(visualizeStepForward, 1000);
+    }
+    else {
+        $("#graph-media-play").html("&#x25B6;");
+        $("#graph-media-play").addClass("paused");
+        clearInterval(visualizeInterval);
+    }
 }
 
 function visualizeStepForward() {
+    let nextNode = nodesOrderedByTime.find(node => node.style.display == "none");
+    if (nextNode) {
+        $(nextNode).show();
 
+        let showingNodesIds = nodesOrderedByTime.filter(node => node.style.display != "none").map(node => node.id);
+        let relatedLines = $("#debrief-graph-svg line").filter(function(idx, line) {
+            return showingNodesIds.includes("node-" + $(line).data("target")) && showingNodesIds.includes("node-" + $(line).data("source"))
+        })
+        relatedLines.show();
+    }
+
+    if (!$("#graph-media-play").hasClass("paused") && !nodesOrderedByTime.find(node => node.style.display == "none")) {
+        $("#graph-media-play").addClass("paused");
+        $("#graph-media-play").html("&#x25B6;");
+        clearInterval(visualizeInterval);
+    }
 }
 
 function visualizeStepBack() {
+    let prevNode = $(nodesOrderedByTime.slice().reverse().find(node => node.style.display != "none"));
+
+    if (prevNode.attr("id") != "#node-0") {
+        prevNode.hide();
+
+        let showingNodesIds = nodesOrderedByTime.filter(node => node.style.display != "none").map(node => node.id);
+        let relatedLines = $("#debrief-graph-svg line").filter(function(idx, line) {
+            return !(showingNodesIds.includes("node-" + $(line).data("target")) && showingNodesIds.includes("node-" + $(line).data("source")))
+        })
+        relatedLines.hide();
+    }
 
 }
 
 function visualizeBeginning() {
-
-
+    $("#debrief-graph-svg .node:not(.c2)").hide();
+    $("#debrief-graph-svg line").hide();
 }
 
 function visualizeEnd() {
-
+    $("#debrief-graph-svg .node").show();
+    $("#debrief-graph-svg line").show();
 }
 
 function getNodesOrderedByTime() {

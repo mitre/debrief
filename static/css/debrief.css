@@ -146,6 +146,7 @@ li.legend {
     background-color: grey;
     font-size: 12px;
     cursor: pointer;
+    user-select: none;
 }
 .graph-media-control:hover {
     background-color: #4e4e4e;

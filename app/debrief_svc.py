@@ -70,7 +70,7 @@ class DebriefService:
                     op_nodes.append(node)
 
             for relationship in operation.all_relationships():
-                if relationship.edge:
+                if relationship.edge and relationship.target.value:
                     link = dict(source=id_store.get('fact' + relationship.source.unique + operation.source.id),
                                 target=id_store.get('fact' + relationship.target.unique + operation.source.id),
                                 type='relationship')

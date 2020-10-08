@@ -144,6 +144,7 @@ function writeGraph(graph, graphObj) {
             .attr("data-op", function(d) { return d.operation })
             .attr("id", function(d) { return "node-" + d.id })
             .attr("class", function(d) { return "node " + d.type; })
+            .attr("data-timestamp", function(d) { return d.timestamp; })
             .call(d3.drag()
                 .on("start", dragstarted)
                 .on("drag", dragged)

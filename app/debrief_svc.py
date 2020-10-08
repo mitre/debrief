@@ -11,7 +11,8 @@ class DebriefService:
     async def build_operation_d3(self, operation_ids):
         graph_output = dict(nodes=[], links=[])
         id_store = dict(c2=0)
-        graph_output['nodes'].append(dict(name="C2 Server", type='c2', label='server', id=0, img='server'))
+        graph_output['nodes'].append(dict(name="C2 Server", type='c2', label='server', id=0, img='server',
+                                          timestamp='1970-01-01 00:00:00'))
 
         agents = await self.data_svc.locate('agents')
         for agent in agents:
@@ -21,7 +22,8 @@ class DebriefService:
                             id=id_store['agent' + agent.unique],
                             group=agent.group,
                             type='agent',
-                            img=agent.platform)
+                            img=agent.platform,
+                            timestamp=agent.created.strftime('%Y-%m-%d %H:%M:%S'))
                 graph_output['nodes'].append(node)
 
                 link = dict(source=0,
@@ -31,12 +33,14 @@ class DebriefService:
 
         for op_id in operation_ids:
             operation = (await self.data_svc.locate('operations', match=dict(id=int(op_id))))[0]
-            graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation'))
+            graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation',
+                                              timestamp=operation.created))
             previous_link_graph_id = None
             for link in operation.chain:
                 link_graph_id = id_store['link' + link.unique] = max(id_store.values()) + 1
                 graph_output['nodes'].append(dict(type='link', name='link:'+link.unique, id=link_graph_id,
-                                                  status=link.status, operation=op_id, img=link.ability.tactic))
+                                                  status=link.status, operation=op_id, img=link.ability.tactic,
+                                                  timestamp=link.created))
 
                 if not previous_link_graph_id:
                     graph_output['links'].append(dict(source=op_id, target=link_graph_id, type='next_link'))

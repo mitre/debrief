@@ -264,3 +264,37 @@ function toggleIcons(input) {
         $("#debrief-graph .svg-icon:not(.hidden)").hide();
     }
 }
+
+function visualizeTogglePlay() {
+
+}
+
+function visualizeStepForward() {
+
+}
+
+function visualizeStepBack() {
+
+}
+
+function visualizeBeginning() {
+
+
+}
+
+function visualizeEnd() {
+
+}
+
+function getNodesOrderedByTime() {
+    function compareTimestamp(a, b) {
+        if (Date.parse(a.dataset.timestamp) < Date.parse(b.dataset.timestamp)) {
+            return -1;
+        }
+        if (Date.parse(a.dataset.timestamp) > Date.parse(b.dataset.timestamp)) {
+            return 1;
+        }
+        return 0;
+    }
+    return $("#debrief-graph-svg .node").toArray().sort(compareTimestamp);
+}

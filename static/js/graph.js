@@ -162,6 +162,8 @@ function writeGraph(graph, graphObj) {
                 .selectAll("line")
                 .data(graph.links)
                 .enter().append("line")
+                .attr("data-source", function(d) { return d.source })
+                .attr("data-target", function(d) { return d.target })
                 .attr("class", function(d) { return d.type;})
                 .attr('marker-end','url(#arrowhead' + graphObj.type + ')');
 
@@ -171,6 +173,8 @@ function writeGraph(graph, graphObj) {
         .selectAll("g")
         .data(graph.nodes)
         .enter().append("g")
+            .attr("data-op", function(d) { return d.operation })
+            .attr("id", function(d) { return "node-" + d.id })
             .attr("class", function(d) { return "node " + d.type; })
             .call(d3.drag()
                 .on("start", dragstarted)

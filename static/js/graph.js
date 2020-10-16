@@ -301,38 +301,37 @@ function writeGraph(graph, graphObj) {
       if (!d3.event.active) simulation.alphaTarget(0);
     }
 
-  function generateTooltipHTML(d) {
-    let ret = "";
-    if (d["type"] == "operation") {
-        ret += "name: " + d["name"] + "<br/>";
-        ret += "op_id: " + d["id"] + "<br/>";
-        ret += "created: " + d["timestamp"] + "<br/>";
-    }
-    else if (d["type"] == "tactic" || d["type"] == "technique_name") {
-        let p = d["attrs"][d["type"]]
-        ret += d["type"] + ": " + p + "<br/>";
-        ret += "created: " + d["timestamp"] + "<br/>";
-        for (let attr in d["attrs"]) {
-            if (attr != d["type"]) {
-                ret += attr + ": " + d["attrs"][attr] + "<br/>";
-            }
-        }
-    }
-    else {
-        ret += "created: " + d["timestamp"] + "<br/>";
-        for (let attr in d["attrs"]) {
-            if (d["attrs"][attr] != null) {
-                if (attr == "status") {
-                    ret += attr + ": " + statusName(d["attrs"][attr]) + "<br/>";
+    function generateTooltipHTML(d) {
+        let ret = "";
+        switch (d["type"]) {
+            case "operation":
+                ret += "name: " + d["name"] + "<br/>";
+                ret += "op_id: " + d["id"] + "<br/>";
+                ret += "created: " + d["timestamp"] + "<br/>";
+                break;
+            case "tactic":
+            case "technique_name":
+                let p = d["attrs"][d["type"]]
+                ret += d["type"] + ": " + p + "<br/>";
+                ret += "created: " + d["timestamp"] + "<br/>";
+                for (let attr in d["attrs"]) {
+                    if (attr != d["type"]) {
+                        ret += attr + ": " + d["attrs"][attr] + "<br/>";
+                    }
                 }
-                else {
-                    ret += attr + ": " + d["attrs"][attr] + "<br/>";
+                break;
+            default:
+                ret += d["timestamp"] ? "created: " + d["timestamp"] + "<br/>" : "";
+                for (let attr in d["attrs"]) {
+                    if (d["attrs"][attr] != null) {
+                        ret += attr + ": ";
+                        ret += attr == "status" ? statusName(d["attrs"][attr]) : d["attrs"][attr];
+                        ret += "<br/>";
+                    }
                 }
-            }
         }
+        return ret;
     }
-    return ret
-  }
 }
 
 function updateIconAttr(svg, status) {

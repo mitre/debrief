@@ -1,7 +1,9 @@
 import logging
 
+from app.utility.base_service import BaseService
 
-class DebriefService:
+
+class DebriefService(BaseService):
     def __init__(self, services):
         self.services = services
         self.file_svc = services.get('file_svc')
@@ -12,7 +14,7 @@ class DebriefService:
         graph_output = dict(nodes=[], links=[])
         id_store = dict(c2=0)
         graph_output['nodes'].append(dict(name="C2 Server", type='c2', label='server', id=0, img='server',
-                                          timestamp='1970-01-01 00:00:00'))
+                                          attrs={k: v for k, v in self.get_config().items() if k.startswith('app.')}))
 
         agents = await self.data_svc.locate('agents')
         for agent in agents:

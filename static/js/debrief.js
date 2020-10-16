@@ -25,6 +25,8 @@ $( document ).ready(function() {
             updateReportGraph(operations);
             $('.debrief-display-opt').prop("checked", true);
             $("#show-tactic-icons").prop("checked", false);
+            $("#fact-limit-msg").hide();
+            $("#fact-limit-msg p").html();
             restRequest('POST', {'operations': operations}, displayReport, '/plugin/debrief/report');
         }
     });

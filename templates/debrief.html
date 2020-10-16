@@ -35,6 +35,26 @@
                 <label for="show-steps">Show operation steps</label><br>
                 <input type="checkbox" id="show-tactic-icons" class="debrief-display-opt" value="tactic-icons" onclick="toggleTacticIcons(this)">
                 <label for="show-tactic-icons">Show steps as tactics</label>
+                <h4 style="margin-top: 15px;">PDF SECTIONS</h4>
+                <div class="debrief-pdf-select">
+                    <input type="checkbox" id="pdf-select-all" checked onClick="pdfSelectAll()">
+                    <label for="pdf-select-all">Select All</label>
+                    <hr style="margin: 5 0;">
+                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-default-graph" checked onClick="uncheckSelectAll(this)">
+                    <label for="pdf-default-graph">Operations Graph</label><br>
+                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-tactic-graph" checked onClick="uncheckSelectAll(this)">
+                    <label for="pdf-tactic-graph">Tactic Graph</label><br>
+                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-technique-graph" checked onClick="uncheckSelectAll(this)">
+                    <label for="pdf-technique-graph">Technique Graph</label><br>
+                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-fact-graph" checked onClick="uncheckSelectAll(this)">
+                    <label for="pdf-fact-graph">Fact Graph</label><br>
+                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-tactic-technique-table" checked onClick="uncheckSelectAll(this)">
+                    <label for="pdf-tactic-technique-table">Tactic and Technique Table</label><br>
+                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-steps-table" checked onClick="uncheckSelectAll(this)">
+                    <label for="pdf-steps-table">Operation Steps Tables</label><br>
+                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-facts-table" checked onClick="uncheckSelectAll(this)">
+                    <label for="pdf-facts-table">Operation Facts Tables</label><br>
+                </div>
             </div>
             <div id="debrief-download">
                 <button id="debrief-download-raw" type="button" class="button-success atomic-button"

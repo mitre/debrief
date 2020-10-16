@@ -151,3 +151,15 @@ li.legend {
 .graph-media-control:hover {
     background-color: #4e4e4e;
 }
+
+.debrief-pdf-select {
+    width: 70%;
+    height: 150px;
+    padding: 10px;
+    margin: 5px 5px 15px 5px;
+    border-style: solid;
+    border-width: thin;
+    border-radius: 10px;
+    border-color: grey;
+    overflow-y: auto;
+}

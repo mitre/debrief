@@ -103,7 +103,8 @@ class DebriefService:
 
         for op_id in operation_ids:
             operation = (await self.data_svc.locate('operations', match=dict(id=int(op_id))))[0]
-            graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation'))
+            graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation',
+                                              timestamp=operation.created))
             previous_prop_graph_id = None
             if len(operation.chain) > 0:
                 for p, lnks in self._get_by_prop_order(operation.chain, prop):
@@ -112,7 +113,7 @@ class DebriefService:
                     p_attrs = {prop: p}
                     p_attrs.update({lnk.unique: lnk.ability.name for lnk in lnks})
                     graph_output['nodes'].append(dict(type=prop, name=p, id=prop_graph_id, operation=op_id,
-                                                      attrs=p_attrs, img=p))
+                                                      attrs=p_attrs, img=p, timestamp=lnks[0].created))
 
                     if not previous_prop_graph_id:
                         graph_output['links'].append(dict(source=op_id, target=prop_graph_id, type='next_link'))

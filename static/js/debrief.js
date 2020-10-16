@@ -270,8 +270,9 @@ function toggleIcons(input) {
 }
 
 function visualizeTogglePlay() {
+    let graphId = getVisibleOpGraphId()
     if ($("#graph-media-play").hasClass("paused")) {
-        if (!nodesOrderedByTime.find(node => node.style.display == "none")) {
+        if (!nodesOrderedByTime[graphId].find(node => node.style.display == "none")) {
             visualizeBeginning();
         }
         $("#graph-media-play").removeClass("paused");
@@ -286,18 +287,19 @@ function visualizeTogglePlay() {
 }
 
 function visualizeStepForward() {
-    let nextNode = nodesOrderedByTime.find(node => node.style.display == "none");
+    let graphId = getVisibleOpGraphId()
+    let nextNode = nodesOrderedByTime[graphId].find(node => node.style.display == "none");
     if (nextNode) {
         $(nextNode).show();
 
-        let showingNodesIds = nodesOrderedByTime.filter(node => node.style.display != "none").map(node => node.id);
-        let relatedLines = $("#debrief-graph-svg line").filter(function(idx, line) {
+        let showingNodesIds = nodesOrderedByTime[graphId].filter(node => node.style.display != "none").map(node => node.id);
+        let relatedLines = $("#" + graphId + " line").filter(function(idx, line) {
             return showingNodesIds.includes("node-" + $(line).data("target")) && showingNodesIds.includes("node-" + $(line).data("source"))
         })
         relatedLines.show();
     }
 
-    if (!$("#graph-media-play").hasClass("paused") && !nodesOrderedByTime.find(node => node.style.display == "none")) {
+    if (!$("#graph-media-play").hasClass("paused") && !nodesOrderedByTime[graphId].find(node => node.style.display == "none")) {
         $("#graph-media-play").addClass("paused");
         $("#graph-media-play").html("&#x25B6;");
         clearInterval(visualizeInterval);
@@ -305,13 +307,14 @@ function visualizeStepForward() {
 }
 
 function visualizeStepBack() {
-    let prevNode = $(nodesOrderedByTime.slice().reverse().find(node => node.style.display != "none"));
+    let graphId = getVisibleOpGraphId()
+    let prevNode = $(nodesOrderedByTime[graphId].slice().reverse().find(node => node.style.display != "none"));
 
     if (prevNode.attr("id") != "#node-0") {
         prevNode.hide();
 
-        let showingNodesIds = nodesOrderedByTime.filter(node => node.style.display != "none").map(node => node.id);
-        let relatedLines = $("#debrief-graph-svg line").filter(function(idx, line) {
+        let showingNodesIds = nodesOrderedByTime[graphId].filter(node => node.style.display != "none").map(node => node.id);
+        let relatedLines = $("#" + graphId + " line").filter(function(idx, line) {
             return !(showingNodesIds.includes("node-" + $(line).data("target")) && showingNodesIds.includes("node-" + $(line).data("source")))
         })
         relatedLines.hide();
@@ -320,13 +323,15 @@ function visualizeStepBack() {
 }
 
 function visualizeBeginning() {
-    $("#debrief-graph-svg .node:not(.c2)").hide();
-    $("#debrief-graph-svg line").hide();
+    let graphId = getVisibleOpGraphId()
+    $("#" + graphId + " .node:not(.c2)").hide();
+    $("#" + graphId + " line").hide();
 }
 
 function visualizeEnd() {
-    $("#debrief-graph-svg .node").show();
-    $("#debrief-graph-svg line").show();
+    let graphId = getVisibleOpGraphId()
+    $("#" + graphId + " .node").show();
+    $("#" + graphId + " line").show();
 }
 
 function getNodesOrderedByTime() {
@@ -339,5 +344,16 @@ function getNodesOrderedByTime() {
         }
         return 0;
     }
-    return $("#debrief-graph-svg .node").toArray().sort(compareTimestamp);
+    function getSortedNodes(id) {
+        return $("#" + id + " .node").toArray().sort(compareTimestamp);
+    }
+    let graphNodesByTime = {};
+    graphNodesByTime["debrief-graph-svg"] = getSortedNodes("debrief-graph-svg");
+    graphNodesByTime["debrief-tactic-svg"] = getSortedNodes("debrief-tactic-svg");
+    graphNodesByTime["debrief-technique-svg"] = getSortedNodes("debrief-technique-svg");
+    return graphNodesByTime;
+}
+
+function getVisibleOpGraphId() {
+    return $(".op-svg").filter(function() { return $(this).css("display") != "none" }).attr("id");
 }

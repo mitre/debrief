@@ -1,5 +1,3 @@
-import base64
-
 from lxml import etree as ET
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -26,10 +24,8 @@ class Story:
     def page_break(self):
         self.story_arr.append(PageBreak())
 
-    @staticmethod
-    def generate_table(data, col_widths):
-        table = ParagraphStyle(name='Table', fontSize=8)
-        data[1:] = [[Paragraph(val, table) for val in row] for row in data[1:]]
+    def generate_table(self, data, col_widths):
+        data[1:] = [[self._get_table_object(val) for val in row] for row in data[1:]]
         tbl = Table(data, colWidths=col_widths)
         tbl.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), colors.maroon),
                                  ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -62,11 +58,20 @@ class Story:
         aspect = graph.height / float(graph.width)
         self.append(Image(graph, width=4*inch, height=(4*inch * aspect)))
 
+    def generate_ttps(self, ttps):
+        ttp_data = [['Tactics', 'Techniques', 'Abilities']]
+        for key, tactic in ttps.items():
+            technique_arr = []
+            for name, tid in tactic['techniques'].items():
+                technique_arr.append(tid + ': ' + name)
+            ttp_data.append([tactic['name'].capitalize(), technique_arr, tactic['steps']])
+        return self.generate_table(ttp_data, [1.25 * inch, 3.25 * inch, 2 * inch])
+
     def generate_op_steps(self, operation):
         steps = [['Time', 'Status', 'Agent', 'Name', 'Command', 'Facts']]
         for link in operation.chain:
             steps.append(
-                [link.finish or '', self._status_name(link.status), link.paw, link.ability.name, base64.b64decode(link.command),
+                [link.finish or '', self._status_name(link.status), link.paw, link.ability.name, link.decode_bytes(link.command),
                  'Yes' if len([f for f in link.facts if f.score > 0]) > 0 else 'No'])
 
         return self.generate_table(steps, [.75*inch, .6*inch, .6*inch, .85*inch, 3*inch, .6*inch])
@@ -76,7 +81,7 @@ class Story:
         for lnk in operation.chain:
             if len(lnk.facts) > 0:
                 for f in lnk.facts:
-                    fact_data.append([f.trait, f.value, str(f.score), lnk.paw, base64.b64decode(lnk.command)])
+                    fact_data.append([f.trait, f.value, str(f.score), lnk.paw, lnk.decode_bytes(lnk.command)])
         return self.generate_table(fact_data, [1*inch, 1.2*inch, .6*inch, .6*inch, 3*inch])
 
     @staticmethod
@@ -138,8 +143,27 @@ class Story:
             viewbox = [int(float(val)) for val in icon_svg.get('viewBox').split()]
             aspect = viewbox[2] / viewbox[3]
             icon_svg.set('width', str(round(float(icon_svg.get('height')) * aspect)))
-            icon_svg.set('x', '-' + str(int(icon_svg.get('width')) / 2))
+            if not icon_svg.get('id') or 'legend' not in icon_svg.get('id'):
+                icon_svg.set('x', '-' + str(int(icon_svg.get('width')) / 2))
         svg.write(open(path, 'wb'))
+
+    @staticmethod
+    def _get_table_object(val):
+        table = ParagraphStyle(name='Table', fontSize=8)
+        if type(val) == str:
+            return Paragraph(val, table)
+        elif type(val) == list:
+            list_string = ''
+            for list_item in val:
+                list_string += list_item + '<br/>'
+            return Paragraph(list_string, table)
+        elif type(val) == dict:
+            dict_string = ''
+            for k, v in val.items():
+                dict_string += '<font color=grey>' + k + '</font><br/>'
+                for list_item in v:
+                    dict_string += '&nbsp;&nbsp;&nbsp;' + list_item + '<br/>'
+            return Paragraph(dict_string, table)
 
     @staticmethod
     def _status_name(status):

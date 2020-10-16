@@ -59,47 +59,9 @@ for (var key in imgs) {
 function getImage(i, value) {
     $.get(value, function(data) {
         data.documentElement.id = i + "-img"
-        let svg = $(data.documentElement).clone();
         data.documentElement.classList.add("svg-icon")
         $('#images').append(data.documentElement);
-        addToLegend(i, svg[0]);
     })
-}
-
-function addToLegend(id, svg) {
-    svg.id += "-legend";
-    svg.setAttribute("width", 22);
-    svg.setAttribute("height", 22);
-    let liHTML = $("<li class='legend'></li>");
-    liHTML.append(svg);
-    id = id.replace("_", " ");
-    liHTML.append($("<label style='padding: 7px 10px; font-size: 12px'>" + id + "</label>"));
-
-    if (id == "operation") {
-        $("#fact-legend-list").append(liHTML.clone());
-        $("#op-legend-list").append(liHTML);
-    }
-    else if (id == "fact") {
-        $("#fact-legend-list").append(liHTML);
-    }
-    else {
-        $("#op-legend-list").append(liHTML);
-    }
-    let sortedLegend = $("#op-legend-list").children().sort(function(a, b) {
-        let aLabel = $(a).children('label').html();
-        let bLabel = $(b).children('label').html();
-        if (aLabel < bLabel) {
-            return -1;
-        }
-        else if (aLabel == bLabel) {
-            return 0;
-        }
-        else {
-            return 1;
-        }
-    })
-    $("#op-legend-list").html(sortedLegend);
-
 }
 
 var colors = d3.scaleOrdinal(d3.schemeCategory10);
@@ -231,6 +193,58 @@ function writeGraph(graph, graphObj) {
             }
             return c.outerHTML + l.outerHTML;
         })
+
+    var legend = container.append("g")
+	    .attr("class", "legend")
+
+	legend.append("rect")
+	    .attr("id", "legend-rect-" + graphObj.type)
+	    .attr("x", width - 185)
+	    .attr("y", 20)
+	    .attr("rx", 6)
+	    .attr("width", 183)
+	    .attr("height", 50)
+	    .style("fill", "rgba(170, 170, 170, 0.5)")
+
+	legend.append("text")
+	    .attr("x", width - 120)
+	    .attr("y", 45)
+	    .style("font-weight", "bold")
+	    .style("fill", "white")
+	    .text("Legend")
+
+	var entry = legend.selectAll("g")
+	    .data(graph.nodes.filter(isUniqueImg).concat(addLinkImg(graphObj.type)))
+	    .enter()
+	    .append("g")
+
+    entry.append("svg")
+        .attr("x", width - 170)
+        .attr("y", function(d, i){
+            $("#legend-rect-" + graphObj.type).attr("height", parseInt($("#legend-rect-" + graphObj.type).attr("height")) + 30);
+            return i *  30 + 60;})
+        .attr("width", 20)
+        .attr("height", 20)
+        .html(function(d) {
+            let imgToClone = d.img.indexOf(" ") == -1 ? $("#" + d.img + "-img") : $("#" + d.type + "-img");
+            let clone = imgToClone[0].cloneNode(true);
+            this.id = clone.id + "-legend";
+            this.setAttribute("viewBox", clone.getAttribute("viewBox"));
+            this.setAttribute("preserveAspectRatio", "xMidYMid meet");
+            this.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+            this.setAttribute("version", "1.0");
+            return clone.innerHTML;
+        })
+
+    entry.append("text")
+        .attr("x", width - 135)
+        .attr("y", function(d, i){ return i *  30 + 77;})
+        .style("fill", "white")
+        .style("font-size", 13)
+        .style("text-transform", "capitalize")
+        .text(function(d) {
+            return d.img.indexOf(" ") == -1 ? d.img : d.type;
+        });
 
     let simulation = graphObj.simulation;
 
@@ -378,4 +392,13 @@ function limitFactsDisplayed(operations) {
             $("#debrief-fact-svg line.relationship[data-source='" + opId + "']").slice(factDisplayLimit).remove();
         })
     }
+
+function isUniqueImg(value, index, self) {
+    let arr = Array.from(self, x => x.img.indexOf(" ") == -1 ? x.img : x.type);
+    let v = value.img.indexOf(" ") == -1 ? value.img : value.type;
+    return arr.indexOf(v) === index;
+}
+
+function addLinkImg(graphType) {
+    return graphType == "graph" ? [{"name": "link-image", "img": "link"}] : [];
 }

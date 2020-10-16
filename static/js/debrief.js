@@ -34,6 +34,8 @@ $( document ).ready(function() {
     function clearReport(){
         $("#report-operations tbody tr").remove();
         $("#report-steps tbody tr").remove();
+        $("#report-agents tbody tr").remove();
+        $("#report-tactics-techniques tbody tr").remove();
     }
 
     function displayReport(data){
@@ -42,6 +44,8 @@ $( document ).ready(function() {
             updateOperationTable(op);
             updateStepTable(op);
         })
+        updateAgentTable(data['agents']);
+        updateTacticTechniqueTable(data['ttps']);
     }
 
     function updateOperationTable(op){
@@ -66,7 +70,55 @@ $( document ).ready(function() {
                 " Command</button></td>" +
                 "</tr>");
         })
+    }
 
+    function updateTacticTechniqueTable(ttps) {
+        function generateList(objList, innerList) {
+            let ret = innerList ? "<ul>" : "<ul style='padding: 0px'>";
+            objList.forEach(function(obj) {
+                ret += "<li>" + obj + "</li>"
+            })
+            ret += "</ul>"
+            return ret;
+        }
+        function generateTechniqueList(techniques) {
+            let arr = [];
+            for (let name in techniques) {
+                arr.push(techniques[name] + ": " + name);
+            }
+            return generateList(arr, false);
+        }
+        function generateStepList(steps) {
+            let ret = "<ul style='padding: 0px'>"
+            for (let opName in steps) {
+                ret += "<li style='color: grey'>" + opName + "</li>";
+                ret += generateList(steps[opName], true);
+            }
+            ret += "</ul>"
+            return ret;
+        }
+        for (let key in ttps) {
+            let tactic = ttps[key];
+            $("#report-tactics-techniques tbody").append("<tr>" +
+                "<td style='text-transform: capitalize;'>" + tactic.name + "</td>" +
+                "<td>" + generateTechniqueList(tactic.techniques) + "</td>" +
+                "<td>" + generateStepList(tactic.steps) + "</td>" +
+                "</tr");
+        }
+    }
+
+    function updateAgentTable(agents) {
+        agents.forEach(function(agent) {
+            $("#report-agents tbody").append("<tr>" +
+                "<td>" + agent.paw + "</td>" +
+                "<td>" + agent.host + "</td>" +
+                "<td>" + agent.platform + "</td>" +
+                "<td>" + agent.username + "</td>" +
+                "<td>" + agent.privilege + "</td>" +
+                "<td>" + agent.exe_name + "</td>" +
+                "</tr>"
+            );
+        })
     }
 
     function statusName(status) {

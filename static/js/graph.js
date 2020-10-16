@@ -392,6 +392,7 @@ function limitFactsDisplayed(operations) {
             $("#debrief-fact-svg line.relationship[data-source='" + opId + "']").slice(factDisplayLimit).remove();
         })
     }
+}
 
 function isUniqueImg(value, index, self) {
     let arr = Array.from(self, x => x.img.indexOf(" ") == -1 ? x.img : x.type);

@@ -22,10 +22,10 @@ $('svg').height('100%')
 var link_lengths = {'http': 100, 'next_link': 50, 'has_agent': 50, 'relationship': 100};
 var node_charges = {'c2': -200, 'operation': -100, 'agent': -200, 'link': -150, 'fact': -50, 'tactic': -200, 'technique_name': -200}
 
-var graphSvg = new Graph("#debrief-graph-svg", "graph", null),
-    tacticSvg = new Graph("#debrief-tactic-svg", "tactic", d3.select('#op-tooltip')),
-    techniqueSvg = new Graph("#debrief-technique-svg", "technique", d3.select('#op-tooltip')),
-    factSvg = new Graph("#debrief-fact-svg", "fact", d3.select('#fact-tooltip'))
+var graphSvg = new Graph("#debrief-graph-svg", "graph", d3.select("#op-tooltip")),
+    tacticSvg = new Graph("#debrief-tactic-svg", "tactic", d3.select("#op-tooltip")),
+    techniqueSvg = new Graph("#debrief-technique-svg", "technique", d3.select("#op-tooltip")),
+    factSvg = new Graph("#debrief-fact-svg", "fact", d3.select("#fact-tooltip"))
 
 var graphs = [graphSvg, factSvg, tacticSvg, techniqueSvg];
 
@@ -306,10 +306,12 @@ function writeGraph(graph, graphObj) {
     if (d["type"] == "operation") {
         ret += "name: " + d["name"] + "<br/>";
         ret += "op_id: " + d["id"] + "<br/>";
+        ret += "created: " + d["timestamp"] + "<br/>";
     }
     else if (d["type"] == "tactic" || d["type"] == "technique_name") {
         let p = d["attrs"][d["type"]]
         ret += d["type"] + ": " + p + "<br/>";
+        ret += "created: " + d["timestamp"] + "<br/>";
         for (let attr in d["attrs"]) {
             if (attr != d["type"]) {
                 ret += attr + ": " + d["attrs"][attr] + "<br/>";
@@ -317,9 +319,15 @@ function writeGraph(graph, graphObj) {
         }
     }
     else {
+        ret += "created: " + d["timestamp"] + "<br/>";
         for (let attr in d["attrs"]) {
-            if (d["attrs"][attr]) {
-                ret += attr + ": " + d["attrs"][attr] + "<br/>";
+            if (d["attrs"][attr] != null) {
+                if (attr == "status") {
+                    ret += attr + ": " + statusName(d["attrs"][attr]) + "<br/>";
+                }
+                else {
+                    ret += attr + ": " + d["attrs"][attr] + "<br/>";
+                }
             }
         }
     }

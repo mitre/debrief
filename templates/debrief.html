@@ -148,3 +148,24 @@
 
 <div id="copy"></div>
 <div id="images" style="display: none"></div>
+
+<script>
+    function statusName(status) {
+        if (status === 0) {
+            return 'success';
+        } else if (status === -2) {
+            return 'discarded';
+        } else if (status === 1) {
+            return 'failure';
+        } else if (status === 124) {
+            return 'timeout';
+        } else if (status === -3) { // && chain.collect) {
+            return 'collected';
+        } else if (status === -4) {
+            return 'untrusted';
+        } else if (status === -5) {
+            return 'visibility';
+        }
+        return 'queued';
+    }
+</script>

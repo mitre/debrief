@@ -23,7 +23,8 @@ class DebriefService:
                             group=agent.group,
                             type='agent',
                             img=agent.platform,
-                            timestamp=agent.created.strftime('%Y-%m-%d %H:%M:%S'))
+                            timestamp=agent.created.strftime('%Y-%m-%d %H:%M:%S'),
+                            attrs=dict(host=agent.host, group=agent.group, platform=agent.platform))
                 graph_output['nodes'].append(node)
 
                 link = dict(source=0,
@@ -40,6 +41,7 @@ class DebriefService:
                 link_graph_id = id_store['link' + link.unique] = max(id_store.values()) + 1
                 graph_output['nodes'].append(dict(type='link', name='link:'+link.unique, id=link_graph_id,
                                                   status=link.status, operation=op_id, img=link.ability.tactic,
+                                                  attrs=dict(status=link.status, name=link.ability.name),
                                                   timestamp=link.created))
 
                 if not previous_link_graph_id:
@@ -67,13 +69,14 @@ class DebriefService:
 
         for op_id in operation_ids:
             operation = (await self.data_svc.locate('operations', match=dict(id=int(op_id))))[0]
-            graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation'))
+            graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation',
+                                              timestamp=operation.created))
             op_nodes = []
             for fact in operation.all_facts():
                 if 'fact' + fact.unique + operation.source.id not in id_store.keys():
                     id_store['fact' + fact.unique + operation.source.id] = node_id = max(id_store.values()) + 1
                     node = dict(name=fact.trait, id=node_id, type='fact', operation=op_id,
-                                attrs=self._get_pub_attrs(fact), img='fact')
+                                attrs=self._get_pub_attrs(fact), img='fact', timestamp=fact.created)
                     op_nodes.append(node)
 
             for relationship in operation.all_relationships():

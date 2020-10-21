@@ -54,6 +54,7 @@ class DebriefGui(BaseWorld):
     async def graph(self, request):
         graphs = {
             'graph': self.debrief_svc.build_operation_d3,
+            'netpath': self.debrief_svc.build_netpath_d3,
             'fact': self.debrief_svc.build_fact_d3,
             'tactic': self.debrief_svc.build_tactic_d3,
             'technique': self.debrief_svc.build_technique_d3
@@ -125,6 +126,8 @@ class DebriefGui(BaseWorld):
                 graph_files[os.path.basename(file).split('.')[0]] = file
             if sections['default-graph']:
                 story_obj.append_graph('graph', graph_files['graph'])
+            if sections['netpath-graph']:
+                story_obj.append_graph('Network Path', graph_files['netpath'])
             if sections['tactic-graph']:
                 story_obj.append_graph('tactic', graph_files['tactic'])
             if sections['technique-graph']:

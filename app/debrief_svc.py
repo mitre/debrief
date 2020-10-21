@@ -1,6 +1,9 @@
 import logging
+from datetime import timedelta
 
 from app.utility.base_service import BaseService
+
+lateral_movement_tolerance = timedelta(minutes=1)
 
 
 class DebriefService(BaseService):
@@ -15,24 +18,8 @@ class DebriefService(BaseService):
         id_store = dict(c2=0)
         graph_output['nodes'].append(dict(name="C2 Server", type='c2', label='server', id=0, img='server',
                                           attrs={k: v for k, v in self.get_config().items() if k.startswith('app.')}))
-
         agents = await self.data_svc.locate('agents')
-        for agent in agents:
-            if 'agent' + agent.unique not in id_store.keys():
-                id_store['agent' + agent.unique] = max(id_store.values()) + 1
-                node = dict(name=agent.display_name,
-                            id=id_store['agent' + agent.unique],
-                            group=agent.group,
-                            type='agent',
-                            img=agent.platform,
-                            timestamp=agent.created.strftime('%Y-%m-%d %H:%M:%S'),
-                            attrs=dict(host=agent.host, group=agent.group, platform=agent.platform))
-                graph_output['nodes'].append(node)
-
-                link = dict(source=0,
-                            target=id_store['agent' + agent.unique],
-                            type=agent.contact)
-                graph_output['links'].append(link)
+        self._add_agents_to_d3(agents, id_store, graph_output)
 
         for op_id in operation_ids:
             operation = (await self.data_svc.locate('operations', match=dict(id=int(op_id))))[0]
@@ -53,16 +40,41 @@ class DebriefService(BaseService):
                                                       type='next_link'))
                 previous_link_graph_id = link_graph_id
 
-                agent = (await self.data_svc.locate('agents', dict(paw=link.paw)))[0]
+                agent = next((a for a in agents if a.paw == link.paw), None)
                 if 'agent' + agent.unique not in id_store.keys():
                     id_store['agent' + agent.unique] = max(id_store.values()) + 1
-                graph_output['links'].append(dict(source=link_graph_id, target=id_store['agent' + agent.unique],
+                graph_output['links'].append(dict(source=id_store['agent' + agent.unique], target=link_graph_id,
                                                   type='next_link'))
 
             for agent in operation.agents:
                 graph_output['links'].append(dict(source=op_id,
                                                   target=id_store['agent' + agent.unique],
                                                   type='has_agent'))
+        return graph_output
+
+    async def build_netpath_d3(self, operation_ids):
+        graph_output = dict(nodes=[], links=[])
+        id_store = dict(c2=0)
+        graph_output['nodes'].append(dict(name="C2 Server", type='c2', label='server', id=0, img='server'))
+        agents = await self.data_svc.locate('agents')
+        self._add_agents_to_d3(agents, id_store, graph_output)
+
+        for op_id in operation_ids:
+            operation = (await self.data_svc.locate('operations', match=dict(id=int(op_id))))[0]
+            for link in operation.chain:
+                if link.ability.tactic == 'lateral-movement' and link.status == 0:
+                    link_graph_id = id_store['link' + link.unique] = max(id_store.values()) + 1
+                    graph_output['nodes'].append(dict(type='latmov_link', name=link.ability.technique_name,
+                                                      id=link_graph_id, status=link.status, operation=op_id,
+                                                      img=link.ability.tactic))
+                    graph_output['links'].append(dict(source=id_store['agent' + link.paw], target=link_graph_id,
+                                                      type='next_link'))
+                    agent_callback_max = link.collect + lateral_movement_tolerance
+                    new_agents = [a for a in agents if link.collect <= a.created <= agent_callback_max]
+                    for new_agent in new_agents:
+                        graph_output['links'].append(dict(source=link_graph_id,
+                                                          target=id_store['agent' + new_agent.unique],
+                                                          type='next_link'))
         return graph_output
 
     async def build_fact_d3(self, operation_ids):
@@ -127,6 +139,19 @@ class DebriefService(BaseService):
                             dict(source=previous_prop_graph_id, target=prop_graph_id, type='next_link'))
                     previous_prop_graph_id = prop_graph_id
         return graph_output
+
+    @staticmethod
+    def _add_agents_to_d3(agents, id_store, graph_output):
+        for agent in agents:
+            if 'agent' + agent.unique not in id_store.keys():
+                id_store['agent' + agent.unique] = max(id_store.values()) + 1
+                node = dict(name=agent.display_name, id=id_store['agent' + agent.unique], group=agent.group,
+                            type='agent', img=agent.platform, timestamp=agent.created.strftime('%Y-%m-%d %H:%M:%S'),
+                            attrs=dict(host=agent.host, group=agent.group, platform=agent.platform))
+                graph_output['nodes'].append(node)
+
+                link = dict(source=0, target=id_store['agent' + agent.unique], type='agent_contact')
+                graph_output['links'].append(link)
 
     @staticmethod
     def _get_pub_attrs(fact):

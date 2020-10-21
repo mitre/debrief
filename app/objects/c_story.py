@@ -217,6 +217,10 @@ class Story:
         elif obj == 'graph':
             return 'This is a graphical display of the agents connected to the command and control (C2), the ' \
                    'operations run, and the steps of each operation as they relate to the agents.'
+        elif obj == 'network path':
+            return 'This is a graphical display of the network path taken in the campaign. Agents link back to the ' \
+                   'command and control (C2) and are linked to each other via a lateral movement node if one agent ' \
+                   'performed lateral movement to gain access to the other agent.'
         elif obj == 'fact':
             return 'This graph displays the facts discovered by the operations run. Facts are attached to the ' \
                    'operation where they were discovered. Facts are also attached to the facts that led to their ' \

@@ -112,7 +112,8 @@ class DebriefGui(BaseWorld):
         story_obj.append_text(story_obj.get_description('agents'), styles['Normal'], 12)
         agent_data = [['Paw', 'Host', 'Platform', 'Username', 'Privilege', 'Executable']]
         for a in agents:
-            agent_data.append([a.paw, a.host, a.platform, a.username, a.privilege, a.exe_name])
+            agent_data.append(['<a name="agent-{0}"/>{0}'.format(a.paw), a.host, a.platform, a.username, a.privilege,
+                               a.exe_name])
         story_obj.append(story_obj.generate_table(agent_data, '*'))
         story_obj.page_break()
 

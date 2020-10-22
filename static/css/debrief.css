@@ -93,7 +93,7 @@ button.graph-switch {
 }
 
 h5 {
-    margin: 10px 0px 5px;
+    margin: 0px;
 }
 label {
     font-size: 14px;
@@ -162,4 +162,8 @@ li.legend {
     border-radius: 10px;
     border-color: grey;
     overflow-y: auto;
+}
+.debrief-sidebar-header {
+    margin-bottom: 15px;
+    text-align: center;
 }

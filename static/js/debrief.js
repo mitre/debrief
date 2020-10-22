@@ -34,6 +34,10 @@ $( document ).ready(function() {
         }
     });
 
+    $(".debrief-sidebar-header").click(function(){
+        $(this).next(".debrief-sidebar").slideToggle("slow");
+    });
+
     function clearReport(){
         $("#report-operations tbody tr").remove();
         $("#report-steps tbody tr").remove();

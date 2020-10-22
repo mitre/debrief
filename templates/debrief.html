@@ -13,7 +13,8 @@
         <div class="column section-border" style="flex:20%;text-align:left;padding:15px;">
             <h1 style="font-size:70px;margin-top:-20px;">Debrief</h1>
             <h2 style="margin-top:-50px">Campaign Analytics</h2>
-            <div>
+            <p>Select from the operations below to view analytics. CTRL/CMD/SHIFT + click to select multiple operations.</p>
+            <div style="text-align: center">
                 <select id="debrief-operation-list" size="5" data-placeholder="No operations to show." multiple style="overflow-y:auto">
                   {% for op in operations %}
                         {%  if op.start|length%}
@@ -38,7 +39,7 @@
                 <label for="show-tactic-icons">Show steps as tactics</label>
             </div>
             <div class="sidebar-cutout sidebar-header debrief-sidebar-header">
-                <h4 style="margin-bottom:0px">CUSTOMIZE PDF REPORT</h4>
+                <h4 style="margin-bottom:0px">PDF REPORT OPTIONS</h4>
             </div>
             <div class="sidebar-cutout debrief-sidebar" style="display: none">
                 <h5>PDF Section Selection</h5>
@@ -62,7 +63,7 @@
                     <label for="pdf-facts-table">Operation Facts Tables</label><br>
                 </div>
             </div>
-            <div id="debrief-download">
+            <div id="debrief-download" style="text-align: center;">
                 <button id="debrief-download-pdf" type="button" class="button-success atomic-button" style="margin-top:0;"
                         onclick="downloadPDF()">Download PDF</button>
                 <button id="debrief-download-raw" type="button" class="button-success atomic-button"

@@ -1,6 +1,5 @@
 #debrief-operation-list {
     height: 100px;
-    margin-bottom: 15px;
     background-color: black;
     color: var(--font-color);
 }
@@ -164,6 +163,6 @@ li.legend {
     overflow-y: auto;
 }
 .debrief-sidebar-header {
-    margin-bottom: 15px;
+    margin: 30px 0px;
     text-align: center;
 }

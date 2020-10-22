@@ -98,7 +98,6 @@ function buildGraph(graphObj, operations) {
         console.log(graph);
         writeGraph(graph, graphObj);
         if (graphObj.type == "fact") {
-            updateFactCounts(graph);
             limitFactsDisplayed(operations);
         }
     });
@@ -246,6 +245,35 @@ function writeGraph(graph, graphObj) {
             return d.img.indexOf(" ") == -1 ? d.img : d.type;
         });
 
+    if (graphObj.type == "fact") {
+        let legendHeight = 50 + parseInt($("#legend-rect-" + graphObj.type).attr("height"));
+
+        var factCountTable  = legend.append("g")
+            .attr("class", "fact-count")
+
+        var factEntry = factCountTable.selectAll("g")
+            .data(graph.nodes.filter(x => x.type == "fact").filter(isUniqueFactTrait))
+            .enter()
+            .append("g")
+
+        factEntry.append("text")
+            .attr("x", width - 170)
+            .attr("y", function(d, i) { return legendHeight + i * 20;})
+            .style("fill", "white")
+            .style("font-size", 13)
+            .text(function(d) {
+                return graph.nodes.filter(x => x.name == d.name).length;
+            })
+
+        factEntry.append("text")
+            .attr("x", width - 135)
+            .attr("y", function(d, i) { return legendHeight + i * 20; })
+            .style("fill", "white")
+            .style("font-size", 13)
+            .style("font-weight", "normal")
+            .text(function(d) { return d.name; })
+    }
+
     let simulation = graphObj.simulation;
 
     simulation
@@ -357,31 +385,6 @@ function statusColor(status) {
     return '#555555';
 }
 
-function updateFactCounts(graph) {
-    let factCounts = getFactCounts(graph);
-    $("#fact-count").empty();
-    for (var fact in factCounts) {
-        let rowData = "<td class='fact-count'>" + factCounts[fact] + "</td><td>" + fact + "</td>";
-        $("#fact-count").append($("<tr>" + rowData + "</tr>"));
-    }
-}
-
-function getFactCounts(graph) {
-    let factDict = {};
-    for (var i in graph['nodes']) {
-        let fact = graph['nodes'][i];
-        if (fact.type == 'fact') {
-            if (fact.name in factDict) {
-                factDict[fact.name] += 1;
-            }
-            else {
-                factDict[fact.name] = 1;
-            }
-        }
-    }
-    return factDict;
-}
-
 function limitFactsDisplayed(operations) {
     let hasOverFactLimit = operations.some(function(op) { return $("#debrief-fact-svg g.fact[data-op='" + op + "']").slice(factDisplayLimit).length > 0 })
     if (hasOverFactLimit) {
@@ -402,4 +405,9 @@ function isUniqueImg(value, index, self) {
 
 function addLinkImg(graphType) {
     return graphType == "graph" ? [{"name": "link-image", "img": "link"}] : [];
+}
+
+function isUniqueFactTrait(value, index, self) {
+    let arr = Array.from(self, x => x.name);
+    return arr.indexOf(value.name) == index;
 }

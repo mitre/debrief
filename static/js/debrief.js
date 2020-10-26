@@ -1,26 +1,8 @@
 var nodesOrderedByTime;
 var visualizeInterval;
+var downloadType;
 
 $( document ).ready(function() {
-    $('#debrief-download-raw').click(function () {
-        let operations = $('#debrief-operation-list').val();
-        if (operations) {
-            operations.forEach(function (op_id, index) {
-                let postData = op_id ? {
-                    'index': 'operation_report',
-                    'op_id': op_id,
-                    'agent_output': Number(1)
-                } : null;
-                let time = new Date().toISOString().split('.')[0].replaceAll(':', '-');
-                let opName = $("#debrief-operation-list option[value='" + op_id + "']").text();
-                downloadReport('/api/rest', 'debrief_' + opName + '_' + time, postData);
-            })
-        }
-        else {
-            stream('Select at least one operation to generate the JSON report');
-        }
-    });
-
     $('#debrief-operation-list').change(function (e){
         clearReport();
         let operations = $(e.target).val();
@@ -139,31 +121,50 @@ function switchGraphView(btn) {
 }
 
 function downloadPDF() {
-    function callback(data) {
-        if (typeof data == 'string') {
-            stream('Select at least one operation to generate a PDF report');
-        }
-        else {
-            stream('Downloading PDF report: '+ data['filename'] + '.pdf');
+    downloadType = "pdf";
+    stream("Generating " + downloadType.toUpperCase() + " report... ");
 
-            let file = new Blob([data['pdf_bytes']], { type: 'application/pdf' });
-            let fileURL = URL.createObjectURL(file);
-
-            let downloadAnchorNode = document.createElement('a');
-            downloadAnchorNode.setAttribute('href', fileURL);
-            downloadAnchorNode.setAttribute('download', data['filename'] + '.pdf');
-            document.body.appendChild(downloadAnchorNode);
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
-        }
-    }
     let pdfSections = {};
     $(".debrief-pdf-opt").each(function(idx, checkbox) {
         let key = $(checkbox).attr("id").split(/-(.+)/)[1];
         pdfSections[key] = $(checkbox).prop("checked");
     })
     restRequest('POST', {'operations': $('#debrief-operation-list').val(), 'graphs': getGraphData(), 'sections': pdfSections},
-                 callback, '/plugin/debrief/pdf');
+                 downloadReport, '/plugin/debrief/pdf');
+}
+
+function downloadJSON() {
+    downloadType = "json";
+    stream("Generating " + downloadType.toUpperCase() + " report... ");
+    restRequest("POST", {"operations": $("#debrief-operation-list").val()}, downloadReport, "/plugin/debrief/json");
+}
+
+function downloadReport(data) {
+    if (typeof data == "string") {
+        stream("Select at least one operation to generate a report");
+    }
+    else {
+        let dataStr;
+        let filename = data["filename"] + "." + downloadType;
+        stream("Downloading " + downloadType.toUpperCase() + " report: " + filename);
+        switch(downloadType) {
+            case "pdf":
+                dataStr = URL.createObjectURL(new Blob([data["pdf_bytes"]], { type: "application/pdf" }));
+                break;
+            case "json":
+                dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data["json_bytes"], null, 2));
+                break;
+            default:
+                stream("Unknown report type returned");
+                return;
+        }
+        let downloadAnchorNode = document.createElement("a");
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", filename);
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    }
 }
 
 function findResults(elem, lnk){

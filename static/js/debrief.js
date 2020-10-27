@@ -215,10 +215,10 @@ function getGraphData() {
 
 function toggleLabels(input) {
     if($(input).prop("checked")) {
-        $("#debrief-graph text").show();
+        $("#debrief-graph .label").show();
     }
     else {
-        $("#debrief-graph text").hide();
+        $("#debrief-graph .label").hide();
     }
 }
 

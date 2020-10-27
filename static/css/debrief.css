@@ -113,10 +113,6 @@ li.legend {
     width: 165px;
     background-color: rgba(155, 155, 155, .6);
 }
-.fact-count {
-    font-weight: bold;
-}
-
 #fact-limit-msg {
     position: absolute;
     top: 0px;
@@ -126,18 +122,8 @@ li.legend {
     display: none;
     background-color: rgba(255, 0, 0, 0.5);
     text-align: center;
-
 }
 
-#fact-count {
-    position: absolute;
-    top: 150px;
-    right: 20px;
-    padding: 20px;
-    border-spacing: 5px;
-    color: white;
-    font-size: 13px;
-}
 .graph-media-control {
     margin: 0 10;
     padding: 5px;

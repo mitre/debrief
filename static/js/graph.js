@@ -22,10 +22,10 @@ $('svg').height('100%')
 var link_lengths = {'http': 100, 'next_link': 50, 'has_agent': 50, 'relationship': 100};
 var node_charges = {'c2': -200, 'operation': -100, 'agent': -200, 'link': -150, 'fact': -50, 'tactic': -200, 'technique_name': -200}
 
-var graphSvg = new Graph("#debrief-graph-svg", "graph", null),
-    tacticSvg = new Graph("#debrief-tactic-svg", "tactic", d3.select('#op-tooltip')),
-    techniqueSvg = new Graph("#debrief-technique-svg", "technique", d3.select('#op-tooltip')),
-    factSvg = new Graph("#debrief-fact-svg", "fact", d3.select('#fact-tooltip'))
+var graphSvg = new Graph("#debrief-graph-svg", "graph", d3.select("#op-tooltip")),
+    tacticSvg = new Graph("#debrief-tactic-svg", "tactic", d3.select("#op-tooltip")),
+    techniqueSvg = new Graph("#debrief-technique-svg", "technique", d3.select("#op-tooltip")),
+    factSvg = new Graph("#debrief-fact-svg", "fact", d3.select("#fact-tooltip"))
 
 var graphs = [graphSvg, factSvg, tacticSvg, techniqueSvg];
 
@@ -144,6 +144,7 @@ function writeGraph(graph, graphObj) {
             .attr("data-op", function(d) { return d.operation })
             .attr("id", function(d) { return "node-" + d.id })
             .attr("class", function(d) { return "node " + d.type; })
+            .attr("data-timestamp", function(d) { return d.timestamp; })
             .call(d3.drag()
                 .on("start", dragstarted)
                 .on("drag", dragged)
@@ -300,30 +301,37 @@ function writeGraph(graph, graphObj) {
       if (!d3.event.active) simulation.alphaTarget(0);
     }
 
-  function generateTooltipHTML(d) {
-    let ret = "";
-    if (d["type"] == "operation") {
-        ret += "name: " + d["name"] + "<br/>";
-        ret += "op_id: " + d["id"] + "<br/>";
-    }
-    else if (d["type"] == "tactic" || d["type"] == "technique_name") {
-        let p = d["attrs"][d["type"]]
-        ret += d["type"] + ": " + p + "<br/>";
-        for (let attr in d["attrs"]) {
-            if (attr != d["type"]) {
-                ret += attr + ": " + d["attrs"][attr] + "<br/>";
-            }
+    function generateTooltipHTML(d) {
+        let ret = "";
+        switch (d["type"]) {
+            case "operation":
+                ret += "name: " + d["name"] + "<br/>";
+                ret += "op_id: " + d["id"] + "<br/>";
+                ret += "created: " + d["timestamp"] + "<br/>";
+                break;
+            case "tactic":
+            case "technique_name":
+                let p = d["attrs"][d["type"]]
+                ret += d["type"] + ": " + p + "<br/>";
+                ret += "created: " + d["timestamp"] + "<br/>";
+                for (let attr in d["attrs"]) {
+                    if (attr != d["type"]) {
+                        ret += attr + ": " + d["attrs"][attr] + "<br/>";
+                    }
+                }
+                break;
+            default:
+                ret += d["timestamp"] ? "created: " + d["timestamp"] + "<br/>" : "";
+                for (let attr in d["attrs"]) {
+                    if (d["attrs"][attr] != null) {
+                        ret += attr + ": ";
+                        ret += attr == "status" ? statusName(d["attrs"][attr]) : d["attrs"][attr];
+                        ret += "<br/>";
+                    }
+                }
         }
+        return ret;
     }
-    else {
-        for (let attr in d["attrs"]) {
-            if (d["attrs"][attr]) {
-                ret += attr + ": " + d["attrs"][attr] + "<br/>";
-            }
-        }
-    }
-    return ret
-  }
 }
 
 function updateIconAttr(svg, status) {

@@ -49,6 +49,13 @@
                 <button id="graph-switch-technique" class="graph-switch" value="technique" onclick="switchGraphView(this)">Technique</button>
                 <button id="graph-switch-tactic" class="graph-switch" value="tactic" onclick="switchGraphView(this)">Tactic</button>
                 <button id="graph-switch-graph" class="graph-switch" disabled value="graph" onclick="switchGraphView(this)">Default</button>
+                <div style="float: left;display: flex;position: absolute;bottom: 20px;left: 430px;">
+                    <div id="graph-media-beginning" class="graph-media-control" style="transform: scaleX(-1);" onclick="visualizeBeginning()">&#x25B6;&#x25B6;|</div>
+                    <div id="graph-media-backward" class="graph-media-control" style="transform: scaleX(-1);" onclick="visualizeStepBack()">&nbsp;&#x25B6;|&nbsp;</div>
+                    <div id="graph-media-play" class="graph-media-control paused" style="width: 20px;" onclick="visualizeTogglePlay()">&#x25B6;</div>
+                    <div id="graph-media-forward" class="graph-media-control" onclick="visualizeStepForward()">&nbsp;&#x25B6;|&nbsp;</div>
+                    <div id="graph-media-end" class="graph-media-control" onclick="visualizeEnd()">&#x25B6;&#x25B6;|</div>
+                </div>
                 <div class="d3-tooltip" id="op-tooltip" style="opacity: 0"></div>
                 <svg id="debrief-graph-svg" class="op-svg debrief-svg"></svg>
                 <svg id="debrief-tactic-svg" class="op-svg debrief-svg" style="display: none"></svg>
@@ -141,3 +148,24 @@
 
 <div id="copy"></div>
 <div id="images" style="display: none"></div>
+
+<script>
+    function statusName(status) {
+        if (status === 0) {
+            return 'success';
+        } else if (status === -2) {
+            return 'discarded';
+        } else if (status === 1) {
+            return 'failure';
+        } else if (status === 124) {
+            return 'timeout';
+        } else if (status === -3) { // && chain.collect) {
+            return 'collected';
+        } else if (status === -4) {
+            return 'untrusted';
+        } else if (status === -5) {
+            return 'visibility';
+        }
+        return 'queued';
+    }
+</script>

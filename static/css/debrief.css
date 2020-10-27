@@ -122,17 +122,8 @@ li.legend {
     display: none;
     background-color: rgba(255, 0, 0, 0.5);
     text-align: center;
+}
 
-}
-#fact-count {
-    position: absolute;
-    top: 150px;
-    right: 20px;
-    padding: 20px;
-    border-spacing: 5px;
-    color: white;
-    font-size: 13px;
-}
 .graph-media-control {
     margin: 0 10;
     padding: 5px;

@@ -1,3 +1,6 @@
+var nodesOrderedByTime;
+var visualizeInterval;
+
 $( document ).ready(function() {
     $('#debrief-download-raw').click(function () {
         let operations = $('#debrief-operation-list').val();
@@ -46,6 +49,7 @@ $( document ).ready(function() {
         })
         updateAgentTable(data['agents']);
         updateTacticTechniqueTable(data['ttps']);
+        nodesOrderedByTime = getNodesOrderedByTime();
     }
 
     function updateOperationTable(op){
@@ -121,24 +125,6 @@ $( document ).ready(function() {
         })
     }
 
-    function statusName(status) {
-        if (status === 0) {
-            return 'success';
-        } else if (status === -2) {
-            return 'discarded';
-        } else if (status === 1) {
-            return 'failure';
-        } else if (status === 124) {
-            return 'timeout';
-        } else if (status === -3) { // && chain.collect) {
-            return 'collected';
-        } else if (status === -4) {
-            return 'untrusted';
-        } else if (status === -5) {
-            return 'visibility';
-        }
-        return 'queued';
-    }
 });
 
 function switchGraphView(btn) {
@@ -263,4 +249,93 @@ function toggleIcons(input) {
     else {
         $("#debrief-graph .svg-icon:not(.hidden)").hide();
     }
+}
+
+function visualizeTogglePlay() {
+    let graphId = getVisibleOpGraphId()
+    if ($("#graph-media-play").hasClass("paused")) {
+        if (!nodesOrderedByTime[graphId].find(node => node.style.display == "none")) {
+            visualizeBeginning();
+        }
+        $("#graph-media-play").removeClass("paused");
+        $("#graph-media-play").html("||");
+        visualizeInterval = setInterval(visualizeStepForward, 1000);
+    }
+    else {
+        $("#graph-media-play").html("&#x25B6;");
+        $("#graph-media-play").addClass("paused");
+        clearInterval(visualizeInterval);
+    }
+}
+
+function visualizeStepForward() {
+    let graphId = getVisibleOpGraphId()
+    let nextNode = nodesOrderedByTime[graphId].find(node => node.style.display == "none");
+    if (nextNode) {
+        $(nextNode).show();
+
+        let showingNodesIds = nodesOrderedByTime[graphId].filter(node => node.style.display != "none").map(node => node.id);
+        let relatedLines = $("#" + graphId + " line").filter(function(idx, line) {
+            return showingNodesIds.includes("node-" + $(line).data("target")) && showingNodesIds.includes("node-" + $(line).data("source"))
+        })
+        relatedLines.show();
+    }
+
+    if (!$("#graph-media-play").hasClass("paused") && !nodesOrderedByTime[graphId].find(node => node.style.display == "none")) {
+        $("#graph-media-play").addClass("paused");
+        $("#graph-media-play").html("&#x25B6;");
+        clearInterval(visualizeInterval);
+    }
+}
+
+function visualizeStepBack() {
+    let graphId = getVisibleOpGraphId()
+    let prevNode = $(nodesOrderedByTime[graphId].slice().reverse().find(node => node.style.display != "none"));
+
+    if (prevNode.attr("id") != "#node-0") {
+        prevNode.hide();
+
+        let showingNodesIds = nodesOrderedByTime[graphId].filter(node => node.style.display != "none").map(node => node.id);
+        let relatedLines = $("#" + graphId + " line").filter(function(idx, line) {
+            return !(showingNodesIds.includes("node-" + $(line).data("target")) && showingNodesIds.includes("node-" + $(line).data("source")))
+        })
+        relatedLines.hide();
+    }
+
+}
+
+function visualizeBeginning() {
+    let graphId = getVisibleOpGraphId()
+    $("#" + graphId + " .node:not(.c2)").hide();
+    $("#" + graphId + " line").hide();
+}
+
+function visualizeEnd() {
+    let graphId = getVisibleOpGraphId()
+    $("#" + graphId + " .node").show();
+    $("#" + graphId + " line").show();
+}
+
+function getNodesOrderedByTime() {
+    function compareTimestamp(a, b) {
+        if (Date.parse(a.dataset.timestamp) < Date.parse(b.dataset.timestamp)) {
+            return -1;
+        }
+        if (Date.parse(a.dataset.timestamp) > Date.parse(b.dataset.timestamp)) {
+            return 1;
+        }
+        return 0;
+    }
+    function getSortedNodes(id) {
+        return $("#" + id + " .node").toArray().sort(compareTimestamp);
+    }
+    let graphNodesByTime = {};
+    graphNodesByTime["debrief-graph-svg"] = getSortedNodes("debrief-graph-svg");
+    graphNodesByTime["debrief-tactic-svg"] = getSortedNodes("debrief-tactic-svg");
+    graphNodesByTime["debrief-technique-svg"] = getSortedNodes("debrief-technique-svg");
+    return graphNodesByTime;
+}
+
+function getVisibleOpGraphId() {
+    return $(".op-svg").filter(function() { return $(this).css("display") != "none" }).attr("id");
 }

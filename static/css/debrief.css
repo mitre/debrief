@@ -124,3 +124,25 @@ li.legend {
     text-align: center;
 
 }
+#fact-count {
+    position: absolute;
+    top: 150px;
+    right: 20px;
+    padding: 20px;
+    border-spacing: 5px;
+    color: white;
+    font-size: 13px;
+}
+.graph-media-control {
+    margin: 0 10;
+    padding: 5px;
+    width: auto;
+    border-radius: 5px;
+    background-color: grey;
+    font-size: 12px;
+    cursor: pointer;
+    user-select: none;
+}
+.graph-media-control:hover {
+    background-color: #4e4e4e;
+}

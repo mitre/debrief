@@ -81,7 +81,9 @@ class Story:
         for lnk in operation.chain:
             if len(lnk.facts) > 0:
                 for f in lnk.facts:
-                    fact_data.append([f.trait, f.value, str(f.score), lnk.paw, lnk.decode_bytes(lnk.command)])
+                    fact_data.append([f.trait, f.value, str(f.score),
+                                      '<link href="#agent-{0}" color="blue">{0}</link>'.format(lnk.paw),
+                                      lnk.decode_bytes(lnk.command)])
         return self.generate_table(fact_data, [1*inch, 1.2*inch, .6*inch, .6*inch, 3*inch])
 
     @staticmethod

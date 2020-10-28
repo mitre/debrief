@@ -1,6 +1,5 @@
 var nodesOrderedByTime;
 var visualizeInterval;
-var downloadType;
 
 $( document ).ready(function() {
     $('#debrief-operation-list').change(function (e){
@@ -130,40 +129,41 @@ function downloadPDF() {
         pdfSections[key] = $(checkbox).prop("checked");
     })
     restRequest('POST', {'operations': $('#debrief-operation-list').val(), 'graphs': getGraphData(), 'sections': pdfSections},
-                 downloadReport, '/plugin/debrief/pdf');
+                 downloadReport("pdf"), '/plugin/debrief/pdf');
 }
 
 function downloadJSON() {
-    downloadType = "json";
-    stream("Generating " + downloadType.toUpperCase() + " report... ");
-    restRequest("POST", {"operations": $("#debrief-operation-list").val()}, downloadReport, "/plugin/debrief/json");
+    stream("Generating JSON report... ");
+    restRequest("POST", {"operations": $("#debrief-operation-list").val()}, downloadReport("json"), "/plugin/debrief/json");
 }
 
-function downloadReport(data) {
-    if (typeof data == "string") {
-        stream("Select at least one operation to generate a report");
-    }
-    else {
-        let dataStr;
-        let filename = data["filename"] + "." + downloadType;
-        stream("Downloading " + downloadType.toUpperCase() + " report: " + filename);
-        switch(downloadType) {
-            case "pdf":
-                dataStr = URL.createObjectURL(new Blob([data["pdf_bytes"]], { type: "application/pdf" }));
-                break;
-            case "json":
-                dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data["json_bytes"], null, 2));
-                break;
-            default:
-                stream("Unknown report type returned");
-                return;
+function downloadReport(downloadType) {
+    return function(data) {
+        if (typeof data == "string") {
+            stream("Select at least one operation to generate a report");
         }
-        let downloadAnchorNode = document.createElement("a");
-        downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", filename);
-        document.body.appendChild(downloadAnchorNode);
-        downloadAnchorNode.click();
-        downloadAnchorNode.remove();
+        else {
+            let dataStr;
+            let filename = data["filename"] + "." + downloadType;
+            stream("Downloading " + downloadType.toUpperCase() + " report: " + filename);
+            switch(downloadType) {
+                case "pdf":
+                    dataStr = URL.createObjectURL(new Blob([data["pdf_bytes"]], { type: "application/pdf" }));
+                    break;
+                case "json":
+                    dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data["json_bytes"], null, 2));
+                    break;
+                default:
+                    stream("Unknown report type returned");
+                    return;
+            }
+            let downloadAnchorNode = document.createElement("a");
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", filename);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
     }
 }
 

@@ -7,11 +7,12 @@ lateral_movement_tolerance = timedelta(minutes=1)
 
 
 class DebriefService(BaseService):
-    def __init__(self, services):
+    def __init__(self, services, lateral_movement_tolerance_minutes=1):
         self.services = services
         self.file_svc = services.get('file_svc')
         self.data_svc = services.get('data_svc')
         self.log = logging.getLogger('debrief_svc')
+        self.lateral_movement_tolerance = timedelta(minutes=lateral_movement_tolerance_minutes)
 
     async def build_operation_d3(self, operation_ids):
         graph_output = dict(nodes=[], links=[])
@@ -52,7 +53,7 @@ class DebriefService(BaseService):
                                                   type='has_agent'))
         return graph_output
 
-    async def build_netpath_d3(self, operation_ids):
+    async def build_attackpath_d3(self, operation_ids):
         graph_output = dict(nodes=[], links=[])
         id_store = dict(c2=0)
         graph_output['nodes'].append(dict(name="C2 Server", type='c2', label='server', id=0, img='server'))
@@ -69,7 +70,7 @@ class DebriefService(BaseService):
                                                       img=link.ability.tactic))
                     graph_output['links'].append(dict(source=id_store['agent' + link.paw], target=link_graph_id,
                                                       type='next_link'))
-                    agent_callback_max = link.collect + lateral_movement_tolerance
+                    agent_callback_max = link.collect + self.lateral_movement_tolerance
                     new_agents = [a for a in agents if link.collect <= a.created <= agent_callback_max]
                     for new_agent in new_agents:
                         graph_output['links'].append(dict(source=link_graph_id,

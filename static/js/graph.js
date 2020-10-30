@@ -95,7 +95,6 @@ function buildGraph(graphObj, operations) {
     let url = "/plugin/debrief/graph?type=" + graphObj.type + "&operations=" + operations.join();
     d3.json(url, function (error, graph) {
         if (error) throw error;
-        console.log(graph);
         writeGraph(graph, graphObj);
         if (graphObj.type == "fact") {
             limitFactsDisplayed(operations);
@@ -124,15 +123,16 @@ function writeGraph(graph, graphObj) {
                         .attr("width", "100%")
                         .attr("height", "100%")
 
-    var link = container.append("g")
+    var arrows = container.append("g")
                 .style("stroke", "#aaa")
-                .selectAll("line")
+                .style("fill", "#aaa")
+                .selectAll("polyline")
                 .data(graph.links)
-                .enter().append("line")
+                .enter().append("polyline")
                 .attr("data-source", function(d) { return d.source })
                 .attr("data-target", function(d) { return d.target })
                 .attr("class", function(d) { return d.type;})
-                .attr('marker-end','url(#arrowhead' + graphObj.type + ')');
+                .attr("stroke-linecap", "round");
 
     container.selectAll('g.nodes').remove();
     var nodes = container.append("g")
@@ -285,11 +285,10 @@ function writeGraph(graph, graphObj) {
         .distance(function(d) {return link_lengths[d.type];});
 
     function ticked() {
-        link
-            .attr("x1", function(d) { return d.source.x; })
-            .attr("y1", function(d) { return d.source.y; })
-            .attr("x2", function(d) { return d.target.x; })
-            .attr("y2", function(d) { return d.target.y; });
+
+        arrows
+            .attr("points", function(d) { return getPolylineCoords(d.source.x, d.source.y, d.target.x, d.target.y) })
+            .attr("transform", function(d) { return rotateArrow(d.source.x, d.source.y, d.target.x, d.target.y) });
 
         nodes
             .attr('transform', function(d) {return 'translate(' + d.x + ',' + d.y + ')';})
@@ -359,6 +358,23 @@ function writeGraph(graph, graphObj) {
                 }
         }
         return ret;
+    }
+
+    function getPolylineCoords(x1, y1, x2, y2) {
+        let p1 = `${x1} ${y1}`;
+        let x = x1 - Math.hypot(x2-x1, y2-y1) + 17;
+        let p2 = `${x} ${y1}`;
+        let p3 = `${x + 7.5} ${y1 + 4}`;
+        let p4 = `${x + 7.5} ${y1 - 4}`;
+        let p5 = p2;
+        return `${p1}, ${p2}, ${p3}, ${p4}, ${p5}`;
+    }
+
+    function rotateArrow(x1, y1, x2, y2) {
+      let deltaX = x2 - x1;
+      let deltaY = y2 - y1;
+      let angleDeg = Math.atan2(deltaY, deltaX) * 180 / Math.PI + 180;
+      return `rotate(${angleDeg}, ${x1}, ${y1})`;
     }
 }
 

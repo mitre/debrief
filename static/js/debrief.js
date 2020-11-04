@@ -34,6 +34,10 @@ $( document ).ready(function() {
         }
     });
 
+    $(".debrief-sidebar-header").click(function(){
+        $(this).next(".debrief-sidebar").slideToggle("slow");
+    });
+
     function clearReport(){
         $("#report-operations tbody tr").remove();
         $("#report-steps tbody tr").remove();
@@ -153,7 +157,13 @@ function downloadPDF() {
             downloadAnchorNode.remove();
         }
     }
-    restRequest('POST', {'operations': $('#debrief-operation-list').val(), 'graphs': getGraphData()}, callback, '/plugin/debrief/pdf');
+    let pdfSections = {};
+    $(".debrief-pdf-opt").each(function(idx, checkbox) {
+        let key = $(checkbox).attr("id").split(/-(.+)/)[1];
+        pdfSections[key] = $(checkbox).prop("checked");
+    })
+    restRequest('POST', {'operations': $('#debrief-operation-list').val(), 'graphs': getGraphData(), 'sections': pdfSections},
+                 callback, '/plugin/debrief/pdf');
 }
 
 function findResults(elem, lnk){
@@ -338,4 +348,16 @@ function getNodesOrderedByTime() {
 
 function getVisibleOpGraphId() {
     return $(".op-svg").filter(function() { return $(this).css("display") != "none" }).attr("id");
+}
+
+function pdfSelectAll() {
+    if ($("#pdf-select-all").prop("checked")) {
+        $(".debrief-pdf-opt").prop("checked", true);
+    }
+}
+
+function uncheckSelectAll(checkbox) {
+    if (!$(checkbox).prop("checked")) {
+        $("#pdf-select-all").prop("checked", false);
+    }
 }

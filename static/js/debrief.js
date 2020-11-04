@@ -197,7 +197,7 @@ function getGraphData() {
 
 //        re-enable any hidden nodes
         $("#copy-svg .link").show()
-        $("#copy-svg .next_link").show()
+        $("#copy-svg polyline").show()
         $("#copy-svg .link .icons").children('.svg-icon').show();
         $("#copy-svg .link .icons").children('.hidden').remove();
         $("#copy-svg text").show();
@@ -275,7 +275,7 @@ function visualizeStepForward() {
         $(nextNode).show();
 
         let showingNodesIds = nodesOrderedByTime[graphId].filter(node => node.style.display != "none").map(node => node.id);
-        let relatedLines = $("#" + graphId + " line").filter(function(idx, line) {
+        let relatedLines = $("#" + graphId + " polyline").filter(function(idx, line) {
             return showingNodesIds.includes("node-" + $(line).data("target")) && showingNodesIds.includes("node-" + $(line).data("source"))
         })
         relatedLines.show();
@@ -296,7 +296,7 @@ function visualizeStepBack() {
         prevNode.hide();
 
         let showingNodesIds = nodesOrderedByTime[graphId].filter(node => node.style.display != "none").map(node => node.id);
-        let relatedLines = $("#" + graphId + " line").filter(function(idx, line) {
+        let relatedLines = $("#" + graphId + " polyline").filter(function(idx, line) {
             return !(showingNodesIds.includes("node-" + $(line).data("target")) && showingNodesIds.includes("node-" + $(line).data("source")))
         })
         relatedLines.hide();
@@ -307,13 +307,13 @@ function visualizeStepBack() {
 function visualizeBeginning() {
     let graphId = getVisibleOpGraphId()
     $("#" + graphId + " .node:not(.c2)").hide();
-    $("#" + graphId + " line").hide();
+    $("#" + graphId + " polyline").hide();
 }
 
 function visualizeEnd() {
     let graphId = getVisibleOpGraphId()
     $("#" + graphId + " .node").show();
-    $("#" + graphId + " line").show();
+    $("#" + graphId + " polyline").show();
 }
 
 function getNodesOrderedByTime() {

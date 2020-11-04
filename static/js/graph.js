@@ -416,7 +416,7 @@ function limitFactsDisplayed(operations) {
         $("#fact-limit-msg").show();
         operations.forEach(function(opId) {
             $("#debrief-fact-svg g.fact[data-op='" + opId + "']").slice(factDisplayLimit).remove();
-            $("#debrief-fact-svg line.relationship[data-source='" + opId + "']").slice(factDisplayLimit).remove();
+            $("#debrief-fact-svg polyline.relationship[data-source='" + opId + "']").slice(factDisplayLimit).remove();
         })
     }
 }

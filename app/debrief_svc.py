@@ -56,7 +56,8 @@ class DebriefService(BaseService):
     async def build_attackpath_d3(self, operation_ids):
         graph_output = dict(nodes=[], links=[])
         id_store = dict(c2=0)
-        graph_output['nodes'].append(dict(name="C2 Server", type='c2', label='server', id=0, img='server'))
+        graph_output['nodes'].append(dict(name="C2 Server", type='c2', label='server', id=0, img='server',
+                                          attrs={k: v for k, v in self.get_config().items() if k.startswith('app.')}))
         agents = await self.data_svc.locate('agents')
         self._add_agents_to_d3(agents, id_store, graph_output)
 
@@ -68,6 +69,7 @@ class DebriefService(BaseService):
                     graph_output['nodes'].append(dict(type='latmov_link', name=link.ability.technique_name,
                                                       id=link_graph_id, status=link.status, operation=op_id,
                                                       img=link.ability.tactic,
+                                                      attrs=dict(status=link.status, name=link.ability.name),
                                                       timestamp=link.created.replace(" ", "T")))
                     graph_output['links'].append(dict(source=id_store['agent' + link.paw], target=link_graph_id,
                                                       type='next_link'))

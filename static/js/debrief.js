@@ -120,8 +120,7 @@ function switchGraphView(btn) {
 }
 
 function downloadPDF() {
-    downloadType = "pdf";
-    stream("Generating " + downloadType.toUpperCase() + " report... ");
+    stream("Generating PDF report... ");
 
     let pdfSections = {};
     $(".debrief-pdf-opt").each(function(idx, checkbox) {

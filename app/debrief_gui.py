@@ -78,7 +78,17 @@ class DebriefGui(BaseWorld):
             pdf_bytes = self._build_pdf(operations, agents, filename, data['sections'])
             self._clean_downloads()
             return web.json_response(dict(filename=filename, pdf_bytes=pdf_bytes))
-        return web.json_response('No or multiple operations selected')
+        return web.json_response('No operations selected')
+
+    async def download_json(self, request):
+        data = dict(await request.json())
+        if data['operations']:
+            operations = [await o.report(file_svc=self.file_svc, data_svc=self.data_svc, output=True) for o in
+                          await self.data_svc.locate('operations', match=await self._get_access(request))
+                          if str(o.id) in data.get('operations')]
+            filename = 'debrief_' + datetime.today().strftime('%Y-%m-%d_%H-%M-%S')
+            return web.json_response(dict(filename=filename, json_bytes=operations))
+        return web.json_response('No operations selected')
 
     def _build_pdf(self, operations, agents, filename, sections):
         # pdf setup

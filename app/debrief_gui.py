@@ -29,6 +29,7 @@ class DebriefGui(BaseWorld):
         self.data_svc = services.get('data_svc')
         self.file_svc = services.get('file_svc')
         self.log = logging.getLogger('debrief_gui')
+        self.uploads_dir = os.path.relpath(os.path.join('plugins', 'debrief', 'uploads'))
 
         self._suppress_logs('PIL')
         self._suppress_logs('svglib')
@@ -40,7 +41,11 @@ class DebriefGui(BaseWorld):
     async def splash(self, request):
         operations = [o.display for o in
                       await self.data_svc.locate('operations', match=await self._get_access(request))]
-        return dict(operations=operations)
+        uploaded_logos_dir = os.path.relpath(os.path.join(self.uploads_dir, 'header-logos'))
+        header_logos = [filename for filename in os.listdir(uploaded_logos_dir) if os.path.isfile(
+            os.path.relpath(os.path.join(uploaded_logos_dir, filename))
+        ) and not filename.startswith('.')]
+        return dict(operations=operations, header_logos=header_logos)
 
     async def report(self, request):
         data = dict(await request.json())
@@ -69,13 +74,17 @@ class DebriefGui(BaseWorld):
     async def download_pdf(self, request):
         data = dict(await request.json())
         svg_data = data['graphs']
+        header_logo_filename = data.get('header-logo')
         self._save_svgs(svg_data)
         if data['operations']:
+            header_logo_path = None
+            if header_logo_filename:
+                header_logo_path = os.path.relpath(os.path.join(self.uploads_dir, 'header-logos', header_logo_filename))
             operations = [o for o in await self.data_svc.locate('operations', match=await self._get_access(request))
                           if str(o.id) in data.get('operations')]
             filename = 'debrief_' + datetime.today().strftime('%Y-%m-%d_%H-%M-%S')
             agents = await self.data_svc.locate('agents')
-            pdf_bytes = self._build_pdf(operations, agents, filename, data['sections'])
+            pdf_bytes = self._build_pdf(operations, agents, filename, data['sections'], header_logo_path)
             self._clean_downloads()
             return web.json_response(dict(filename=filename, pdf_bytes=pdf_bytes))
         return web.json_response('No operations selected')
@@ -90,13 +99,27 @@ class DebriefGui(BaseWorld):
             return web.json_response(dict(filename=filename, json_bytes=operations))
         return web.json_response('No operations selected')
 
-    def _build_pdf(self, operations, agents, filename, sections):
+    async def upload_logo(self, request):
+        data = await request.post()
+        logo_file_info = data['header-logo']
+        if logo_file_info:
+            logo_file = logo_file_info.file
+            content = logo_file.read()
+            filename = logo_file_info.filename
+
+            # Write file to uploads directory
+            filepath = os.path.relpath(os.path.join(self.uploads_dir, 'header-logos', filename))
+            with open(filepath, 'wb') as f:
+                f.write(content)
+
+    def _build_pdf(self, operations, agents, filename, sections, header_logo_path):
         # pdf setup
         pdf_buffer = BytesIO()
         doc = SimpleDocTemplate(pdf_buffer, pagesize=letter,
                                 rightMargin=72, leftMargin=72,
-                                topMargin=72, bottomMargin=72, title=filename)
+                                topMargin=84, bottomMargin=84, title=filename)
         story_obj = Story()
+        story_obj.set_header_logo_path(header_logo_path)
         styles = getSampleStyleSheet()
         pdfmetrics.registerFont(TTFont('VeraBd', 'VeraBd.ttf'))
         title = styles['Heading1']

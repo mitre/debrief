@@ -7,6 +7,8 @@ from svglib.svglib import svg2rlg
 
 
 class Story:
+    _header_logo_path = None
+
     def __init__(self):
         self.story_arr = []
 
@@ -87,14 +89,22 @@ class Story:
         return self.generate_table(fact_data, [1*inch, 1.2*inch, .6*inch, .6*inch, 3*inch])
 
     @staticmethod
+    def set_header_logo_path(header_logo_path):
+        Story._header_logo_path = header_logo_path
+
+    @staticmethod
     def header_footer_first(canvas, doc):
         # Save the state of our canvas so we can draw on it
         canvas.saveState()
 
         # Header
-        logo = "./plugins/debrief/static/img/caldera.png"
-        im = Image(logo, 1.5 * inch, 1 * inch)
+        caldera_logo = "./plugins/debrief/static/img/caldera.png"
+        im = Image(caldera_logo, 1.5 * inch, 1 * inch)
         im.drawOn(canvas, doc.leftMargin, doc.height + doc.topMargin - im.drawHeight / 2)
+
+        if Story._header_logo_path:
+            Story.draw_header_logo(canvas, doc, Story._header_logo_path)
+
         canvas.setStrokeColor(colors.maroon)
         canvas.setLineWidth(4)
         canvas.line(doc.leftMargin + im.drawWidth + 5,
@@ -116,6 +126,9 @@ class Story:
         canvas.saveState()
 
         # Header
+        if Story._header_logo_path:
+            Story.draw_header_logo(canvas, doc, Story._header_logo_path)
+
         canvas.setFillColor(colors.maroon)
         canvas.setFont('VeraBd', 18)
         canvas.drawString(doc.leftMargin, doc.height + doc.topMargin * 1.25, 'OPERATIONS DEBRIEF')
@@ -135,6 +148,12 @@ class Story:
 
         # Release the canvas
         canvas.restoreState()
+
+    @staticmethod
+    def draw_header_logo(canvas, doc, logo_path):
+        im = Image(logo_path, 2.5 * inch, 0.75 * inch)
+        im.drawOn(canvas, doc.width + doc.leftMargin + doc.rightMargin - im.drawWidth - 10,
+                  doc.height + doc.topMargin + doc.bottomMargin - im.drawHeight - 10)
 
     @staticmethod
     def _adjust_icon_svgs(path):

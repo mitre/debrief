@@ -122,13 +122,27 @@ function switchGraphView(btn) {
 function downloadPDF() {
     stream("Generating PDF report... ");
 
+	let logoFiles = document.getElementById("logo-file").files;
+	let logoFileName = null;
     let pdfSections = {};
     $(".debrief-pdf-opt").each(function(idx, checkbox) {
         let key = $(checkbox).attr("id").split(/-(.+)/)[1];
         pdfSections[key] = $(checkbox).prop("checked");
     })
-    restRequest('POST', {'operations': $('#debrief-operation-list').val(), 'graphs': getGraphData(), 'sections': pdfSections},
-                 downloadReport("pdf"), '/plugin/debrief/pdf');
+    if (logoFiles.length > 0) {
+    	let logoFile = logoFiles[0];
+    	logoFileName = logoFile.name;
+    }
+    restRequest(
+    	'POST', {
+    		'operations': $('#debrief-operation-list').val(),
+    		'graphs': getGraphData(),
+    		'sections': pdfSections,
+    		'header-logo': $('#debrief-header-logo-list').val()
+		},
+ 		downloadReport("pdf"),
+ 		'/plugin/debrief/pdf'
+	);
 }
 
 function downloadJSON() {
@@ -360,4 +374,26 @@ function uncheckSelectAll(checkbox) {
     if (!$(checkbox).prop("checked")) {
         $("#pdf-select-all").prop("checked", false);
     }
+}
+
+function uploadHeaderLogo() {
+	let logoFiles = document.getElementById("logo-file").files;
+	if (logoFiles.length > 0){
+		let formData = new FormData();
+		formData.append("header-logo", logoFiles[0]);
+		fetch('/plugin/debrief/uploadlogo', {method: "POST", body: formData});
+	}
+}
+
+function triggerLogoUploadButton() {
+	document.getElementById('logo-file').click();
+}
+
+function displayLogoFilename() {
+	let selectedFiles = document.getElementById("logo-file").files;
+	let filename = "No logo file selected";
+	if (selectedFiles.length > 0) {
+		filename = selectedFiles[0].name;
+	}
+	document.getElementById("selected-header-logo-file").innerHTML = filename;
 }

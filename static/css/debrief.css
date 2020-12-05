@@ -12,6 +12,14 @@
     color: var(--font-color);
 }
 
+#selected-pdf-section-ordering-list {
+    height: 150px;
+    width: 250px;
+    padding: 10px;
+    background-color: black;
+    color: var(--font-color);
+}
+
 #debrief-graph {
     background-color: black;
     height: 400px;
@@ -180,4 +188,18 @@ li.legend {
 	margin: 5px 5px 15px 5px;
     text-align: center;
     position: relative;
+}
+
+.debrief-pdf-section-move-button {
+	align-items: center;
+	justify-content: center;
+	display: flex;
+	padding: 8px;
+	width:45%;
+}
+
+.debrief-pdf-section-move-arrow {
+	background-color: transparent;
+	height: 12px;
+	width: 12px;
 }

@@ -110,6 +110,8 @@ $( document ).ready(function() {
         })
     }
 
+	initSectionOrderingList();
+	updatePdfSectionOrderingList();
 });
 
 function switchGraphView(btn) {
@@ -124,6 +126,7 @@ function downloadPDF() {
 
 	let logoFiles = document.getElementById("logo-file").files;
 	let logoFileName = null;
+	let orderedPdfSections = JSON.parse(localStorage.getItem('pdf-section-order')).map(x => x.split(/-(.+)/)[1]);
     let pdfSections = {};
     $(".debrief-pdf-opt").each(function(idx, checkbox) {
         let key = $(checkbox).attr("id").split(/-(.+)/)[1];
@@ -138,6 +141,7 @@ function downloadPDF() {
     		'operations': $('#debrief-operation-list').val(),
     		'graphs': getGraphData(),
     		'sections': pdfSections,
+    		'ordered-sections': orderedPdfSections,
     		'header-logo': $('#debrief-header-logo-list').val()
 		},
  		downloadReport("pdf"),
@@ -396,4 +400,93 @@ function displayLogoFilename() {
 		filename = selectedFiles[0].name;
 	}
 	document.getElementById("selected-header-logo-file").innerHTML = filename;
+}
+
+function updatePdfSectionOrderingList() {
+	//document.getElementById("selected-pdf-section-ordering-list").innerHTML = '';
+	var pdfSections = document.getElementsByClassName("debrief-pdf-opt");
+	var oldOrderedList = JSON.parse(localStorage.getItem('pdf-section-order'));
+	if (oldOrderedList == null) {
+		oldOrderedList = [];
+	}
+	oldSelectedSet = new Set(oldOrderedList);
+	currSelectedSet = new Set();
+
+	for (var i = 0; i < pdfSections.length; i++) {
+		var pdfSection = pdfSections[i];
+		if (pdfSection.checked) {
+			currSelectedSet.add(pdfSection.id);
+			if (!oldSelectedSet.has(pdfSection.id)) {
+				// New pdf section selected. Add to end of ordered list
+				oldOrderedList.push(pdfSection.id);
+				oldSelectedSet.add(pdfSection.id);
+			}
+		}
+	}
+
+	// Check if there are any sections to remove from ordered list.
+	var newOrderedList = [];
+	for (i = 0; i < oldOrderedList.length; i++) {
+		var sectionId = oldOrderedList[i];
+		if (currSelectedSet.has(sectionId)) {
+			section = document.getElementById(sectionId);
+			newOrderedList.push(sectionId);
+			/*
+			let label = $('label[for="' + section.id + '"]');
+			let rowHTML = '<option class="ordered-pdf-section" id="ordered-pdf-section" value="' + section.id + '">' + label[0].innerText + '</option>';
+			document.getElementById("selected-pdf-section-ordering-list").insertAdjacentHTML('beforeend', rowHTML);
+			*/
+		}
+	}
+	localStorage.setItem('pdf-section-order', JSON.stringify(newOrderedList));
+	displayPdfSectionOrderingList();
+}
+
+function displayPdfSectionOrderingList() {
+	var selectedItemId = $('#selected-pdf-section-ordering-list').val();
+	document.getElementById("selected-pdf-section-ordering-list").innerHTML = '';
+	var orderedList = JSON.parse(localStorage.getItem('pdf-section-order'));
+	if (orderedList == null) {
+		orderedList = [];
+	}
+	for (i = 0; i < orderedList.length; i++) {
+		var sectionId = orderedList[i];
+		section = document.getElementById(sectionId);
+		let label = $('label[for="' + section.id + '"]');
+		let rowHTML = '<option class="ordered-pdf-section" id="ordered-pdf-section" value="' + section.id + '">' + label[0].innerText + '</option>';
+		document.getElementById("selected-pdf-section-ordering-list").insertAdjacentHTML('beforeend', rowHTML);
+	}
+	if (selectedItemId != null) {
+		//let selected = document.getElementById(selectedItemId);
+		//let selectionElement = document.getElementById('selected-pdf-section-ordering-list');
+		//selectionElement.value = selected;
+		$('#selected-pdf-section-ordering-list').val(selectedItemId);
+	}
+}
+
+function initSectionOrderingList() {
+	// Contains list of element IDs for selected PDF sections.
+	localStorage.setItem('pdf-section-order', JSON.stringify([]));
+}
+
+function movePdfSection(direction) {
+	var orderedList = JSON.parse(localStorage.getItem('pdf-section-order'));
+	var selectedSectionId = $('#selected-pdf-section-ordering-list').val();
+	var oldIndex = orderedList.indexOf(selectedSectionId);
+	if (oldIndex >= 0) {
+		if (direction.toLowerCase() === 'up') {
+			if (oldIndex > 0) {
+				orderedList.splice(oldIndex, 1);
+				orderedList.splice(oldIndex - 1, 0, selectedSectionId);
+			}
+		} else if (direction.toLowerCase() === 'down') {
+			if (oldIndex < orderedList.length - 1) {
+				orderedList.splice(oldIndex, 1);
+				orderedList.splice(oldIndex + 1, 0, selectedSectionId);
+			}
+		}
+	}
+
+	// Update storage
+	localStorage.setItem('pdf-section-order', JSON.stringify(orderedList));
 }

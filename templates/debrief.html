@@ -44,33 +44,57 @@
             <div class="sidebar-cutout debrief-sidebar" style="display: none">
                 <h5>PDF Section Selection</h5>
                 <div class="debrief-pdf-select">
-                    <input type="checkbox" id="pdf-select-all" checked onClick="pdfSelectAll()">
+                    <input type="checkbox" id="pdf-select-all" checked onClick="pdfSelectAll();updatePdfSectionOrderingList();">
                     <label for="pdf-select-all">Select All</label>
                     <hr style="margin: 5 0;">
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-default-graph" checked onClick="uncheckSelectAll(this)">
+                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-default-graph" checked onClick="uncheckSelectAll(this);updatePdfSectionOrderingList();">
                     <label for="pdf-default-graph">Operations Graph</label><br>
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-tactic-graph" checked onClick="uncheckSelectAll(this)">
+                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-tactic-graph" checked onClick="uncheckSelectAll(this);updatePdfSectionOrderingList();">
                     <label for="pdf-tactic-graph">Tactic Graph</label><br>
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-technique-graph" checked onClick="uncheckSelectAll(this)">
+                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-technique-graph" checked onClick="uncheckSelectAll(this);updatePdfSectionOrderingList();">
                     <label for="pdf-technique-graph">Technique Graph</label><br>
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-fact-graph" checked onClick="uncheckSelectAll(this)">
+                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-fact-graph" checked onClick="uncheckSelectAll(this);updatePdfSectionOrderingList();">
                     <label for="pdf-fact-graph">Fact Graph</label><br>
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-tactic-technique-table" checked onClick="uncheckSelectAll(this)">
+                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-tactic-technique-table" checked onClick="uncheckSelectAll(this);updatePdfSectionOrderingList();">
                     <label for="pdf-tactic-technique-table">Tactic and Technique Table</label><br>
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-steps-table" checked onClick="uncheckSelectAll(this)">
+                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-steps-table" checked onClick="uncheckSelectAll(this);updatePdfSectionOrderingList();">
                     <label for="pdf-steps-table">Operation Steps Tables</label><br>
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-facts-table" checked onClick="uncheckSelectAll(this)">
+                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-facts-table" checked onClick="uncheckSelectAll(this);updatePdfSectionOrderingList();">
                     <label for="pdf-facts-table">Operation Facts Tables</label><br>
                 </div>
+                <hr style="margin: 5 0 5;">
+                <div class="debrief-pdf-ordering" style="margin: 5px 5px 15px 5px;">
+                    <h5 style="margin: 0 0 5 0">Reorder PDF Sections</h5>
+                    <select id="selected-pdf-section-ordering-list" size="5" style="overflow-y:auto" data-placeholder="No sections to show.">
+                        <!-- Will be populated by javascript -->
+                    </select>
+                    <div class="section-ordering-button-container" style="width: 100%; overflow:hidden;">
+                        <button id="pdf-section-move-button-up" onclick="movePdfSection('up');displayPdfSectionOrderingList();"
+                            class="button-success atomic-button debrief-pdf-section-move-button" type="button"
+                            style="align-items: center; justify-content: center; display: flex; padding: 8px; width:45%; float:right;">
+                            <div class="debrief-pdf-section-move-arrow" style="border-left: 1px solid rgba(0,0,0,1);
+                                 border-top: 1px solid rgba(0,0,0,1); transform: translateY(25%) rotate(45deg);"></div>
+                        </button>
+                        <button id="pdf-section-move-button-down" onclick="movePdfSection('down');displayPdfSectionOrderingList();"
+                                class="button-success atomic-button debrief-pdf-section-move-button" type="button"
+                                style="align-items: center; justify-content: center; display: flex; padding: 8px; width:45%; float:left;">
+                            <div class="debrief-pdf-section-move-arrow" style="border-right: 1px solid rgba(0,0,0,1);
+                                 border-bottom: 1px solid rgba(0,0,0,1);
+                                 transform: translateY(-25%) rotate(45deg);"></div>
+                        </button>
+                    </div>
+                </div>
+                <hr style="margin: 5 0 5;">
                 <div class="debrief-header-logo-select" style="margin: 5px 5px 15px 5px;">
                     <h5 style="margin-bottom:5px">PDF Header Logo Selection</h5>
                     <p style="margin-bottom:5px">Select a logo to appear in the top right corner of each page.</p>
                     <select id="debrief-header-logo-list" size="5" data-placeholder="No logos to show." style="overflow-y:auto">
                         {% for logo in header_logos %}
-                            <option class="headerLogoOption" id="{{ logo }}" value="{{ logo }}">{{ logo }}</option>
+                            <option class="header-logo-option" id="{{ logo }}" value="{{ logo }}">{{ logo }}</option>
                         {% endfor %}
                     </select>
                 </div>
+                <hr style="margin: 5 0 5;">
                 <h5 style="margin-bottom:5px">PDF Header Logo Upload</h5>
                 <div class="debrief-logo-upload-wrapper">
                     <button id="logo-upload-button" type="button" class="button-success atomic-button"

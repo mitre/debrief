@@ -2,7 +2,7 @@ from lxml import etree as ET
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.platypus import Paragraph, Spacer, Table, TableStyle, PageBreak, Image
+from reportlab.platypus import Paragraph, Spacer, Table, TableStyle, PageBreak, Image, CondPageBreak
 from svglib.svglib import svg2rlg
 
 
@@ -25,6 +25,9 @@ class Story:
 
     def page_break(self):
         self.story_arr.append(PageBreak())
+
+    def conditional_page_break(self, height):
+        self.story_arr.append(CondPageBreak(height))
 
     def generate_table(self, data, col_widths):
         data[1:] = [[self._get_table_object(val) for val in row] for row in data[1:]]
@@ -50,9 +53,9 @@ class Story:
     def append_graph(self, name, path):
         styles = getSampleStyleSheet()
         if name == 'graph':
-            self.append_text('Operations Graph', styles['Heading3'], 12)
+            self.append_text('Operations Graph', styles['Heading2'], 12)
         else:
-            self.append_text('%s Graph' % name.capitalize(), styles['Heading3'], 0)
+            self.append_text('%s Graph' % name.capitalize(), styles['Heading2'], 0)
         self.append_text(self.get_description(name), styles['Normal'], 12)
 
         self._adjust_icon_svgs(path)

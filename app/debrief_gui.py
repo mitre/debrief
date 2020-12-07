@@ -134,23 +134,6 @@ class DebriefGui(BaseWorld):
                               styles['Normal'], 12)
         story_obj.append_text(story_obj.get_description('debrief'), styles['Normal'], 12)
 
-        story_obj.append_text('STATISTICS', styles['Heading2'], 0)
-        story_obj.append_text(story_obj.get_description('statistics'), styles['Normal'], 12)
-        data = [['Name', 'State', 'Planner', 'Objective', 'Time']]
-        for o in operations:
-            finish = o.finish if o.finish else 'Not finished'
-            data.append([o.name, o.state, o.planner.name, o.objective.name, finish])
-        story_obj.append(story_obj.generate_table(data, '*'))
-
-        story_obj.append_text('AGENTS', styles['Heading2'], 0)
-        story_obj.append_text(story_obj.get_description('agents'), styles['Normal'], 12)
-        agent_data = [['Paw', 'Host', 'Platform', 'Username', 'Privilege', 'Executable']]
-        for a in agents:
-            agent_data.append(['<a name="agent-{0}"/>{0}'.format(a.paw), a.host, a.platform, a.username, a.privilege,
-                               a.exe_name])
-        story_obj.append(story_obj.generate_table(agent_data, '*'))
-        story_obj.page_break()
-
         if any(v for v in sections if '-graph' in v):
             graph_files = dict()
             for file in glob.glob('./plugins/debrief/downloads/*.svg'):
@@ -158,7 +141,6 @@ class DebriefGui(BaseWorld):
 
         for section in sections:
             if '-graph' in section:
-                story_obj.append_text('OPERATIONS GRAPHS', styles['Heading2'], 0)
                 if section == 'default-graph':
                     story_obj.append_graph('graph', graph_files['graph'])
                 elif section == 'tactic-graph':
@@ -167,23 +149,34 @@ class DebriefGui(BaseWorld):
                     story_obj.append_graph('technique', graph_files['technique'])
                 elif section == 'fact-graph':
                     story_obj.append_graph('fact', graph_files['fact'])
-            elif sections == 'tactic-technique-table':
+            elif section == 'tactic-technique-table':
                 story_obj.append_text('TACTICS AND TECHNIQUES', styles['Heading2'], 0)
                 ttps = self._generate_ttps(operations)
+                story_obj.conditional_page_break(50)
                 story_obj.append(story_obj.generate_ttps(ttps))
             elif section == 'steps-table':
                 for o in operations:
-                    story_obj.append_text('STEPS IN OPERATION <font name=Courier-Bold size=17>%s</font>' % o.name.upper(),
-                                          styles['Heading2'], 0)
+                    story_obj.append_text(
+                        'STEPS IN OPERATION <font name=Courier-Bold size=17>%s</font>' % o.name.upper(),
+                        styles['Heading2'], 0
+                    )
                     story_obj.append_text(story_obj.get_description('op steps'), styles['Normal'], 12)
+                    story_obj.conditional_page_break(50)
                     story_obj.append(story_obj.generate_op_steps(o))
             elif section == 'facts-table':
                 for o in operations:
-                    story_obj.append_text('FACTS FOUND IN OPERATION <font name=Courier-Bold size=17>%s</font>' % o.name.upper(),
-                                          styles['Heading2'], 0)
+                    story_obj.append_text(
+                        'FACTS FOUND IN OPERATION <font name=Courier-Bold size=17>%s</font>' % o.name.upper(),
+                        styles['Heading2'], 0
+                    )
                     story_obj.append_text(story_obj.get_description('op facts'), styles['Normal'], 12)
+                    story_obj.conditional_page_break(50)
                     story_obj.append(story_obj.generate_facts_found(o))
-                    story_obj.page_break()
+            elif section == 'statistics':
+                self._add_statistics(story_obj, operations, styles)
+            elif section == 'agents':
+                self._add_agent_information(story_obj, agents, styles)
+            story_obj.conditional_page_break(50)
 
         # pdf teardown
         doc.build(story_obj.story_arr,
@@ -192,6 +185,28 @@ class DebriefGui(BaseWorld):
         pdf_value = pdf_buffer.getvalue()
         pdf_buffer.close()
         return pdf_value.decode('utf-8', errors='ignore')
+
+    @staticmethod
+    def _add_statistics(story_obj, operations, styles):
+        story_obj.append_text('STATISTICS', styles['Heading2'], 0)
+        story_obj.append_text(story_obj.get_description('statistics'), styles['Normal'], 12)
+        data = [['Name', 'State', 'Planner', 'Objective', 'Time']]
+        for o in operations:
+            finish = o.finish if o.finish else 'Not finished'
+            data.append([o.name, o.state, o.planner.name, o.objective.name, finish])
+        story_obj.conditional_page_break(50)
+        story_obj.append(story_obj.generate_table(data, '*'))
+
+    @staticmethod
+    def _add_agent_information(story_obj, agents, styles):
+        story_obj.append_text('AGENTS', styles['Heading2'], 0)
+        story_obj.append_text(story_obj.get_description('agents'), styles['Normal'], 12)
+        agent_data = [['Paw', 'Host', 'Platform', 'Username', 'Privilege', 'Executable']]
+        for a in agents:
+            agent_data.append(['<a name="agent-{0}"/>{0}'.format(a.paw), a.host, a.platform, a.username, a.privilege,
+                               a.exe_name])
+        story_obj.conditional_page_break(50)
+        story_obj.append(story_obj.generate_table(agent_data, '*'))
 
     @staticmethod
     def _generate_ttps(operations):

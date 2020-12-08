@@ -39,51 +39,51 @@
                 <label for="show-tactic-icons">Show steps as tactics</label>
             </div>
             <div class="sidebar-cutout sidebar-header debrief-sidebar-header">
-                <h4 style="margin-bottom:0px">PDF REPORT OPTIONS</h4>
+                <h4 style="margin-bottom:0px">REPORT OPTIONS</h4>
             </div>
             <div class="sidebar-cutout debrief-sidebar" style="display: none">
-                <h5>PDF Section Selection</h5>
-                <div class="debrief-pdf-select">
-                    <input type="checkbox" id="pdf-select-all" checked onClick="pdfSelectAll();updatePdfSectionOrderingList();">
-                    <label for="pdf-select-all">Select All</label>
+                <h5>Report Section Selection</h5>
+                <div class="debrief-report-select">
+                    <input type="checkbox" id="report-select-all" checked onClick="reportSelectAll();updateReportSectionOrderingList();">
+                    <label for="report-select-all">Select All</label>
                     <hr style="margin: 5 0;">
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-statistics" checked onClick="uncheckSelectAll(this);updatePdfSectionOrderingList();">
-                    <label for="pdf-statistics">Statistics</label><br>
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-agents" checked onClick="uncheckSelectAll(this);updatePdfSectionOrderingList();">
-                    <label for="pdf-agents">Agents</label><br>
+                    <input type="checkbox" class="debrief-report-opt" id="reportsection-statistics" checked onClick="uncheckSelectAll(this);updateReportSectionOrderingList();">
+                    <label for="reportsection-statistics">Statistics</label><br>
+                    <input type="checkbox" class="debrief-report-opt" id="reportsection-agents" checked onClick="uncheckSelectAll(this);updateReportSectionOrderingList();">
+                    <label for="reportsection-agents">Agents</label><br>
                     <hr style="margin: 5 0;">
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-default-graph" checked onClick="uncheckSelectAll(this);updatePdfSectionOrderingList();">
-                    <label for="pdf-default-graph">Operations Graph</label><br>
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-tactic-graph" checked onClick="uncheckSelectAll(this);updatePdfSectionOrderingList();">
-                    <label for="pdf-tactic-graph">Tactic Graph</label><br>
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-technique-graph" checked onClick="uncheckSelectAll(this);updatePdfSectionOrderingList();">
-                    <label for="pdf-technique-graph">Technique Graph</label><br>
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-fact-graph" checked onClick="uncheckSelectAll(this);updatePdfSectionOrderingList();">
-                    <label for="pdf-fact-graph">Fact Graph</label><br>
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-tactic-technique-table" checked onClick="uncheckSelectAll(this);updatePdfSectionOrderingList();">
-                    <label for="pdf-tactic-technique-table">Tactic and Technique Table</label><br>
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-steps-table" checked onClick="uncheckSelectAll(this);updatePdfSectionOrderingList();">
-                    <label for="pdf-steps-table">Operation Steps Tables</label><br>
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-facts-table" checked onClick="uncheckSelectAll(this);updatePdfSectionOrderingList();">
-                    <label for="pdf-facts-table">Operation Facts Tables</label><br>
+                    <input type="checkbox" class="debrief-report-opt" id="reportsection-default-graph" checked onClick="uncheckSelectAll(this);updateReportSectionOrderingList();">
+                    <label for="reportsection-default-graph">Operations Graph</label><br>
+                    <input type="checkbox" class="debrief-report-opt" id="reportsection-tactic-graph" checked onClick="uncheckSelectAll(this);updateReportSectionOrderingList();">
+                    <label for="reportsection-tactic-graph">Tactic Graph</label><br>
+                    <input type="checkbox" class="debrief-report-opt" id="reportsection-technique-graph" checked onClick="uncheckSelectAll(this);updateReportSectionOrderingList();">
+                    <label for="reportsection-technique-graph">Technique Graph</label><br>
+                    <input type="checkbox" class="debrief-report-opt" id="reportsection-fact-graph" checked onClick="uncheckSelectAll(this);updateReportSectionOrderingList();">
+                    <label for="reportsection-fact-graph">Fact Graph</label><br>
+                    <input type="checkbox" class="debrief-report-opt" id="reportsection-tactic-technique-table" checked onClick="uncheckSelectAll(this);updateReportSectionOrderingList();">
+                    <label for="reportsection-tactic-technique-table">Tactic and Technique Table</label><br>
+                    <input type="checkbox" class="debrief-report-opt" id="reportsection-steps-table" checked onClick="uncheckSelectAll(this);updateReportSectionOrderingList();">
+                    <label for="reportsection-steps-table">Operation Steps Tables</label><br>
+                    <input type="checkbox" class="debrief-report-opt" id="reportsection-facts-table" checked onClick="uncheckSelectAll(this);updateReportSectionOrderingList();">
+                    <label for="reportsection-facts-table">Operation Facts Tables</label><br>
                 </div>
                 <hr style="margin: 5 0 5;">
-                <div class="debrief-pdf-ordering" style="margin: 5px 5px 15px 5px;">
-                    <h5 style="margin: 0 0 5 0">Reorder PDF Sections</h5>
-                    <select id="selected-pdf-section-ordering-list" size="5" style="overflow-y:auto" data-placeholder="No sections to show.">
+                <div class="debrief-section-ordering" style="margin: 5px 5px 15px 5px;">
+                    <h5 style="margin: 0 0 5 0">Reorder Report Sections</h5>
+                    <select id="selected-report-section-ordering-list" size="5" style="overflow-y:auto" data-placeholder="No sections to show.">
                         <!-- Will be populated by javascript -->
                     </select>
                     <div class="section-ordering-button-container" style="width: 100%; overflow:hidden;">
-                        <button id="pdf-section-move-button-up" onclick="movePdfSection('up');displayPdfSectionOrderingList();"
-                            class="button-success atomic-button debrief-pdf-section-move-button" type="button"
+                        <button id="report-section-move-button-up" onclick="moveReportSection('up');displayReportSectionOrderingList();"
+                            class="button-success atomic-button debrief-report-section-move-button" type="button"
                             style="align-items: center; justify-content: center; display: flex; padding: 8px; width:45%; float:right;">
-                            <div class="debrief-pdf-section-move-arrow" style="border-left: 1px solid rgba(0,0,0,1);
+                            <div class="debrief-report-section-move-arrow" style="border-left: 1px solid rgba(0,0,0,1);
                                  border-top: 1px solid rgba(0,0,0,1); transform: translateY(25%) rotate(45deg);"></div>
                         </button>
-                        <button id="pdf-section-move-button-down" onclick="movePdfSection('down');displayPdfSectionOrderingList();"
-                                class="button-success atomic-button debrief-pdf-section-move-button" type="button"
+                        <button id="report-section-move-button-down" onclick="moveReportSection('down');displayReportSectionOrderingList();"
+                                class="button-success atomic-button debrief-report-section-move-button" type="button"
                                 style="align-items: center; justify-content: center; display: flex; padding: 8px; width:45%; float:left;">
-                            <div class="debrief-pdf-section-move-arrow" style="border-right: 1px solid rgba(0,0,0,1);
+                            <div class="debrief-report-section-move-arrow" style="border-right: 1px solid rgba(0,0,0,1);
                                  border-bottom: 1px solid rgba(0,0,0,1);
                                  transform: translateY(-25%) rotate(45deg);"></div>
                         </button>
@@ -91,36 +91,31 @@
                 </div>
                 <hr style="margin: 5 0 5;">
                 <div class="debrief-header-logo-select" style="margin: 5px 5px 15px 5px;">
-                    <h5 style="margin-bottom:5px">PDF Header Logo Selection</h5>
+                    <h5 style="margin-bottom:5px">Report Header Logo Selection</h5>
                     <p style="margin-bottom:5px">Select a logo to appear in the top right corner of each page.</p>
-                    <select id="debrief-header-logo-list" size="5" data-placeholder="No logos to show." style="overflow-y:auto">
+                    <select id="debrief-header-logo-list" size="5" data-placeholder="No logos to show." onchange="showLogoPreview()" style="overflow-y:auto">
+                        <option class="header-logo-option" value="no-logo" selected>Do not use a logo</option>
                         {% for logo in header_logos %}
-                            <option class="header-logo-option" id="{{ logo }}" value="{{ logo }}">{{ logo }}</option>
+                            <option class="header-logo-option" value="{{ logo }}">{{ logo }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <hr style="margin: 5 0 5;">
-                <h5 style="margin-bottom:5px">PDF Header Logo Upload</h5>
+                <div id="debrief-report-logo-preview"></div>
                 <div class="debrief-logo-upload-wrapper">
                     <button id="logo-upload-button" type="button" class="button-success atomic-button"
-                            onclick="triggerLogoUploadButton()" style="margin-bottom:0;">
-                        Select logo file
+                            onclick="triggerLogoUploadButton();" style="margin-bottom:0;">
+                        Upload logo file
                     </button>
-                    <p id="selected-header-logo-file">No logo file selected.</p>
                     <input id="logo-file" name="logo" type="file" value=""
-                           onchange="displayLogoFilename();checkUploadButton()" accept="image/*"/>
-                </div>
-                <div class="debrief-logo-upload">
-                    <button id="debrief-upload-logo" type="button" class="button-notready atomic-button" style="margin-top:0;"
-                        onclick="uploadHeaderLogo()">Upload logo file</button>
+                           onchange="uploadHeaderLogo();" accept="image/*"/>
                 </div>
                 <hr style="margin: 5 0 10;">
             </div>
             <div id="debrief-download" style="text-align: center;">
                 <button id="debrief-download-pdf" type="button" class="button-success atomic-button" style="margin-top:0;"
-                        onclick="downloadPDF()">Download PDF</button>
+                        onclick="downloadPDF()">Download Report PDF</button>
                 <button id="debrief-download-raw" type="button" class="button-success atomic-button"
-                        style="margin-top:0;" onclick="downloadJSON()">Download JSON</button>
+                        style="margin-top:0;" onclick="downloadJSON()">Download Operation JSON</button>
             </div>
         </div>
 

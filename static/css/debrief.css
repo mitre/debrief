@@ -12,7 +12,7 @@
     color: var(--font-color);
 }
 
-#selected-pdf-section-ordering-list {
+#selected-report-section-ordering-list {
     height: 150px;
     width: 250px;
     padding: 10px;
@@ -153,7 +153,7 @@ li.legend {
     background-color: #4e4e4e;
 }
 
-.debrief-pdf-select {
+.debrief-report-select {
     width: 70%;
     height: 150px;
     padding: 10px;
@@ -190,7 +190,7 @@ li.legend {
     position: relative;
 }
 
-.debrief-pdf-section-move-button {
+.debrief-report-section-move-button {
 	align-items: center;
 	justify-content: center;
 	display: flex;
@@ -198,7 +198,7 @@ li.legend {
 	width:45%;
 }
 
-.debrief-pdf-section-move-arrow {
+.debrief-report-section-move-arrow {
 	background-color: transparent;
 	height: 12px;
 	width: 12px;

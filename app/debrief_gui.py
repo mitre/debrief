@@ -78,7 +78,7 @@ class DebriefGui(BaseWorld):
         self._save_svgs(svg_data)
         if data['operations']:
             header_logo_path = None
-            if header_logo_filename:
+            if header_logo_filename and header_logo_filename != 'no-logo':
                 header_logo_path = os.path.relpath(os.path.join(self.uploads_dir, 'header-logos', header_logo_filename))
             operations = [o for o in await self.data_svc.locate('operations', match=await self._get_access(request))
                           if str(o.id) in data.get('operations')]
@@ -111,6 +111,7 @@ class DebriefGui(BaseWorld):
             filepath = os.path.relpath(os.path.join(self.uploads_dir, 'header-logos', filename))
             with open(filepath, 'wb') as f:
                 f.write(content)
+        return web.json_response(status=200)
 
     def _build_pdf(self, operations, agents, filename, sections, header_logo_path):
         # pdf setup

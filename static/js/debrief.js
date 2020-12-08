@@ -111,7 +111,7 @@ $( document ).ready(function() {
     }
 
 	initSectionOrderingList();
-	updatePdfSectionOrderingList();
+	updateReportSectionOrderingList();
 });
 
 function switchGraphView(btn) {
@@ -123,25 +123,18 @@ function switchGraphView(btn) {
 
 function downloadPDF() {
     stream("Generating PDF report... ");
-
-	let logoFiles = document.getElementById("logo-file").files;
-	let logoFileName = null;
-	let orderedPdfSections = JSON.parse(localStorage.getItem('pdf-section-order')).map(x => x.split(/-(.+)/)[1]);
-    let pdfSections = {};
-    $(".debrief-pdf-opt").each(function(idx, checkbox) {
+	let orderedReportSections = JSON.parse(localStorage.getItem('report-section-order')).map(x => x.split(/-(.+)/)[1]);
+    let reportSections = {};
+    $(".debrief-report-opt").each(function(idx, checkbox) {
         let key = $(checkbox).attr("id").split(/-(.+)/)[1];
-        pdfSections[key] = $(checkbox).prop("checked");
+        reportSections[key] = $(checkbox).prop("checked");
     })
-    if (logoFiles.length > 0) {
-    	let logoFile = logoFiles[0];
-    	logoFileName = logoFile.name;
-    }
     restRequest(
     	'POST', {
     		'operations': $('#debrief-operation-list').val(),
     		'graphs': getGraphData(),
-    		'sections': pdfSections,
-    		'ordered-sections': orderedPdfSections,
+    		'sections': reportSections,
+    		'ordered-sections': orderedReportSections,
     		'header-logo': $('#debrief-header-logo-list').val()
 		},
  		downloadReport("pdf"),
@@ -368,15 +361,15 @@ function getVisibleOpGraphId() {
     return $(".op-svg").filter(function() { return $(this).css("display") != "none" }).attr("id");
 }
 
-function pdfSelectAll() {
-    if ($("#pdf-select-all").prop("checked")) {
-        $(".debrief-pdf-opt").prop("checked", true);
+function reportSelectAll() {
+    if ($("#report-select-all").prop("checked")) {
+        $(".debrief-report-opt").prop("checked", true);
     }
 }
 
 function uncheckSelectAll(checkbox) {
     if (!$(checkbox).prop("checked")) {
-        $("#pdf-select-all").prop("checked", false);
+        $("#report-select-all").prop("checked", false);
     }
 }
 
@@ -384,8 +377,17 @@ function uploadHeaderLogo() {
 	let logoFiles = document.getElementById("logo-file").files;
 	if (logoFiles.length > 0){
 		let formData = new FormData();
-		formData.append("header-logo", logoFiles[0]);
-		fetch('/plugin/debrief/uploadlogo', {method: "POST", body: formData});
+		let logoFile = logoFiles[0];
+		formData.append("header-logo", logoFile);
+		fetch('/plugin/debrief/uploadlogo', {method: "POST", body: formData}).then( response => {
+			if (response.status == 200) {
+				stream("Logo file uploaded!");
+				updateLogoSelection(logoFile);
+				showLogoPreview();
+			}
+		}).catch( e=> {
+			stream("Error uploading logo: " + e.message);
+		});
 	}
 }
 
@@ -393,33 +395,23 @@ function triggerLogoUploadButton() {
 	document.getElementById('logo-file').click();
 }
 
-function displayLogoFilename() {
-	let selectedFiles = document.getElementById("logo-file").files;
-	let filename = "No logo file selected";
-	if (selectedFiles.length > 0) {
-		filename = selectedFiles[0].name;
-	}
-	document.getElementById("selected-header-logo-file").innerHTML = filename;
-}
-
-function updatePdfSectionOrderingList() {
-	//document.getElementById("selected-pdf-section-ordering-list").innerHTML = '';
-	var pdfSections = document.getElementsByClassName("debrief-pdf-opt");
-	var oldOrderedList = JSON.parse(localStorage.getItem('pdf-section-order'));
+function updateReportSectionOrderingList() {
+	var reportSections = document.getElementsByClassName("debrief-report-opt");
+	var oldOrderedList = JSON.parse(localStorage.getItem('report-section-order'));
 	if (oldOrderedList == null) {
 		oldOrderedList = [];
 	}
 	oldSelectedSet = new Set(oldOrderedList);
 	currSelectedSet = new Set();
 
-	for (var i = 0; i < pdfSections.length; i++) {
-		var pdfSection = pdfSections[i];
-		if (pdfSection.checked) {
-			currSelectedSet.add(pdfSection.id);
-			if (!oldSelectedSet.has(pdfSection.id)) {
-				// New pdf section selected. Add to end of ordered list
-				oldOrderedList.push(pdfSection.id);
-				oldSelectedSet.add(pdfSection.id);
+	for (var i = 0; i < reportSections.length; i++) {
+		var reportSection = reportSections[i];
+		if (reportSection.checked) {
+			currSelectedSet.add(reportSection.id);
+			if (!oldSelectedSet.has(reportSection.id)) {
+				// New report section selected. Add to end of ordered list
+				oldOrderedList.push(reportSection.id);
+				oldSelectedSet.add(reportSection.id);
 			}
 		}
 	}
@@ -431,21 +423,16 @@ function updatePdfSectionOrderingList() {
 		if (currSelectedSet.has(sectionId)) {
 			section = document.getElementById(sectionId);
 			newOrderedList.push(sectionId);
-			/*
-			let label = $('label[for="' + section.id + '"]');
-			let rowHTML = '<option class="ordered-pdf-section" id="ordered-pdf-section" value="' + section.id + '">' + label[0].innerText + '</option>';
-			document.getElementById("selected-pdf-section-ordering-list").insertAdjacentHTML('beforeend', rowHTML);
-			*/
 		}
 	}
-	localStorage.setItem('pdf-section-order', JSON.stringify(newOrderedList));
-	displayPdfSectionOrderingList();
+	localStorage.setItem('report-section-order', JSON.stringify(newOrderedList));
+	displayReportSectionOrderingList();
 }
 
-function displayPdfSectionOrderingList() {
-	var selectedItemId = $('#selected-pdf-section-ordering-list').val();
-	document.getElementById("selected-pdf-section-ordering-list").innerHTML = '';
-	var orderedList = JSON.parse(localStorage.getItem('pdf-section-order'));
+function displayReportSectionOrderingList() {
+	var selectedItemId = $('#selected-report-section-ordering-list').val();
+	document.getElementById("selected-report-section-ordering-list").innerHTML = '';
+	var orderedList = JSON.parse(localStorage.getItem('report-section-order'));
 	if (orderedList == null) {
 		orderedList = [];
 	}
@@ -453,25 +440,22 @@ function displayPdfSectionOrderingList() {
 		var sectionId = orderedList[i];
 		section = document.getElementById(sectionId);
 		let label = $('label[for="' + section.id + '"]');
-		let rowHTML = '<option class="ordered-pdf-section" id="ordered-pdf-section" value="' + section.id + '">' + label[0].innerText + '</option>';
-		document.getElementById("selected-pdf-section-ordering-list").insertAdjacentHTML('beforeend', rowHTML);
+		let rowHTML = '<option class="ordered-report-section" id="ordered-report-section" value="' + section.id + '">' + label[0].innerText + '</option>';
+		document.getElementById("selected-report-section-ordering-list").insertAdjacentHTML('beforeend', rowHTML);
 	}
 	if (selectedItemId != null) {
-		//let selected = document.getElementById(selectedItemId);
-		//let selectionElement = document.getElementById('selected-pdf-section-ordering-list');
-		//selectionElement.value = selected;
-		$('#selected-pdf-section-ordering-list').val(selectedItemId);
+		$('#selected-report-section-ordering-list').val(selectedItemId);
 	}
 }
 
 function initSectionOrderingList() {
-	// Contains list of element IDs for selected PDF sections.
-	localStorage.setItem('pdf-section-order', JSON.stringify([]));
+	// Contains list of element IDs for selected report sections.
+	localStorage.setItem('report-section-order', JSON.stringify([]));
 }
 
-function movePdfSection(direction) {
-	var orderedList = JSON.parse(localStorage.getItem('pdf-section-order'));
-	var selectedSectionId = $('#selected-pdf-section-ordering-list').val();
+function moveReportSection(direction) {
+	var orderedList = JSON.parse(localStorage.getItem('report-section-order'));
+	var selectedSectionId = $('#selected-report-section-ordering-list').val();
 	var oldIndex = orderedList.indexOf(selectedSectionId);
 	if (oldIndex >= 0) {
 		if (direction.toLowerCase() === 'up') {
@@ -488,5 +472,26 @@ function movePdfSection(direction) {
 	}
 
 	// Update storage
-	localStorage.setItem('pdf-section-order', JSON.stringify(orderedList));
+	localStorage.setItem('report-section-order', JSON.stringify(orderedList));
+}
+
+function updateLogoSelection(logoFile) {
+	// Add the newly uploaded logo file to the displayed list of logos.
+	filename = logoFile.name;
+	let rowHTML = '<option class="header-logo-option" value="' + filename + '">' + filename + '</option>';
+	let logoList = document.getElementById("debrief-header-logo-list");
+	logoList.insertAdjacentHTML('beforeend', rowHTML);
+	logoList.value = filename;
+}
+
+function showLogoPreview() {
+	var selectedLogoName = $('#debrief-header-logo-list').val();
+	let element = document.getElementById("debrief-report-logo-preview");
+	if (element.hasChildNodes()) {
+		element.removeChild(element.childNodes[0]);
+	}
+	if (selectedLogoName != null && selectedLogoName != 'no-logo') {
+		let imgHTML = '<img style="width: 100%; height: auto; border-radius:0; border:none;" src="/logodebrief/header-logos/' + selectedLogoName  + '"/>';
+		element.insertAdjacentHTML('beforeend', imgHTML);
+	}
 }

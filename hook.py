@@ -1,5 +1,6 @@
 from app.utility.base_world import BaseWorld
 from plugins.debrief.app.debrief_gui import DebriefGui
+from aiohttp import web
 
 name = 'Debrief'
 description = 'some good bones'
@@ -11,6 +12,7 @@ async def enable(services):
     app = services.get('app_svc').application
     debrief_gui = DebriefGui(services)
     app.router.add_static('/debrief', 'plugins/debrief/static/', append_version=True)
+    app.router.add_static('/logodebrief', 'plugins/debrief/uploads/', append_version=True)
     app.router.add_route('GET', '/plugin/debrief/gui', debrief_gui.splash)
     app.router.add_route('POST', '/plugin/debrief/report', debrief_gui.report)
     app.router.add_route('*', '/plugin/debrief/graph', debrief_gui.graph)

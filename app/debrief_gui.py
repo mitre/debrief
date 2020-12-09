@@ -84,7 +84,7 @@ class DebriefGui(BaseWorld):
                           if str(o.id) in data.get('operations')]
             filename = 'debrief_' + datetime.today().strftime('%Y-%m-%d_%H-%M-%S')
             agents = await self.data_svc.locate('agents')
-            pdf_bytes = self._build_pdf(operations, agents, filename, data['ordered-sections'], header_logo_path)
+            pdf_bytes = self._build_pdf(operations, agents, filename, data['report-sections'], header_logo_path)
             self._clean_downloads()
             return web.json_response(dict(filename=filename, pdf_bytes=pdf_bytes))
         return web.json_response('No operations selected')

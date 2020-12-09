@@ -42,50 +42,29 @@
                 <h4 style="margin-bottom:0px">REPORT OPTIONS</h4>
             </div>
             <div class="sidebar-cutout debrief-sidebar" style="display: none">
-                <h5>Report Section Selection</h5>
-                <div class="debrief-report-select">
-                    <input type="checkbox" id="report-select-all" checked onClick="reportSelectAll();updateReportSectionOrderingList();">
-                    <label for="report-select-all">Select All</label>
-                    <hr style="margin: 5 0;">
-                    <input type="checkbox" class="debrief-report-opt" id="reportsection-statistics" checked onClick="uncheckSelectAll(this);updateReportSectionOrderingList();">
-                    <label for="reportsection-statistics">Statistics</label><br>
-                    <input type="checkbox" class="debrief-report-opt" id="reportsection-agents" checked onClick="uncheckSelectAll(this);updateReportSectionOrderingList();">
-                    <label for="reportsection-agents">Agents</label><br>
-                    <hr style="margin: 5 0;">
-                    <input type="checkbox" class="debrief-report-opt" id="reportsection-default-graph" checked onClick="uncheckSelectAll(this);updateReportSectionOrderingList();">
-                    <label for="reportsection-default-graph">Operations Graph</label><br>
-                    <input type="checkbox" class="debrief-report-opt" id="reportsection-tactic-graph" checked onClick="uncheckSelectAll(this);updateReportSectionOrderingList();">
-                    <label for="reportsection-tactic-graph">Tactic Graph</label><br>
-                    <input type="checkbox" class="debrief-report-opt" id="reportsection-technique-graph" checked onClick="uncheckSelectAll(this);updateReportSectionOrderingList();">
-                    <label for="reportsection-technique-graph">Technique Graph</label><br>
-                    <input type="checkbox" class="debrief-report-opt" id="reportsection-fact-graph" checked onClick="uncheckSelectAll(this);updateReportSectionOrderingList();">
-                    <label for="reportsection-fact-graph">Fact Graph</label><br>
-                    <input type="checkbox" class="debrief-report-opt" id="reportsection-tactic-technique-table" checked onClick="uncheckSelectAll(this);updateReportSectionOrderingList();">
-                    <label for="reportsection-tactic-technique-table">Tactic and Technique Table</label><br>
-                    <input type="checkbox" class="debrief-report-opt" id="reportsection-steps-table" checked onClick="uncheckSelectAll(this);updateReportSectionOrderingList();">
-                    <label for="reportsection-steps-table">Operation Steps Tables</label><br>
-                    <input type="checkbox" class="debrief-report-opt" id="reportsection-facts-table" checked onClick="uncheckSelectAll(this);updateReportSectionOrderingList();">
-                    <label for="reportsection-facts-table">Operation Facts Tables</label><br>
-                </div>
-                <hr style="margin: 5 0 5;">
+                <h5 style="margin: 0 0 5 0">Manage Report Sections</h5>
                 <div class="debrief-section-ordering" style="margin: 5px 5px 15px 5px;">
-                    <h5 style="margin: 0 0 5 0">Reorder Report Sections</h5>
                     <select id="selected-report-section-ordering-list" size="5" style="overflow-y:auto" data-placeholder="No sections to show.">
                         <!-- Will be populated by javascript -->
                     </select>
                     <div class="section-ordering-button-container" style="width: 100%; overflow:hidden;">
-                        <button id="report-section-move-button-up" onclick="moveReportSection('up');displayReportSectionOrderingList();"
+                        <button id="report-section-move-button-up" onclick="moveReportSection('up');displayReportSections();"
                             class="button-success atomic-button debrief-report-section-move-button" type="button"
-                            style="align-items: center; justify-content: center; display: flex; padding: 8px; width:45%; float:right;">
+                            style="align-items: center; justify-content: center; display: flex; padding: 8px; width:30%; float:left;">
                             <div class="debrief-report-section-move-arrow" style="border-left: 1px solid rgba(0,0,0,1);
                                  border-top: 1px solid rgba(0,0,0,1); transform: translateY(25%) rotate(45deg);"></div>
                         </button>
-                        <button id="report-section-move-button-down" onclick="moveReportSection('down');displayReportSectionOrderingList();"
+                        <button id="report-section-move-button-down" onclick="moveReportSection('down');displayReportSections();"
                                 class="button-success atomic-button debrief-report-section-move-button" type="button"
-                                style="align-items: center; justify-content: center; display: flex; padding: 8px; width:45%; float:left;">
+                                style="align-items: center; justify-content: center; display: flex; padding: 8px; width:30%; float:left;">
                             <div class="debrief-report-section-move-arrow" style="border-right: 1px solid rgba(0,0,0,1);
                                  border-bottom: 1px solid rgba(0,0,0,1);
                                  transform: translateY(-25%) rotate(45deg);"></div>
+                        </button>
+                        <button id="report-section-toggle-button" onclick="toggleReportSection();displayReportSections();"
+                                class="button-success atomic-button" type="button"
+                                style="align-items: center; justify-content: center; display: flex; padding: 8px; width:40%; float:right;">
+                            <p style="color: black;">Enable/Disable</p>
                         </button>
                     </div>
                 </div>

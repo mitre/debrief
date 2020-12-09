@@ -111,7 +111,7 @@ $( document ).ready(function() {
     }
 
 	initSectionOrderingList();
-	updateReportSectionOrderingList();
+	displayReportSections();
 });
 
 function switchGraphView(btn) {
@@ -123,18 +123,12 @@ function switchGraphView(btn) {
 
 function downloadPDF() {
     stream("Generating PDF report... ");
-	let orderedReportSections = JSON.parse(localStorage.getItem('report-section-order')).map(x => x.split(/-(.+)/)[1]);
-    let reportSections = {};
-    $(".debrief-report-opt").each(function(idx, checkbox) {
-        let key = $(checkbox).attr("id").split(/-(.+)/)[1];
-        reportSections[key] = $(checkbox).prop("checked");
-    })
+	var reportSections = JSON.parse(localStorage.getItem('report-section-order')).map(x => x.split(/-(.+)/)[1]);
     restRequest(
     	'POST', {
     		'operations': $('#debrief-operation-list').val(),
     		'graphs': getGraphData(),
-    		'sections': reportSections,
-    		'ordered-sections': orderedReportSections,
+    		'report-sections': reportSections,
     		'header-logo': $('#debrief-header-logo-list').val()
 		},
  		downloadReport("pdf"),
@@ -429,28 +423,126 @@ function updateReportSectionOrderingList() {
 	displayReportSectionOrderingList();
 }
 
-function displayReportSectionOrderingList() {
+function toggleReportSection() {
+	// Current selected section
 	var selectedItemId = $('#selected-report-section-ordering-list').val();
-	document.getElementById("selected-report-section-ordering-list").innerHTML = '';
+
+	// Ordered list of report sections
 	var orderedList = JSON.parse(localStorage.getItem('report-section-order'));
-	if (orderedList == null) {
-		orderedList = [];
+
+	// Check if current selected section is enabled or not
+	var enabledMapping = JSON.parse(localStorage.getItem('report-section-selection-dict'));
+	if (selectedItemId in enabledMapping) {
+		if (enabledMapping[selectedItemId]) {
+			// Previously enabled. Disable section.
+			enabledMapping[selectedItemId] = false;
+			let index = orderedList.indexOf(selectedItemId);
+			if (index >= 0) {
+				orderedList.splice(index, 1);
+			}
+		} else {
+			// Previously disabled. Enable section.
+			enabledMapping[selectedItemId] = true;
+			orderedList.push(selectedItemId);
+		}
+		localStorage.setItem('report-section-order', JSON.stringify(orderedList));
+		localStorage.setItem('report-section-selection-dict', JSON.stringify(enabledMapping));
+	} else {
+		stream("Could not recognize " + selectedItemId + " as a known report section");
 	}
+}
+
+function displayReportSections() {
+	// current selected item
+	var selectedItemId = $('#selected-report-section-ordering-list').val();
+
+	// ordered enabled sections
+	var orderedList = JSON.parse(localStorage.getItem('report-section-order'));
+
+	// display names
+	var displayNames = JSON.parse(localStorage.getItem('report-section-names'));
+
+	// get disabled sections
+	var enabledMapping = JSON.parse(localStorage.getItem('report-section-selection-dict'));
+	var disabledSections = [];
+	for (const [ sectionId, enabled ] of Object.entries(enabledMapping)) {
+		if (!enabled) {
+			disabledSections.push(sectionId)
+		}
+	}
+
+	// sort disabled sections alphabetically by display name
+	disabledSections.sort(function(a, b) {
+		if (displayNames[a] < displayNames[b]) {
+			return -1;
+		}
+		if (displayNames[a] > displayNames[b]) {
+			return 1;
+		}
+		return 0;
+	});
+
+	// Clear current display
+	document.getElementById("selected-report-section-ordering-list").innerHTML = '';
+
+	// Display enabled sections
+	var enabledOptGroupHTML = '<optgroup label="ENABLED SECTIONS">';
 	for (i = 0; i < orderedList.length; i++) {
 		var sectionId = orderedList[i];
-		section = document.getElementById(sectionId);
-		let label = $('label[for="' + section.id + '"]');
-		let rowHTML = '<option class="ordered-report-section" id="ordered-report-section" value="' + section.id + '">' + label[0].innerText + '</option>';
-		document.getElementById("selected-report-section-ordering-list").insertAdjacentHTML('beforeend', rowHTML);
+		//let rowHTML = '<option class="ordered-report-section" value="' + sectionId + '">' + displayNames[sectionId] + '</option>';
+		//document.getElementById("selected-report-section-ordering-list").insertAdjacentHTML('beforeend', rowHTML);
+		enabledOptGroupHTML += '<option class="ordered-report-section" value="' + sectionId + '">' + displayNames[sectionId] + '</option>';
 	}
+	enabledOptGroupHTML += '</optgroup>';
+	document.getElementById("selected-report-section-ordering-list").insertAdjacentHTML('beforeend', enabledOptGroupHTML);
+
+	var separatorHTML = '<hr style="margin: 5 0 5;">';
+	document.getElementById("selected-report-section-ordering-list").insertAdjacentHTML('beforeend', separatorHTML);
+
+	// Display disabled sections
+	var disabledOptGroupHTML = '<optgroup label="DISABLED SECTIONS">';
+	var numDisabled = disabledSections.length;
+	for (i = 0; i < numDisabled; i++) {
+		var sectionId = disabledSections[i];
+		//let rowHTML = '<option class="disabled-report-section" value="' + sectionId + '">[DISABLED] ' + displayNames[sectionId] + '</option>';
+		//document.getElementById("selected-report-section-ordering-list").insertAdjacentHTML('beforeend', rowHTML);
+		disabledOptGroupHTML += '<option class="disabled-report-section" value="' + sectionId + '">' + displayNames[sectionId] + '</option>';
+	}
+	disabledOptGroupHTML += '</optgroup>';
+	document.getElementById("selected-report-section-ordering-list").insertAdjacentHTML('beforeend', disabledOptGroupHTML);
+
+	// Keep selected item highlighted
 	if (selectedItemId != null) {
 		$('#selected-report-section-ordering-list').val(selectedItemId);
 	}
 }
 
 function initSectionOrderingList() {
+	var reportSectionNames = {
+		"reportsection-statistics": "Statistics",
+		"reportsection-agents": "Agents",
+		"reportsection-default-graph": "Operations Graph",
+		"reportsection-tactic-graph": "Tactic Graph",
+		"reportsection-technique-graph": "Technique Graph",
+		"reportsection-fact-graph": "Fact Graph",
+		"reportsection-tactic-technique-table": "Tactic and Technique Table",
+		"reportsection-steps-table": "Steps Tables",
+		"reportsection-facts-table": "Operation Facts Tables",
+	};
+
+	var reportSectionEnabledMapping = {};
+	for (var key in reportSectionNames) {
+		reportSectionEnabledMapping[key] = true;
+	}
+
 	// Contains list of element IDs for selected report sections.
-	localStorage.setItem('report-section-order', JSON.stringify([]));
+	localStorage.setItem('report-section-order', JSON.stringify(Object.keys(reportSectionNames)));
+
+	// Maps report section element IDs to whether or not they are enabled
+	localStorage.setItem('report-section-selection-dict', JSON.stringify(reportSectionEnabledMapping));
+
+	// Contains mapping of report section element IDs to their names
+	localStorage.setItem('report-section-names', JSON.stringify(reportSectionNames));
 }
 
 function moveReportSection(direction) {
@@ -469,10 +561,9 @@ function moveReportSection(direction) {
 				orderedList.splice(oldIndex + 1, 0, selectedSectionId);
 			}
 		}
+		// Update storage
+		localStorage.setItem('report-section-order', JSON.stringify(orderedList));
 	}
-
-	// Update storage
-	localStorage.setItem('report-section-order', JSON.stringify(orderedList));
 }
 
 function updateLogoSelection(logoFile) {

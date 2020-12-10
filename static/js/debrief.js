@@ -109,9 +109,6 @@ $( document ).ready(function() {
             );
         })
     }
-
-	initSectionOrderingList();
-	displayReportSections();
 });
 
 function switchGraphView(btn) {
@@ -517,32 +514,44 @@ function displayReportSections() {
 	}
 }
 
-function initSectionOrderingList() {
-	var reportSectionNames = {
-		"reportsection-statistics": "Statistics",
-		"reportsection-agents": "Agents",
-		"reportsection-default-graph": "Operations Graph",
-		"reportsection-tactic-graph": "Tactic Graph",
-		"reportsection-technique-graph": "Technique Graph",
-		"reportsection-fact-graph": "Fact Graph",
-		"reportsection-tactic-technique-table": "Tactic and Technique Table",
-		"reportsection-steps-table": "Steps Tables",
-		"reportsection-facts-table": "Operation Facts Tables",
-	};
+function initSectionOrderingList(reportSectionNames) {
+	var baseReportSectionOrdering = [
+        "reportsection-statistics",
+        "reportsection-agents",
+        "reportsection-default-graph",
+        "reportsection-tactic-graph",
+        "reportsection-technique-graph",
+        "reportsection-fact-graph",
+        "reportsection-tactic-technique-table",
+        "reportsection-steps-table",
+        "reportsection-facts-table",
+    ]
 
+    var orderedReportSectionNames = {};
 	var reportSectionEnabledMapping = {};
+
+	// Make sure the base sections appear first in order
+	baseReportSectionOrdering.forEach(function(id, index) {
+		if (id in reportSectionNames) {
+			orderedReportSectionNames[id] = reportSectionNames[id]
+		}
+	});
+
 	for (var key in reportSectionNames) {
 		reportSectionEnabledMapping[key] = true;
+
+		// Fill in remaining section ordering
+		orderedReportSectionNames[key] = reportSectionNames[key]
 	}
 
 	// Contains list of element IDs for selected report sections.
-	localStorage.setItem('report-section-order', JSON.stringify(Object.keys(reportSectionNames)));
+	localStorage.setItem('report-section-order', JSON.stringify(Object.keys(orderedReportSectionNames)));
 
 	// Maps report section element IDs to whether or not they are enabled
 	localStorage.setItem('report-section-selection-dict', JSON.stringify(reportSectionEnabledMapping));
 
 	// Contains mapping of report section element IDs to their names
-	localStorage.setItem('report-section-names', JSON.stringify(reportSectionNames));
+	localStorage.setItem('report-section-names', JSON.stringify(orderedReportSectionNames));
 }
 
 function moveReportSection(direction) {

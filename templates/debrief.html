@@ -64,7 +64,11 @@
                         <button id="report-section-toggle-button" onclick="toggleReportSection();displayReportSections();"
                                 class="button-success atomic-button" type="button"
                                 style="align-items: center; justify-content: center; display: flex; padding: 8px; width:40%; float:right;">
-                            <p style="color: black;">Enable/Disable</p>
+                            <p style="color: black;">Enable/Disable
+
+
+
+                            </p>
                         </button>
                     </div>
                 </div>
@@ -225,4 +229,7 @@
     function checkUploadButton() {
         validateFormState(($('#logo-file').val()), '#debrief-upload-logo');
     }
+
+    initSectionOrderingList({{ report_sections|safe }});
+	displayReportSections();
 </script>

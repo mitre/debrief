@@ -151,17 +151,8 @@ class DebriefGui(BaseWorld):
         story_obj.set_header_logo_path(header_logo_path)
         styles = getSampleStyleSheet()
         pdfmetrics.registerFont(TTFont('VeraBd', 'VeraBd.ttf'))
-        title = styles['Heading1']
-        title.fontName = 'VeraBd'
-        title.textColor = 'maroon'
-        title.fontSize = 24
 
-        # content generation
         story_obj.append(Spacer(1, 36))
-        story_obj.append_text("OPERATIONS DEBRIEF", title, 6)
-        story_obj.append_text("<i>Generated on %s</i>" % datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
-                              styles['Normal'], 12)
-        story_obj.append_text(story_obj.get_description('debrief'), styles['Normal'], 12)
 
         # Add selected module components
         graph_files = dict()
@@ -169,6 +160,7 @@ class DebriefGui(BaseWorld):
             for file in glob.glob('./plugins/debrief/downloads/*.svg'):
                 graph_files[os.path.basename(file).split('.')[0]] = file
 
+        # content generation
         try:
             for section in sections:
                 section_module = self.report_section_modules.get(section, None)

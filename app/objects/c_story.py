@@ -2,7 +2,7 @@ from lxml import etree as ET
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.platypus import Paragraph, Spacer, PageBreak, Image, CondPageBreak
+from reportlab.platypus import Paragraph, Spacer, PageBreak, Image
 
 
 class Story:
@@ -24,9 +24,6 @@ class Story:
 
     def page_break(self):
         self.story_arr.append(PageBreak())
-
-    def conditional_page_break(self, height):
-        self.story_arr.append(CondPageBreak(height))
 
     @staticmethod
     def set_header_logo_path(header_logo_path):
@@ -125,36 +122,3 @@ class Story:
                 for list_item in v:
                     dict_string += '&nbsp;&nbsp;&nbsp;' + list_item + '<br/>'
             return Paragraph(dict_string, table)
-
-    @staticmethod
-    def _descriptions(obj):
-        if obj == 'debrief':
-            return 'This document covers the overall campaign analytics made up of the selected set of operations. ' \
-                   'The below sections contain general metadata about the selected operations as well as ' \
-                   'graphical views of the operations, the techniques and tactics used, and the facts discovered by ' \
-                   'the operations. The following sections include a more in depth review of each specific operation ' \
-                   'ran.'
-        elif obj == 'agents':
-            return 'The table below displays information about the agents used. An agent\'s paw is the unique' \
-                   ' identifier, or paw print, of an agent. Also included are the username of the user who executed ' \
-                   'the agent, the privilege level of the agent process, and the name of the agent executable.'
-        elif obj == 'op steps':
-            return 'The table below shows detailed information about the steps taken in an operation and whether the ' \
-                   'command run discovered any facts.'
-        elif obj == 'op facts':
-            return 'The table below displays the facts found in the operation, the command run and the agent that ' \
-                   'found the fact. Every fact, by default, gets a score of 1. If a host.user.password fact is ' \
-                   'important or has a high chance of success if used, you may assign it a score of 5. When an ' \
-                   'ability uses a fact to fill in a variable, it will use those with the highest scores first. A ' \
-                   'fact with a score of 0, is blacklisted - meaning it cannot be used in an operation.'
-        elif obj == 'graph':
-            return 'This is a graphical display of the agents connected to the command and control (C2), the ' \
-                   'operations run, and the steps of each operation as they relate to the agents.'
-        elif obj == 'fact':
-            return 'This graph displays the facts discovered by the operations run. Facts are attached to the ' \
-                   'operation where they were discovered. Facts are also attached to the facts that led to their ' \
-                   'discovery. For readability, only the first 15 facts discovered in an operation are included in ' \
-                   'the graph.'
-        elif obj == 'technique':
-            return 'This graph displays the order of techniques executed by the operation. A technique explains the ' \
-                   'technical method or the "how" of a step.'

@@ -1,4 +1,6 @@
 from reportlab.lib.units import inch
+from reportlab.platypus import Paragraph
+from reportlab.platypus.flowables import KeepTogetherSplitAtTop
 
 from plugins.debrief.app.utility.base_report_section import BaseReportSection
 
@@ -9,16 +11,17 @@ class DebriefReportSection(BaseReportSection):
         self.id = 'tactic-technique-table'
         self.display_name = 'Tactic and Technique Table'
         self.section_title = 'TACTICS AND TECHNIQUES'
-        self.description = 'The table below shows detailed information about the steps taken in an operation and ' \
-                           'whether the command run discovered any facts.'
+        self.description = ''
 
     def generate_section_elements(self, styles, **kwargs):
         flowable_list = []
         if 'operations' in kwargs:
             operations = kwargs.get('operations', [])
             ttps = self._get_operation_ttps(operations)
-            flowable_list.append(self.generate_section_title_and_description(styles))
-            flowable_list.append(self._generate_ttps_table(ttps))
+            flowable_list.append(KeepTogetherSplitAtTop([
+                Paragraph(self.section_title, styles['Heading2']),
+                self._generate_ttps_table(ttps)
+            ]))
         return flowable_list
 
     def _generate_ttps_table(self, ttps):

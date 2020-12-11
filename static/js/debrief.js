@@ -486,8 +486,6 @@ function displayReportSections() {
 	var enabledOptGroupHTML = '<optgroup label="ENABLED SECTIONS">';
 	for (i = 0; i < orderedList.length; i++) {
 		var sectionId = orderedList[i];
-		//let rowHTML = '<option class="ordered-report-section" value="' + sectionId + '">' + displayNames[sectionId] + '</option>';
-		//document.getElementById("selected-report-section-ordering-list").insertAdjacentHTML('beforeend', rowHTML);
 		enabledOptGroupHTML += '<option class="ordered-report-section" value="' + sectionId + '">' + displayNames[sectionId] + '</option>';
 	}
 	enabledOptGroupHTML += '</optgroup>';
@@ -501,8 +499,6 @@ function displayReportSections() {
 	var numDisabled = disabledSections.length;
 	for (i = 0; i < numDisabled; i++) {
 		var sectionId = disabledSections[i];
-		//let rowHTML = '<option class="disabled-report-section" value="' + sectionId + '">[DISABLED] ' + displayNames[sectionId] + '</option>';
-		//document.getElementById("selected-report-section-ordering-list").insertAdjacentHTML('beforeend', rowHTML);
 		disabledOptGroupHTML += '<option class="disabled-report-section" value="' + sectionId + '">' + displayNames[sectionId] + '</option>';
 	}
 	disabledOptGroupHTML += '</optgroup>';
@@ -516,6 +512,7 @@ function displayReportSections() {
 
 function initSectionOrderingList(reportSectionNames) {
 	var baseReportSectionOrdering = [
+		"reportsection-main-summary",
         "reportsection-statistics",
         "reportsection-agents",
         "reportsection-default-graph",

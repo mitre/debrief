@@ -18,8 +18,6 @@ class DebriefReportSection(BaseReportSection):
         if 'graph_files' in kwargs:
             graph_files = kwargs.get('graph_files', {})
             flowable_list.append(self.generate_section_title_and_description(styles))
-            flowable_list.append(Spacer(1, 12))
-
             path = graph_files.get('technique')
             if path:
                 flowable_list.append(self.generate_graph(path, 4*inch))

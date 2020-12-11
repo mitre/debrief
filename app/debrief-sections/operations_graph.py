@@ -1,5 +1,4 @@
 from reportlab.lib.units import inch
-from reportlab.platypus import Spacer
 
 from plugins.debrief.app.utility.base_report_section import BaseReportSection
 
@@ -18,9 +17,7 @@ class DebriefReportSection(BaseReportSection):
         if 'graph_files' in kwargs:
             graph_files = kwargs.get('graph_files', {})
             flowable_list.append(self.generate_section_title_and_description(styles))
-            flowable_list.append(Spacer(1, 12))
-
-            path = graph_files.get('tactic')
+            path = graph_files.get('graph')
             if path:
                 flowable_list.append(self.generate_graph(path, 4*inch))
 

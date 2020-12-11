@@ -1,5 +1,3 @@
-from reportlab.platypus import Spacer
-
 from plugins.debrief.app.utility.base_report_section import BaseReportSection
 
 
@@ -21,7 +19,6 @@ class DebriefReportSection(BaseReportSection):
         if 'operations' in kwargs:
             operations = kwargs.get('operations', [])
             flowable_list.append(self.generate_section_title_and_description(styles))
-            flowable_list.append(Spacer(1, 12))
             data = [['Name', 'State', 'Planner', 'Objective', 'Time']]
             for o in operations:
                 finish = o.finish if o.finish else 'Not finished'

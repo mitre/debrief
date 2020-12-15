@@ -115,12 +115,14 @@ class DebriefGui(BaseWorld):
             logo_file = logo_file_info.file
             content = logo_file.read()
             filename = logo_file_info.filename
+            self._save_uploaded_image(filename, content)
+            return web.json_response(status=200)
+        return web.json_response('No header logo file provided.')
 
-            # Write file to uploads directory
-            filepath = os.path.relpath(os.path.join(self.uploads_dir, 'header-logos', filename))
-            with open(filepath, 'wb') as f:
-                f.write(content)
-        return web.json_response(status=200)
+    def _save_uploaded_image(self, filename, content):
+        filepath = os.path.relpath(os.path.join(self.uploads_dir, 'header-logos', filename))
+        with open(filepath, 'wb') as f:
+            f.write(content)
 
     def _load_report_sections(self, plugins):
         if not self.loaded_report_sections:

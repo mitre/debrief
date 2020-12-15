@@ -7,6 +7,16 @@ from plugins.debrief.app.objects.c_story import Story
 
 
 class BaseReportSection:
+    _status_names = {
+        0: 'success',
+        -2: 'discarded',
+        1: 'failure',
+        124: 'timeout',
+        -3: 'collected',
+        -4: 'untrusted',
+        -5: 'visibility',
+    }
+
     def __init__(self):
         self.id = 'base-section-template'
         self.display_name = 'Base Section Template'
@@ -14,10 +24,28 @@ class BaseReportSection:
         self.section_title = 'BASE SECTION HEADER'
 
     def generate_section_title_and_description(self, styles):
-        return KeepTogetherSplitAtTop([
+        """Return grouped flowable containing section title and description."""
+
+        flowable_list = [
             Paragraph(self.section_title, styles['Heading2']),
             Paragraph(self.description, styles['Normal']),
+        ]
+        return self.group_elements(flowable_list)
+
+    def generate_grouped_graph_section_flowables(self, styles, graph_path, graph_width):
+        """Return grouped flowable containing section title, description, and specified graph."""
+
+        return self.group_elements([
+            Paragraph(self.section_title, styles['Heading2']),
+            Paragraph(self.description, styles['Normal']),
+            self.generate_graph(graph_path, graph_width)
         ])
+
+    @staticmethod
+    def group_elements(flowable_list):
+        """Group flowables together to avoid page breaks in the middle."""
+
+        return KeepTogetherSplitAtTop(flowable_list)
 
     @staticmethod
     def generate_graph(svg_path, width):
@@ -50,19 +78,4 @@ class BaseReportSection:
 
     @staticmethod
     def status_name(status):
-        if status == 0:
-            return 'success'
-        elif status == -2:
-            return 'discarded'
-        elif status == 1:
-            return 'failure'
-        elif status == 124:
-            return 'timeout'
-        elif status == -3:
-            return 'collected'
-        elif status == -4:
-            return 'untrusted'
-        elif status == -5:
-            return 'visibility'
-        else:
-            return 'queued'
+        return BaseReportSection._status_names.get(status, 'queued')

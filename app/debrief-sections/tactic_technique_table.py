@@ -1,8 +1,8 @@
 from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph
-from reportlab.platypus.flowables import KeepTogetherSplitAtTop
 
 from plugins.debrief.app.utility.base_report_section import BaseReportSection
+from plugins.debrief.app.debrief_svc import DebriefService
 
 
 class DebriefReportSection(BaseReportSection):
@@ -17,8 +17,8 @@ class DebriefReportSection(BaseReportSection):
         flowable_list = []
         if 'operations' in kwargs:
             operations = kwargs.get('operations', [])
-            ttps = self._get_operation_ttps(operations)
-            flowable_list.append(KeepTogetherSplitAtTop([
+            ttps = DebriefService.generate_ttps(operations)
+            flowable_list.append(self.group_elements([
                 Paragraph(self.section_title, styles['Heading2']),
                 self._generate_ttps_table(ttps)
             ]))

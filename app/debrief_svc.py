@@ -131,6 +131,27 @@ class DebriefService(BaseService):
         return graph_output
 
     @staticmethod
+    def generate_ttps(operations):
+        ttps = dict()
+        for op in operations:
+            for link in op.chain:
+                if not link.cleanup:
+                    tactic_name = link.ability.tactic
+                    if tactic_name not in ttps.keys():
+                        tactic = dict(name=tactic_name,
+                                      techniques={link.ability.technique_name: link.ability.technique_id},
+                                      steps={op.name: [link.ability.name]})
+                        ttps[tactic_name] = tactic
+                    else:
+                        if link.ability.technique_name not in ttps[tactic_name]['techniques'].keys():
+                            ttps[tactic_name]['techniques'][link.ability.technique_name] = link.ability.technique_id
+                        if op.name not in ttps[tactic_name]['steps'].keys():
+                            ttps[tactic_name]['steps'][op.name] = [link.ability.name]
+                        elif link.ability.name not in ttps[tactic_name]['steps'][op.name]:
+                            ttps[tactic_name]['steps'][op.name].append(link.ability.name)
+        return dict(sorted(ttps.items()))
+
+    @staticmethod
     def _get_pub_attrs(fact):
         return {k: v for k, v in vars(fact).items() if not k.startswith('_')}
 

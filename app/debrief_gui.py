@@ -114,9 +114,12 @@ class DebriefGui(BaseWorld):
         if logo_file_info:
             logo_file = logo_file_info.file
             content = logo_file.read()
-            filename = logo_file_info.filename
-            self._save_uploaded_image(filename, content)
-            return web.json_response(status=200)
+            sanitized_filename = self._sanitize_filename(logo_file_info.filename)
+            try:
+                self._save_uploaded_image(sanitized_filename, content)
+            except Exception as e:
+                return web.json_response(str(e))
+            return web.json_response({"filename": sanitized_filename})
         return web.json_response('No header logo file provided.')
 
     def _save_uploaded_image(self, filename, content):
@@ -187,6 +190,12 @@ class DebriefGui(BaseWorld):
         pdf_value = pdf_buffer.getvalue()
         pdf_buffer.close()
         return pdf_value.decode('utf-8', errors='ignore')
+
+    @staticmethod
+    def _sanitize_filename(filename):
+        _, split_name = os.path.split(filename)
+        cleaned = re.sub(r'(?u)[^-\w._]', '', split_name).strip()
+        return re.sub(r'\s+', '_', cleaned)
 
     @staticmethod
     def _save_svgs(svgs):

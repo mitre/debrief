@@ -373,8 +373,15 @@ function uploadHeaderLogo() {
 		fetch('/plugin/debrief/uploadlogo', {method: "POST", body: formData}).then( response => {
 			if (response.status == 200) {
 				stream("Logo file uploaded!");
-				updateLogoSelection(logoFile);
-				showLogoPreview();
+				response.json().then(data => {
+					if ('filename' in data) {
+						let returnedFilename = data['filename'];
+						updateLogoSelection(returnedFilename);
+						showLogoPreview();
+					} else {
+						stream("Did not receive uploaded filename from server.");
+					}
+				});
 			}
 		}).catch( e=> {
 			stream("Error uploading logo: " + e.message);
@@ -572,9 +579,8 @@ function moveReportSection(direction) {
 	}
 }
 
-function updateLogoSelection(logoFile) {
+function updateLogoSelection(filename) {
 	// Add the newly uploaded logo file to the displayed list of logos.
-	filename = logoFile.name;
 	let rowHTML = '<option class="header-logo-option" value="' + filename + '">' + filename + '</option>';
 	let logoList = document.getElementById("debrief-header-logo-list");
 	logoList.insertAdjacentHTML('beforeend', rowHTML);

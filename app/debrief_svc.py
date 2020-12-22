@@ -138,18 +138,29 @@ class DebriefService(BaseService):
                 if not link.cleanup:
                     tactic_name = link.ability.tactic
                     if tactic_name not in ttps.keys():
-                        tactic = dict(name=tactic_name,
-                                      techniques={link.ability.technique_name: link.ability.technique_id},
-                                      steps={op.name: [link.ability.name]})
-                        ttps[tactic_name] = tactic
+                        ttps[tactic_name] = DebriefService._generate_new_tactic_entry(op, tactic_name, link)
                     else:
-                        if link.ability.technique_name not in ttps[tactic_name]['techniques'].keys():
-                            ttps[tactic_name]['techniques'][link.ability.technique_name] = link.ability.technique_id
-                        if op.name not in ttps[tactic_name]['steps'].keys():
-                            ttps[tactic_name]['steps'][op.name] = [link.ability.name]
-                        elif link.ability.name not in ttps[tactic_name]['steps'][op.name]:
-                            ttps[tactic_name]['steps'][op.name].append(link.ability.name)
+                        DebriefService._update_tactic_entry(ttps[tactic_name], op.name, link)
         return dict(sorted(ttps.items()))
+
+    @staticmethod
+    def _generate_new_tactic_entry(operation, tactic_name, link):
+        return dict(
+            name=tactic_name,
+            techniques={link.ability.technique_name: link.ability.technique_id},
+            steps={operation.name: [link.ability.name]}
+        )
+
+    @staticmethod
+    def _update_tactic_entry(tactic_entry_dict, op_name, link):
+        technique_info = tactic_entry_dict['techniques']
+        step_info = tactic_entry_dict['steps']
+        if link.ability.technique_name not in technique_info.keys():
+            technique_info[link.ability.technique_name] = link.ability.technique_id
+        if op_name not in step_info.keys():
+            step_info[op_name] = [link.ability.name]
+        elif link.ability.name not in step_info[op_name]:
+            step_info[op_name].append(link.ability.name)
 
     @staticmethod
     def _get_pub_attrs(fact):

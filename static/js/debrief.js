@@ -370,7 +370,7 @@ function uploadHeaderLogo() {
 		let formData = new FormData();
 		let logoFile = logoFiles[0];
 		formData.append("header-logo", logoFile);
-		fetch('/plugin/debrief/uploadlogo', {method: "POST", body: formData}).then( response => {
+		fetch('/plugin/debrief/logo', {method: "POST", body: formData}).then( response => {
 			if (response.status == 200) {
 				stream("Logo file uploaded!");
 				response.json().then(data => {

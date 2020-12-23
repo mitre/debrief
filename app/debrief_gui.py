@@ -2,10 +2,12 @@ import base64
 import glob
 import logging
 import os
+import re
 
 from aiohttp import web
 from aiohttp_jinja2 import template
 from datetime import datetime
+from importlib import import_module
 from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
@@ -21,7 +23,6 @@ from plugins.debrief.app.objects.c_story import Story
 
 @for_all_public_methods(check_authorization)
 class DebriefGui(BaseWorld):
-
     def __init__(self, services):
         self.services = services
         self.debrief_svc = DebriefService(services)
@@ -29,9 +30,13 @@ class DebriefGui(BaseWorld):
         self.data_svc = services.get('data_svc')
         self.file_svc = services.get('file_svc')
         self.log = logging.getLogger('debrief_gui')
+        self.uploads_dir = os.path.relpath(os.path.join('plugins', 'debrief', 'uploads'))
 
         self._suppress_logs('PIL')
         self._suppress_logs('svglib')
+        self.report_section_modules = dict()
+        self.report_section_names = dict()
+        self.loaded_report_sections = False
 
     async def _get_access(self, request):
         return dict(access=tuple(await self.auth_svc.get_permissions(request)))
@@ -40,7 +45,16 @@ class DebriefGui(BaseWorld):
     async def splash(self, request):
         operations = [o.display for o in
                       await self.data_svc.locate('operations', match=await self._get_access(request))]
-        return dict(operations=operations)
+        uploaded_logos_dir = os.path.relpath(os.path.join(self.uploads_dir, 'header-logos'))
+        header_logos = [filename for filename in os.listdir(uploaded_logos_dir) if os.path.isfile(
+            os.path.relpath(os.path.join(uploaded_logos_dir, filename))
+        ) and not filename.startswith('.')]
+        try:
+            plugins = await self.data_svc.locate('plugins', match=dict(enabled=True))
+            self._load_report_sections(plugins)
+        except Exception as e:
+            print(e)
+        return dict(operations=operations, header_logos=header_logos, report_sections=self.report_section_names)
 
     async def report(self, request):
         data = dict(await request.json())
@@ -48,7 +62,7 @@ class DebriefGui(BaseWorld):
                       if str(o.id) in data.get('operations')]
         op_displays = [o.display for o in operations]
         agents = [a.display for a in await self.data_svc.locate('agents', match=await self._get_access(request))]
-        ttps = self._generate_ttps(operations)
+        ttps = DebriefService.generate_ttps(operations)
         return web.json_response(dict(operations=op_displays, agents=agents, ttps=ttps))
 
     async def graph(self, request):
@@ -69,13 +83,17 @@ class DebriefGui(BaseWorld):
     async def download_pdf(self, request):
         data = dict(await request.json())
         svg_data = data['graphs']
+        header_logo_filename = data.get('header-logo')
         self._save_svgs(svg_data)
         if data['operations']:
+            header_logo_path = None
+            if header_logo_filename and header_logo_filename != 'no-logo':
+                header_logo_path = os.path.relpath(os.path.join(self.uploads_dir, 'header-logos', header_logo_filename))
             operations = [o for o in await self.data_svc.locate('operations', match=await self._get_access(request))
                           if str(o.id) in data.get('operations')]
             filename = 'debrief_' + datetime.today().strftime('%Y-%m-%d_%H-%M-%S')
             agents = await self.data_svc.locate('agents')
-            pdf_bytes = self._build_pdf(operations, agents, filename, data['sections'])
+            pdf_bytes = self._build_pdf(operations, agents, filename, data['report-sections'], header_logo_path)
             self._clean_downloads()
             return web.json_response(dict(filename=filename, pdf_bytes=pdf_bytes))
         return web.json_response('No operations selected')
@@ -90,105 +108,94 @@ class DebriefGui(BaseWorld):
             return web.json_response(dict(filename=filename, json_bytes=operations))
         return web.json_response('No operations selected')
 
-    def _build_pdf(self, operations, agents, filename, sections):
+    async def upload_logo(self, request):
+        data = await request.post()
+        logo_file_info = data['header-logo']
+        if logo_file_info:
+            logo_file = logo_file_info.file
+            content = logo_file.read()
+            sanitized_filename = self._sanitize_filename(logo_file_info.filename)
+            try:
+                self._save_uploaded_image(sanitized_filename, content)
+            except Exception as e:
+                return web.json_response(str(e))
+            return web.json_response({"filename": sanitized_filename})
+        return web.json_response('No header logo file provided.')
+
+    def _save_uploaded_image(self, filename, content):
+        filepath = os.path.relpath(os.path.join(self.uploads_dir, 'header-logos', filename))
+        with open(filepath, 'wb') as f:
+            f.write(content)
+
+    def _load_report_sections(self, plugins):
+        if not self.loaded_report_sections:
+            for plugin in plugins:
+                if plugin.name:
+                    report_sections_dir = os.path.relpath(os.path.join('plugins', plugin.name, 'app', 'debrief-sections'))
+                    if os.path.isdir(report_sections_dir):
+                        for filepath in glob.iglob('%s/*.py' % report_sections_dir):
+                            module_name = filepath.replace('/', '.').replace('\\', '.').replace('.py', '')
+                            module = import_module(module_name)
+                            if module:
+                                module_obj = module.DebriefReportSection()
+                                safe_id = re.sub('[^A-Za-z0-9-_:.]', '', re.sub('\s+', '-', module_obj.id))
+                                html_id = 'reportsection-' + safe_id
+                                self.report_section_modules[safe_id] = module_obj
+                                self.report_section_names[html_id] = module_obj.display_name
+                            else:
+                                self.log.error("Failed to load debrief report section module %s" % module_name)
+            self.loaded_report_sections = True
+
+    def _build_pdf(self, operations, agents, filename, sections, header_logo_path):
         # pdf setup
         pdf_buffer = BytesIO()
         doc = SimpleDocTemplate(pdf_buffer, pagesize=letter,
                                 rightMargin=72, leftMargin=72,
-                                topMargin=72, bottomMargin=72, title=filename)
+                                topMargin=84, bottomMargin=84, title=filename)
         story_obj = Story()
+        story_obj.set_header_logo_path(header_logo_path)
         styles = getSampleStyleSheet()
         pdfmetrics.registerFont(TTFont('VeraBd', 'VeraBd.ttf'))
-        title = styles['Heading1']
-        title.fontName = 'VeraBd'
-        title.textColor = 'maroon'
-        title.fontSize = 24
 
-        # content generation
         story_obj.append(Spacer(1, 36))
-        story_obj.append_text("OPERATIONS DEBRIEF", title, 6)
-        story_obj.append_text("<i>Generated on %s</i>" % datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
-                              styles['Normal'], 12)
-        story_obj.append_text(story_obj.get_description('debrief'), styles['Normal'], 12)
 
-        story_obj.append_text('STATISTICS', styles['Heading2'], 0)
-        story_obj.append_text(story_obj.get_description('statistics'), styles['Normal'], 12)
-        data = [['Name', 'State', 'Planner', 'Objective', 'Time']]
-        for o in operations:
-            finish = o.finish if o.finish else 'Not finished'
-            data.append([o.name, o.state, o.planner.name, o.objective.name, finish])
-        story_obj.append(story_obj.generate_table(data, '*'))
-
-        story_obj.append_text('AGENTS', styles['Heading2'], 0)
-        story_obj.append_text(story_obj.get_description('agents'), styles['Normal'], 12)
-        agent_data = [['Paw', 'Host', 'Platform', 'Username', 'Privilege', 'Executable']]
-        for a in agents:
-            agent_data.append(['<a name="agent-{0}"/>{0}'.format(a.paw), a.host, a.platform, a.username, a.privilege,
-                               a.exe_name])
-        story_obj.append(story_obj.generate_table(agent_data, '*'))
-        story_obj.page_break()
-
-        if any(v for k, v in sections.items() if '-graph' in k):
-            story_obj.append_text('OPERATIONS GRAPHS', styles['Heading2'], 0)
-            graph_files = dict()
+        # Add selected module components
+        graph_files = dict()
+        if any(v for v in sections if '-graph' in v):
             for file in glob.glob('./plugins/debrief/downloads/*.svg'):
                 graph_files[os.path.basename(file).split('.')[0]] = file
-            if sections['default-graph']:
-                story_obj.append_graph('graph', graph_files['graph'])
-            if sections['tactic-graph']:
-                story_obj.append_graph('tactic', graph_files['tactic'])
-            if sections['technique-graph']:
-                story_obj.append_graph('technique', graph_files['technique'])
-            if sections['fact-graph']:
-                story_obj.append_graph('fact', graph_files['fact'])
-            story_obj.page_break()
 
-        if sections['tactic-technique-table']:
-            story_obj.append_text('TACTICS AND TECHNIQUES', styles['Heading2'], 0)
-            ttps = self._generate_ttps(operations)
-            story_obj.append(story_obj.generate_ttps(ttps))
+        # content generation
+        try:
+            for section in sections:
+                section_module = self.report_section_modules.get(section, None)
+                if section_module:
+                    flowables = section_module.generate_section_elements(
+                        styles,
+                        operations=operations,
+                        agents=agents,
+                        graph_files=graph_files,
+                    )
+                    for flowable in flowables:
+                        story_obj.append(flowable)
+                else:
+                    self.log.error("Requested debrief section module %s not found." % section)
 
-        for o in operations:
-            if sections['steps-table']:
-                story_obj.append_text('STEPS IN OPERATION <font name=Courier-Bold size=17>%s</font>' % o.name.upper(),
-                                      styles['Heading2'], 0)
-                story_obj.append_text(story_obj.get_description('op steps'), styles['Normal'], 12)
-                story_obj.append(story_obj.generate_op_steps(o))
-            if sections['facts-table']:
-                story_obj.append_text('FACTS FOUND IN OPERATION <font name=Courier-Bold size=17>%s</font>' % o.name.upper(),
-                                      styles['Heading2'], 0)
-                story_obj.append_text(story_obj.get_description('op facts'), styles['Normal'], 12)
-                story_obj.append(story_obj.generate_facts_found(o))
-                story_obj.page_break()
-
-        # pdf teardown
-        doc.build(story_obj.story_arr,
-                  onFirstPage=story_obj.header_footer_first,
-                  onLaterPages=story_obj.header_footer_rest)
+            # pdf teardown
+            doc.build(story_obj.story_arr,
+                      onFirstPage=story_obj.header_footer_first,
+                      onLaterPages=story_obj.header_footer_rest)
+        except Exception as e:
+            self.logger.error(e)
         pdf_value = pdf_buffer.getvalue()
         pdf_buffer.close()
         return pdf_value.decode('utf-8', errors='ignore')
 
     @staticmethod
-    def _generate_ttps(operations):
-        ttps = dict()
-        for op in operations:
-            for link in op.chain:
-                if not link.cleanup:
-                    tactic_name = link.ability.tactic
-                    if tactic_name not in ttps.keys():
-                        tactic = dict(name=tactic_name,
-                                      techniques={link.ability.technique_name: link.ability.technique_id},
-                                      steps={op.name: [link.ability.name]})
-                        ttps[tactic_name] = tactic
-                    else:
-                        if link.ability.technique_name not in ttps[tactic_name]['techniques'].keys():
-                            ttps[tactic_name]['techniques'][link.ability.technique_name] = link.ability.technique_id
-                        if op.name not in ttps[tactic_name]['steps'].keys():
-                            ttps[tactic_name]['steps'][op.name] = [link.ability.name]
-                        elif link.ability.name not in ttps[tactic_name]['steps'][op.name]:
-                            ttps[tactic_name]['steps'][op.name].append(link.ability.name)
-        return dict(sorted(ttps.items()))
+    def _sanitize_filename(filename):
+        _, split_name = os.path.split(filename)
+        cleaned = re.sub(r'(?u)[^-\w._]', '', split_name).strip()
+        return re.sub(r'\s+', '_', cleaned)
 
     @staticmethod
     def _save_svgs(svgs):

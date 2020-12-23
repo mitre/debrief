@@ -39,35 +39,66 @@
                 <label for="show-tactic-icons">Show steps as tactics</label>
             </div>
             <div class="sidebar-cutout sidebar-header debrief-sidebar-header">
-                <h4 style="margin-bottom:0px">PDF REPORT OPTIONS</h4>
+                <h4 style="margin-bottom:0px">REPORT OPTIONS</h4>
             </div>
             <div class="sidebar-cutout debrief-sidebar" style="display: none">
-                <h5>PDF Section Selection</h5>
-                <div class="debrief-pdf-select">
-                    <input type="checkbox" id="pdf-select-all" checked onClick="pdfSelectAll()">
-                    <label for="pdf-select-all">Select All</label>
-                    <hr style="margin: 5 0;">
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-default-graph" checked onClick="uncheckSelectAll(this)">
-                    <label for="pdf-default-graph">Operations Graph</label><br>
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-tactic-graph" checked onClick="uncheckSelectAll(this)">
-                    <label for="pdf-tactic-graph">Tactic Graph</label><br>
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-technique-graph" checked onClick="uncheckSelectAll(this)">
-                    <label for="pdf-technique-graph">Technique Graph</label><br>
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-fact-graph" checked onClick="uncheckSelectAll(this)">
-                    <label for="pdf-fact-graph">Fact Graph</label><br>
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-tactic-technique-table" checked onClick="uncheckSelectAll(this)">
-                    <label for="pdf-tactic-technique-table">Tactic and Technique Table</label><br>
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-steps-table" checked onClick="uncheckSelectAll(this)">
-                    <label for="pdf-steps-table">Operation Steps Tables</label><br>
-                    <input type="checkbox" class="debrief-pdf-opt" id="pdf-facts-table" checked onClick="uncheckSelectAll(this)">
-                    <label for="pdf-facts-table">Operation Facts Tables</label><br>
+                <h5 style="margin: 0 0 5 0">Manage Report Sections</h5>
+                <div class="debrief-section-ordering" style="margin: 5px 5px 15px 5px;">
+                    <select id="selected-report-section-ordering-list" size="5" style="overflow-y:auto" data-placeholder="No sections to show.">
+                        <!-- Will be populated by javascript -->
+                    </select>
+                    <div class="section-ordering-button-container" style="width: 100%; overflow:hidden;">
+                        <button id="report-section-move-button-up" onclick="moveReportSection('up');displayReportSections();"
+                            class="button-success atomic-button debrief-report-section-move-button" type="button"
+                            style="align-items: center; justify-content: center; display: flex; padding: 8px; width:30%; float:left;">
+                            <div class="debrief-report-section-move-arrow" style="border-left: 1px solid rgba(0,0,0,1);
+                                 border-top: 1px solid rgba(0,0,0,1); transform: translateY(25%) rotate(45deg);"></div>
+                        </button>
+                        <button id="report-section-move-button-down" onclick="moveReportSection('down');displayReportSections();"
+                                class="button-success atomic-button debrief-report-section-move-button" type="button"
+                                style="align-items: center; justify-content: center; display: flex; padding: 8px; width:30%; float:left;">
+                            <div class="debrief-report-section-move-arrow" style="border-right: 1px solid rgba(0,0,0,1);
+                                 border-bottom: 1px solid rgba(0,0,0,1);
+                                 transform: translateY(-25%) rotate(45deg);"></div>
+                        </button>
+                        <button id="report-section-toggle-button" onclick="toggleReportSection();displayReportSections();"
+                                class="button-success atomic-button" type="button"
+                                style="align-items: center; justify-content: center; display: flex; padding: 8px; width:40%; float:right;">
+                            <p style="color: black;">Enable/Disable
+
+
+
+                            </p>
+                        </button>
+                    </div>
                 </div>
+                <hr style="margin: 5 0 5;">
+                <div class="debrief-header-logo-select" style="margin: 5px 5px 15px 5px;">
+                    <h5 style="margin-bottom:5px">Report Header Logo Selection</h5>
+                    <p style="margin-bottom:5px">Select a logo to appear in the top right corner of each page.</p>
+                    <select id="debrief-header-logo-list" size="5" data-placeholder="No logos to show." onchange="showLogoPreview()" style="overflow-y:auto">
+                        <option class="header-logo-option" value="no-logo" selected>Do not use a logo</option>
+                        {% for logo in header_logos %}
+                            <option class="header-logo-option" value="{{ logo }}">{{ logo }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div id="debrief-report-logo-preview"></div>
+                <div class="debrief-logo-upload-wrapper">
+                    <button id="logo-upload-button" type="button" class="button-success atomic-button"
+                            onclick="triggerLogoUploadButton();" style="margin-bottom:0;">
+                        Upload logo file
+                    </button>
+                    <input id="logo-file" name="logo" type="file" value=""
+                           onchange="uploadHeaderLogo();" accept="image/*"/>
+                </div>
+                <hr style="margin: 5 0 10;">
             </div>
             <div id="debrief-download" style="text-align: center;">
                 <button id="debrief-download-pdf" type="button" class="button-success atomic-button" style="margin-top:0;"
-                        onclick="downloadPDF()">Download PDF</button>
+                        onclick="downloadPDF()">Download Report PDF</button>
                 <button id="debrief-download-raw" type="button" class="button-success atomic-button"
-                        style="margin-top:0;" onclick="downloadJSON()">Download JSON</button>
+                        style="margin-top:0;" onclick="downloadJSON()">Download Operation JSON</button>
             </div>
         </div>
 
@@ -194,4 +225,11 @@
         }
         return 'queued';
     }
+
+    function checkUploadButton() {
+        validateFormState(($('#logo-file').val()), '#debrief-upload-logo');
+    }
+
+    initSectionOrderingList({{ report_sections|safe }});
+	displayReportSections();
 </script>

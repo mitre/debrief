@@ -68,6 +68,7 @@ class DebriefGui(BaseWorld):
     async def graph(self, request):
         graphs = {
             'graph': self.debrief_svc.build_operation_d3,
+            'attackpath': self.debrief_svc.build_attackpath_d3,
             'fact': self.debrief_svc.build_fact_d3,
             'tactic': self.debrief_svc.build_tactic_d3,
             'technique': self.debrief_svc.build_technique_d3

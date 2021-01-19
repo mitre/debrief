@@ -19,15 +19,16 @@ $('.svg-container').attr("height", height);
 $('svg').width('100%')
 $('svg').height('100%')
 
-var link_lengths = {'http': 100, 'next_link': 50, 'has_agent': 50, 'relationship': 100};
+var link_lengths = {'agent_contact': 100, 'next_link': 50, 'has_agent': 50, 'relationship': 100};
 var node_charges = {'c2': -200, 'operation': -100, 'agent': -200, 'link': -150, 'fact': -50, 'tactic': -200, 'technique_name': -200}
 
 var graphSvg = new Graph("#debrief-graph-svg", "graph", d3.select("#op-tooltip")),
-    tacticSvg = new Graph("#debrief-tactic-svg", "tactic", d3.select("#op-tooltip")),
-    techniqueSvg = new Graph("#debrief-technique-svg", "technique", d3.select("#op-tooltip")),
-    factSvg = new Graph("#debrief-fact-svg", "fact", d3.select("#fact-tooltip"))
+    attackPathSvg = new Graph("#debrief-attackpath-svg", "attackpath", d3.select("#op-tooltip")),
+    tacticSvg = new Graph("#debrief-tactic-svg", "tactic", d3.select('#op-tooltip')),
+    techniqueSvg = new Graph("#debrief-technique-svg", "technique", d3.select('#op-tooltip')),
+    factSvg = new Graph("#debrief-fact-svg", "fact", d3.select('#fact-tooltip'))
 
-var graphs = [graphSvg, factSvg, tacticSvg, techniqueSvg];
+var graphs = [graphSvg, attackPathSvg, factSvg, tacticSvg, techniqueSvg];
 
 var imgs = {
     "server": "debrief/img/cloud.svg",

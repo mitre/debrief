@@ -10,11 +10,8 @@ class Graph {
     }
 }
 
-var width = 1100,
-    height = 400
-
-$('.svg-container').attr("width", width);
-$('.svg-container').attr("height", height);
+var width = $("#debrief-graph").width(),
+    height = $("#debrief-graph").height()
 
 $('svg').width('100%')
 $('svg').height('100%')
@@ -86,7 +83,7 @@ function updateReportGraph(operations){
         buildGraph(graphObj, operations)
         graphObj.simulation.alpha(1).restart();
         graphObj.svg.call(d3.zoom().scaleExtent([0.5, 5]).on("zoom", function() {
-            d3.select(graphObj.id + " .container")
+            d3.select(graphObj.id + " .graphContainer")
                 .attr("transform", "translate(" + d3.event.transform.x + "," + d3.event.transform.y + ")scale(" + d3.event.transform.k + ")");
         }));
     });
@@ -124,7 +121,10 @@ function writeGraph(graph, graphObj) {
                         .attr("width", "100%")
                         .attr("height", "100%")
 
-    var arrows = container.append("g")
+    var graphContainer = container.append("g")
+                        .attr("class", "graphContainer")
+
+    var arrows = graphContainer.append("g")
                 .style("stroke", "#aaa")
                 .style("fill", "#aaa")
                 .selectAll("polyline")
@@ -136,7 +136,7 @@ function writeGraph(graph, graphObj) {
                 .attr("stroke-linecap", "round");
 
     container.selectAll('g.nodes').remove();
-    var nodes = container.append("g")
+    var nodes = graphContainer.append("g")
         .attr("class", "nodes")
         .selectAll("g")
         .data(graph.nodes)

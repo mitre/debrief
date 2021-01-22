@@ -6,6 +6,7 @@ from app.utility.base_service import BaseService
 class DebriefService(BaseService):
     def __init__(self, services):
         self.services = services
+        self.app_svc = services.get('app_svc')
         self.file_svc = services.get('file_svc')
         self.data_svc = services.get('data_svc')
         self.log = logging.getLogger('debrief_svc')
@@ -15,24 +16,8 @@ class DebriefService(BaseService):
         id_store = dict(c2=0)
         graph_output['nodes'].append(dict(name="C2 Server", type='c2', label='server', id=0, img='server',
                                           attrs={k: v for k, v in self.get_config().items() if k.startswith('app.')}))
-
         agents = await self.data_svc.locate('agents')
-        for agent in agents:
-            if 'agent' + agent.unique not in id_store.keys():
-                id_store['agent' + agent.unique] = max(id_store.values()) + 1
-                node = dict(name=agent.display_name,
-                            id=id_store['agent' + agent.unique],
-                            group=agent.group,
-                            type='agent',
-                            img=agent.platform,
-                            timestamp=agent.created.strftime('%Y-%m-%dT%H:%M:%S'),
-                            attrs=dict(host=agent.host, group=agent.group, platform=agent.platform))
-                graph_output['nodes'].append(node)
-
-                link = dict(source=0,
-                            target=id_store['agent' + agent.unique],
-                            type=agent.contact)
-                graph_output['links'].append(link)
+        self._add_agents_to_d3(agents, id_store, graph_output)
 
         for op_id in operation_ids:
             operation = (await self.data_svc.locate('operations', match=dict(id=int(op_id))))[0]
@@ -53,16 +38,45 @@ class DebriefService(BaseService):
                                                       type='next_link'))
                 previous_link_graph_id = link_graph_id
 
-                agent = (await self.data_svc.locate('agents', dict(paw=link.paw)))[0]
+                agent = next((a for a in agents if a.paw == link.paw), None)
                 if 'agent' + agent.unique not in id_store.keys():
                     id_store['agent' + agent.unique] = max(id_store.values()) + 1
-                graph_output['links'].append(dict(source=link_graph_id, target=id_store['agent' + agent.unique],
+                graph_output['links'].append(dict(source=id_store['agent' + agent.unique], target=link_graph_id,
                                                   type='next_link'))
 
             for agent in operation.agents:
                 graph_output['links'].append(dict(source=op_id,
                                                   target=id_store['agent' + agent.unique],
                                                   type='has_agent'))
+        return graph_output
+
+    async def build_attackpath_d3(self, operation_ids):
+        graph_output = dict(nodes=[], links=[])
+        id_store = dict(c2=0)
+        graph_output['nodes'].append(dict(name="C2 Server", type='c2', label='server', id=0, img='server',
+                                          attrs={config: value for config, value in self.get_config().items() if
+                                                 config.startswith('app.')}))
+
+        agents = await self.data_svc.locate('agents')
+        self._add_agents_to_d3(agents, id_store, graph_output)
+
+        operations = [op for op_id in operation_ids for op in await self.data_svc.locate('operations',
+                                                                                         match=dict(id=int(op_id)))]
+        for agent in agents:
+            if agent.origin_link_id:
+                operation = await self.app_svc.find_op_with_link(agent.origin_link_id)
+                if operation in operations:
+                    link = next(lnk for lnk in operation.chain if lnk.id == agent.origin_link_id)
+                    link_graph_id = id_store['link' + link.unique] = max(id_store.values()) + 1
+                    graph_output['nodes'].append(dict(type='link', name=link.ability.technique_name, id=link_graph_id,
+                                                      status=link.status, operation=operation.id,
+                                                      img=link.ability.tactic,
+                                                      attrs=dict(status=link.status, name=link.ability.name),
+                                                      timestamp=self._format_timestamp(link.created)))
+                    graph_output['links'].append(dict(source=id_store['agent' + link.paw], target=link_graph_id,
+                                                      type='next_link'))
+                    graph_output['links'].append(dict(source=link_graph_id, target=id_store['agent' + agent.paw],
+                                                      type='next_link'))
         return graph_output
 
     async def build_fact_d3(self, operation_ids):
@@ -129,6 +143,19 @@ class DebriefService(BaseService):
                             dict(source=previous_prop_graph_id, target=prop_graph_id, type='next_link'))
                     previous_prop_graph_id = prop_graph_id
         return graph_output
+
+    @staticmethod
+    def _add_agents_to_d3(agents, id_store, graph_output):
+        for agent in agents:
+            if 'agent' + agent.unique not in id_store.keys():
+                id_store['agent' + agent.unique] = max(id_store.values()) + 1
+                node = dict(name=agent.display_name, id=id_store['agent' + agent.unique], group=agent.group,
+                            type='agent', img=agent.platform, timestamp=agent.created.strftime('%Y-%m-%dT%H:%M:%S'),
+                            attrs=dict(host=agent.host, group=agent.group, platform=agent.platform))
+                graph_output['nodes'].append(node)
+
+                link = dict(source=0, target=id_store['agent' + agent.unique], type='agent_contact')
+                graph_output['links'].append(link)
 
     @staticmethod
     def generate_ttps(operations):

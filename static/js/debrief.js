@@ -343,6 +343,7 @@ function getNodesOrderedByTime() {
     }
     let graphNodesByTime = {};
     graphNodesByTime["debrief-graph-svg"] = getSortedNodes("debrief-graph-svg");
+    graphNodesByTime["debrief-attackpath-svg"] = getSortedNodes("debrief-attackpath-svg");
     graphNodesByTime["debrief-tactic-svg"] = getSortedNodes("debrief-tactic-svg");
     graphNodesByTime["debrief-technique-svg"] = getSortedNodes("debrief-technique-svg");
     return graphNodesByTime;
@@ -523,6 +524,7 @@ function initSectionOrderingList(reportSectionNames) {
         "reportsection-statistics",
         "reportsection-agents",
         "reportsection-default-graph",
+        "reportsection-attackpath-graph",
         "reportsection-tactic-graph",
         "reportsection-technique-graph",
         "reportsection-fact-graph",

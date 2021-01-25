@@ -156,7 +156,6 @@ class DebriefGui(BaseWorld):
         story_obj = Story()
         story_obj.set_header_logo_path(header_logo_path)
         styles = getSampleStyleSheet()
-        pdfmetrics.registerFont(TTFont('VeraBd', 'VeraBd.ttf'))
 
         story_obj.append(Spacer(1, 36))
 

@@ -19,7 +19,7 @@ class DebriefReportSection(BaseReportSection):
 
     def generate_section_elements(self, styles, **kwargs):
         title = styles['Heading1']
-        title.fontName = 'VeraBd'
+        title.fontName = 'Helvetica-Bold'
         title.textColor = 'maroon'
         title.fontSize = 24
         timestamp = "<i>Generated on %s</i>" % datetime.today().strftime('%Y-%m-%d %H:%M:%S')

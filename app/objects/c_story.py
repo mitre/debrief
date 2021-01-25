@@ -67,7 +67,7 @@ class Story:
             Story.draw_header_logo(canvas, doc, Story._header_logo_path)
 
         canvas.setFillColor(colors.maroon)
-        canvas.setFont('VeraBd', 18)
+        canvas.setFont('Helvetica-Bold', 18)
         canvas.drawString(doc.leftMargin, doc.height + doc.topMargin * 1.25, 'OPERATIONS DEBRIEF')
         canvas.setStrokeColor(colors.maroon)
         canvas.setLineWidth(4)

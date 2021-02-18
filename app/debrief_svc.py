@@ -89,25 +89,34 @@ class DebriefService(BaseService):
                                               timestamp=self._format_timestamp(operation.created)))
             op_nodes = []
             for fact in operation.all_facts():
-                if 'fact' + fact.unique + operation.source.id not in id_store.keys():
-                    id_store['fact' + fact.unique + operation.source.id] = node_id = max(id_store.values()) + 1
-                    node = dict(name=fact.trait, id=node_id, type='fact', operation=op_id,
-                                attrs=self._get_pub_attrs(fact), img='fact',
+                if 'fact' + fact.unique not in id_store.keys():
+                    id_store['fact' + fact.unique] = node_id = max(id_store.values()) + 1
+                    node = dict(name=fact.trait, id=node_id, type='fact', attrs=self._get_pub_attrs(fact), img='fact',
                                 timestamp=self._format_timestamp(fact.created))
-                    op_nodes.append(node)
+                else:
+                    node_id = id_store['fact' + fact.unique]
+                    node = next(n for n in graph_output['nodes'] if n['id'] == node_id)
+                op_nodes.append(node)
+
+                if fact in operation.source.facts:
+                    d3_link = dict(source=op_id, target=node_id, type='relationship')
+                    self._add_link_if_unique(d3_link, graph_output['links'])
 
             for relationship in operation.all_relationships():
                 if relationship.edge and relationship.target.value:
-                    link = dict(source=id_store.get('fact' + relationship.source.unique + operation.source.id),
-                                target=id_store.get('fact' + relationship.target.unique + operation.source.id),
-                                type='relationship')
-                    graph_output['links'].append(link)
+                    d3_link = dict(source=id_store.get('fact' + relationship.source.unique),
+                                   target=id_store.get('fact' + relationship.target.unique),
+                                   type='relationship')
+                    self._add_link_if_unique(d3_link, graph_output['links'])
+
+            graph_output['nodes'].extend([n for n in op_nodes if n not in graph_output['nodes']])
 
             for n in op_nodes:
-                if not next((lnk for lnk in graph_output['links'] if lnk['target'] == n['id']), None):
-                    link = dict(source=op_id, target=n['id'], type='relationship')
-                    graph_output['links'].append(link)
-            graph_output['nodes'].extend(op_nodes)
+                op_fact_link = self._get_op_fact_link(n, graph_output, operation_ids)
+                if not self._is_fact_in_relationship(n, graph_output['links'], operation_ids) and \
+                        (not op_fact_link or (op_fact_link and op_fact_link['source'] != op_id)):
+                    d3_link = dict(source=op_id, target=n['id'], type='relationship')
+                    self._add_link_if_unique(d3_link, graph_output['links'])
 
         return graph_output
 
@@ -143,6 +152,17 @@ class DebriefService(BaseService):
                             dict(source=previous_prop_graph_id, target=prop_graph_id, type='next_link'))
                     previous_prop_graph_id = prop_graph_id
         return graph_output
+
+    def _get_op_fact_link(self, node, graph_output, operation_ids):
+        parent_link = next((lnk for lnk in graph_output['links'] if lnk['target'] == node['id']), None)
+        if parent_link:
+            if parent_link['source'] in operation_ids:
+                return parent_link
+            else:
+                parent_node = next(n for n in graph_output['nodes'] if n['id'] == parent_link['source'])
+                self._get_op_fact_link(parent_node, graph_output, operation_ids)
+        else:
+            return None
 
     @staticmethod
     def _add_agents_to_d3(agents, id_store, graph_output):
@@ -208,3 +228,14 @@ class DebriefService(BaseService):
     @staticmethod
     def _format_timestamp(timestamp):
         return timestamp.replace(" ", "T")
+
+    @staticmethod
+    def _is_fact_in_relationship(node, graph_links, operation_ids):
+        return any(lnk for lnk in graph_links if
+                   lnk['source'] not in operation_ids and
+                   (lnk['target'] == node['id'] or lnk['source'] == node['id']))
+
+    @staticmethod
+    def _add_link_if_unique(d3_link, graph_links):
+        if d3_link not in graph_links:
+            graph_links.append(d3_link)

@@ -110,7 +110,7 @@ class DebriefService(BaseService):
                                    type='relationship')
                     op_links.append(d3_link)
 
-            self._link_relationshipless_facts(op_nodes, op_links, op_id)
+            self._link_nontargeted_facts(op_nodes, op_links, op_id)
 
             graph_output['nodes'].extend([n for n in op_nodes if n not in graph_output['nodes']])
             graph_output['links'].extend([lnk for lnk in op_links if lnk not in graph_output['links']])
@@ -216,7 +216,7 @@ class DebriefService(BaseService):
         return timestamp.replace(" ", "T")
 
     @staticmethod
-    def _link_relationshipless_facts(op_nodes, op_links, op_id):
+    def _link_nontargeted_facts(op_nodes, op_links, op_id):
         for n in op_nodes:
             target_links = [lnk for lnk in op_links if lnk['target'] == n['id']]
             if not target_links:

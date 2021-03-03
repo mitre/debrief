@@ -16,6 +16,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import SimpleDocTemplate, Spacer
 
 from app.service.auth_svc import for_all_public_methods, check_authorization
+from app.service.rest_svc import html_encode_json_response
 from app.utility.base_world import BaseWorld
 from plugins.debrief.app.debrief_svc import DebriefService
 from plugins.debrief.app.objects.c_story import Story
@@ -56,6 +57,7 @@ class DebriefGui(BaseWorld):
             print(e)
         return dict(operations=operations, header_logos=header_logos, report_sections=self.report_section_names)
 
+    @html_encode_json_response
     async def report(self, request):
         data = dict(await request.json())
         operations = [o for o in await self.data_svc.locate('operations', match=await self._get_access(request))
@@ -65,6 +67,7 @@ class DebriefGui(BaseWorld):
         ttps = DebriefService.generate_ttps(operations)
         return web.json_response(dict(operations=op_displays, agents=agents, ttps=ttps))
 
+    @html_encode_json_response
     async def graph(self, request):
         graphs = {
             'graph': self.debrief_svc.build_operation_d3,
@@ -99,6 +102,7 @@ class DebriefGui(BaseWorld):
             return web.json_response(dict(filename=filename, pdf_bytes=pdf_bytes))
         return web.json_response('No operations selected')
 
+    @html_encode_json_response
     async def download_json(self, request):
         data = dict(await request.json())
         if data['operations']:

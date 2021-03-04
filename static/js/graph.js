@@ -416,8 +416,13 @@ function limitFactsDisplayed(operations) {
         $("#fact-limit-msg p").html("More than " + factDisplayLimit + " facts found in the operation(s) selected. For readability, only the first " + factDisplayLimit + " facts of each operation are displayed.");
         $("#fact-limit-msg").show();
         operations.forEach(function(opId) {
-            $("#debrief-fact-svg g.fact[data-op='" + opId + "']").slice(factDisplayLimit).remove();
-            $("#debrief-fact-svg polyline.relationship[data-source='" + opId + "']").slice(factDisplayLimit).remove();
+            let nodesToRemove = $("#debrief-fact-svg g.fact[data-op='" + opId + "']").splice(factDisplayLimit);
+            nodesToRemove.forEach(function(node) {
+                let nodeId = node.id.split("node-")[1];
+                $("#debrief-fact-svg polyline.relationship[data-source='" + nodeId + "']").remove();
+                $("#debrief-fact-svg polyline.relationship[data-target='" + nodeId + "']").remove();
+                node.remove();
+            })
         })
     }
 }

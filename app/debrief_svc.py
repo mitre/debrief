@@ -87,27 +87,33 @@ class DebriefService(BaseService):
             operation = (await self.data_svc.locate('operations', match=dict(id=int(op_id))))[0]
             graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation',
                                               timestamp=self._format_timestamp(operation.created)))
-            op_nodes = []
+            op_nodes, op_links = [], []
             for fact in operation.all_facts():
-                if 'fact' + fact.unique + operation.source.id not in id_store.keys():
-                    id_store['fact' + fact.unique + operation.source.id] = node_id = max(id_store.values()) + 1
+                if 'fact' + fact.unique not in id_store.keys():
+                    id_store['fact' + fact.unique] = node_id = max(id_store.values()) + 1
                     node = dict(name=fact.trait, id=node_id, type='fact', operation=op_id,
                                 attrs=self._get_pub_attrs(fact), img='fact',
                                 timestamp=self._format_timestamp(fact.created))
-                    op_nodes.append(node)
+                else:
+                    node_id = id_store['fact' + fact.unique]
+                    node = next(n for n in graph_output['nodes'] if n['id'] == node_id)
+                op_nodes.append(node)
+
+                if fact in operation.source.facts:
+                    d3_link = dict(source=op_id, target=node_id, type='relationship')
+                    op_links.append(d3_link)
 
             for relationship in operation.all_relationships():
                 if relationship.edge and relationship.target.value:
-                    link = dict(source=id_store.get('fact' + relationship.source.unique + operation.source.id),
-                                target=id_store.get('fact' + relationship.target.unique + operation.source.id),
-                                type='relationship')
-                    graph_output['links'].append(link)
+                    d3_link = dict(source=id_store.get('fact' + relationship.source.unique),
+                                   target=id_store.get('fact' + relationship.target.unique),
+                                   type='relationship')
+                    op_links.append(d3_link)
 
-            for n in op_nodes:
-                if not next((lnk for lnk in graph_output['links'] if lnk['target'] == n['id']), None):
-                    link = dict(source=op_id, target=n['id'], type='relationship')
-                    graph_output['links'].append(link)
-            graph_output['nodes'].extend(op_nodes)
+            self._link_nontargeted_facts(op_nodes, op_links, op_id)
+
+            graph_output['nodes'].extend([n for n in op_nodes if n not in graph_output['nodes']])
+            graph_output['links'].extend([lnk for lnk in op_links if lnk not in graph_output['links']])
 
         return graph_output
 
@@ -208,3 +214,11 @@ class DebriefService(BaseService):
     @staticmethod
     def _format_timestamp(timestamp):
         return timestamp.replace(" ", "T")
+
+    @staticmethod
+    def _link_nontargeted_facts(op_nodes, op_links, op_id):
+        for n in op_nodes:
+            target_links = [lnk for lnk in op_links if lnk['target'] == n['id']]
+            if not target_links:
+                d3_link = dict(source=op_id, target=n['id'], type='relationship')
+                op_links.append(d3_link)

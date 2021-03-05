@@ -4,7 +4,7 @@ from reportlab.platypus.flowables import KeepTogetherSplitAtTop
 
 from plugins.debrief.app.utility.base_report_section import BaseReportSection
 
-table_char_limit = 1800
+TABLE_CHAR_LIMIT = 1800
 
 
 class DebriefReportSection(BaseReportSection):
@@ -42,7 +42,7 @@ class DebriefReportSection(BaseReportSection):
                 for f in lnk.facts:
                     fact_data.append(
                         [f.trait,
-                         f.value if len(f.value) < table_char_limit else f.value[:table_char_limit] + exceeds_cell_msg,
+                         f.value if len(f.value) < TABLE_CHAR_LIMIT else f.value[:TABLE_CHAR_LIMIT] + exceeds_cell_msg,
                          str(f.score),
                          '<link href="#agent-{0}" color="blue">{0}</link>'.format(lnk.paw),
                          lnk.decode_bytes(lnk.command)])

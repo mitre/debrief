@@ -4,6 +4,8 @@ from reportlab.platypus.flowables import KeepTogetherSplitAtTop
 
 from plugins.debrief.app.utility.base_report_section import BaseReportSection
 
+TABLE_CHAR_LIMIT = 1800
+
 
 class DebriefReportSection(BaseReportSection):
     def __init__(self):
@@ -34,10 +36,14 @@ class DebriefReportSection(BaseReportSection):
 
     def _generate_facts_table(self, operation):
         fact_data = [['Trait', 'Value', 'Score', 'Paw', 'Command Run']]
+        exceeds_cell_msg = '... <font color="maroon"><i>(Value exceeds table cell character limit)</i></font>'
         for lnk in operation.chain:
             if len(lnk.facts) > 0:
                 for f in lnk.facts:
-                    fact_data.append([f.trait, f.value, str(f.score),
-                                      '<link href="#agent-{0}" color="blue">{0}</link>'.format(lnk.paw),
-                                      lnk.decode_bytes(lnk.command)])
-        return self.generate_table(fact_data, [1 * inch, 1.2 * inch, .6 * inch, .6 * inch, 3 * inch])
+                    fact_data.append(
+                        [f.trait,
+                         f.value if len(f.value) < TABLE_CHAR_LIMIT else f.value[:TABLE_CHAR_LIMIT] + exceeds_cell_msg,
+                         str(f.score),
+                         '<link href="#agent-{0}" color="blue">{0}</link>'.format(lnk.paw),
+                         lnk.decode_bytes(lnk.command)])
+        return self.generate_table(fact_data, [1 * inch, 2.1 * inch, .6 * inch, .6 * inch, 2.1 * inch])

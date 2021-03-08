@@ -186,7 +186,7 @@ class DebriefGui(BaseWorld):
                       onFirstPage=story_obj.header_footer_first,
                       onLaterPages=story_obj.header_footer_rest)
         except Exception as e:
-            self.logger.error(e)
+            self.log.error(e)
         pdf_value = pdf_buffer.getvalue()
         pdf_buffer.close()
         return pdf_value.decode('utf-8', errors='ignore')

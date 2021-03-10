@@ -58,8 +58,8 @@ $( document ).ready(function() {
                 .append($("<td></td>")
                     .append($("<button></button>")
                         .text("Show Command")
-                        .attr("data-encoded-cmd", encodeHTML(step.command))
-                        .attr("onclick", "findResults(this, " + encodeHTML(step.id) + ")")
+                        .attr("data-encoded-cmd", step.command)
+                        .attr("onclick", "findResults(this, " + step.id + ")")
                     )
                 )
             )
@@ -92,7 +92,7 @@ $( document ).ready(function() {
             for (let opName in steps) {
                 ret.append($("<li></li>").text(opName).css("color", "grey"));
                 ret.append(generateList(steps[opName], true));
-            }
+            };
             return ret;
         }
         for (let key in ttps) {
@@ -101,7 +101,7 @@ $( document ).ready(function() {
                 .append($("<td></td>").text(tactic.name).css("text-transform", "capitalize"))
                 .append($("<td></td>").append(generateTechniqueList(tactic.techniques)))
                 .append($("<td></td>").append(generateStepList(tactic.steps)))
-            )
+            );
         }
     }
 
@@ -114,8 +114,8 @@ $( document ).ready(function() {
                 .append($("<td></td>").text(agent.username))
                 .append($("<td></td>").text(agent.privilege))
                 .append($("<td></td>").text(agent.exe_name))
-            )
-        })
+            );
+        });
     }
 });
 
@@ -179,15 +179,16 @@ function downloadReport(downloadType) {
 function findResults(elem, lnk){
     function loadResults(data){
         if (data) {
-            let res = encodeHTML(atob(data.output));
-            $.each(data.link.facts, function (k, v) {
-                let enc_val = encodeHTML(v.value);
-                let regex = new RegExp(String.raw`${enc_val}`, "g");
-                res = res.replace(regex, "<span class='highlight'>" + enc_val + "</span>");
-            });
-            $('#debrief-step-modal-view').html(res);
-        }
-    }
+            let res = atob(data.output);
+            $('#debrief-step-modal-view').text(res);
+            let resultText = $('#debrief-step-modal-view').html();
+            $.each(data.link.facts, (k ,v) =>
+                let enc_val = $('<div/>').text(v.value).html();
+                resultText = resultText.replaceAll(encodedValue, "<span class='highlight'>" + enc_val + "</span>");
+            );
+            $('#debrief-step-modal-view').html(resultText);
+        };
+    };
     document.getElementById('debrief-step-modal').style.display='block';
     $('#debrief-step-modal-cmd').text(atob($(elem).attr('data-encoded-cmd')));
     restRequest('POST', {'index':'result','link_id':lnk}, loadResults);
@@ -503,7 +504,9 @@ function displayReportSections() {
 	var enabledOptGroupHTML = $("<optgroup></optgroup>").attr("label", "ENABLED SECTIONS");
     for (i = 0; i < orderedList.length; i++) {
 		var sectionId = orderedList[i];
-		enabledOptGroupHTML.append($('<option class="ordered-report-section"></option>').text(displayNames[sectionId]).val(encodeHTML(sectionId)));
+		enabledOptGroupHTML.append($('<option></option>')
+		    .addClass("ordered-report-section")
+		    .text(displayNames[sectionId]).val(sectionId));
     }
     $("#selected-report-section-ordering-list").append(enabledOptGroupHTML);
 
@@ -513,7 +516,9 @@ function displayReportSections() {
 	var disabledOptGroupHTML = $("<optgroup></optgroup>").attr("label", "DISABLED SECTIONS");
 	for (i = 0; i < disabledSections.length; i++) {
 		var sectionId = disabledSections[i];
-		disabledOptGroupHTML.append($('<option class="disabled-report-section"></option>').text(displayNames[sectionId]).val(encodeHTML(sectionId)));
+		disabledOptGroupHTML.append($('<option></option>')
+		    .addClass("disabled-report-section")
+		    .text(displayNames[sectionId]).val(sectionId));
 	}
 	$("#selected-report-section-ordering-list").append(disabledOptGroupHTML);
 
@@ -588,10 +593,11 @@ function moveReportSection(direction) {
 
 function updateLogoSelection(filename) {
 	// Add the newly uploaded logo file to the displayed list of logos.
-	let rowHTML = '<option class="header-logo-option" value="' + encodeHTML(filename) + '">' + encodeHTML(filename) + '</option>';
-	let logoList = document.getElementById("debrief-header-logo-list");
-	logoList.insertAdjacentHTML('beforeend', rowHTML);
-	logoList.value = filename;
+	$("#debrief-header-logo-list").append($("<option></option>")
+	    .addClass("header-logo-option")
+	    .val(filename)
+	    .text(filename)
+    ).val(filename);
 }
 
 function showLogoPreview() {

@@ -593,7 +593,7 @@ function moveReportSection(direction) {
 
 function updateLogoSelection(filename) {
 	// Add the newly uploaded logo file to the displayed list of logos.
-	$("#debrief-header-logo-list").append($("<option></option>")
+    $("#debrief-header-logo-list").append($("<option></option>")
 	    .addClass("header-logo-option")
 	    .val(filename)
 	    .text(filename)

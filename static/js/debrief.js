@@ -602,16 +602,13 @@ function updateLogoSelection(filename) {
 
 function showLogoPreview() {
 	var selectedLogoName = $('#debrief-header-logo-list').val();
-	let element = document.getElementById("debrief-report-logo-preview");
-	if (element.hasChildNodes()) {
-		element.removeChild(element.childNodes[0]);
+	let element = $("#debrief-report-logo-preview");
+	if (element.children().length > 0) {
+	    element.children().first().remove();
 	}
 	if (selectedLogoName != null && selectedLogoName != 'no-logo') {
-		let imgHTML = '<img style="width: 100%; height: auto; border-radius:0; border:none;" src="/logodebrief/header-logos/' + encodeHTML(selectedLogoName)  + '"/>';
-		element.insertAdjacentHTML('beforeend', imgHTML);
+	    element.append($('<img style="width: 100%; height: auto; border-radius:0; border:none;" />')
+	        .attr("src", "/logodebrief/header-logos/" + selectedLogoName)
+	    );
 	}
-}
-
-function encodeHTML(value) {
-    return $('<textarea/>').text(value).html();
 }

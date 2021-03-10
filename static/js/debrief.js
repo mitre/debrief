@@ -31,7 +31,7 @@ $( document ).ready(function() {
         operations.forEach(function (op, index) {
             updateOperationTable(op);
             updateStepTable(op);
-        })
+        });
         updateAgentTable(data['agents']);
         updateTacticTechniqueTable(data['ttps']);
         nodesOrderedByTime = getNodesOrderedByTime();
@@ -44,7 +44,7 @@ $( document ).ready(function() {
             .append($("<td></td>").text(op.planner.name))
             .append($("<td></td>").text(op.objective.name))
             .append($("<td></td>").text(op.start))
-        )
+        );
     }
 
     function updateStepTable(op){
@@ -62,8 +62,8 @@ $( document ).ready(function() {
                         .attr("onclick", "findResults(this, " + step.id + ")")
                     )
                 )
-            )
-        })
+            );
+        });
     }
 
     function updateTacticTechniqueTable(ttps) {
@@ -75,13 +75,13 @@ $( document ).ready(function() {
             }
             objList.forEach(function(obj) {
                 ret.append($("<li></li>)").text(obj));
-            })
+            });
             return ret;
         }
 
         function generateTechniqueList(techniques) {
             let arr = [];
-            for (let name in techniques) {
+            for (name in techniques) {
                 arr.push(techniques[name] + ": " + name);
             }
             return generateList(arr, false);
@@ -89,13 +89,13 @@ $( document ).ready(function() {
 
         function generateStepList(steps) {
             let ret = $("<ul></ul>").css("padding", "0px");
-            for (let opName in steps) {
+            for (opName in steps) {
                 ret.append($("<li></li>").text(opName).css("color", "grey"));
                 ret.append(generateList(steps[opName], true));
-            };
+            }
             return ret;
         }
-        for (let key in ttps) {
+        for (key in ttps) {
             let tactic = ttps[key];
             $("#report-tactics-techniques tbody").append($("<tr></tr>")
                 .append($("<td></td>").text(tactic.name).css("text-transform", "capitalize"))
@@ -173,7 +173,7 @@ function downloadReport(downloadType) {
             downloadAnchorNode.click();
             downloadAnchorNode.remove();
         }
-    }
+    };
 }
 
 function findResults(elem, lnk){
@@ -182,13 +182,13 @@ function findResults(elem, lnk){
             let res = atob(data.output);
             $('#debrief-step-modal-view').text(res);
             let resultText = $('#debrief-step-modal-view').html();
-            $.each(data.link.facts, (k ,v) =>
+            $.each(data.link.facts, function (k, v) {
                 let enc_val = $('<div/>').text(v.value).html();
-                resultText = resultText.replaceAll(encodedValue, "<span class='highlight'>" + enc_val + "</span>");
-            );
+                resultText = resultText.replaceAll(enc_val, "<span class='highlight'>" + enc_val + "</span>");
+            });
             $('#debrief-step-modal-view').html(resultText);
-        };
-    };
+        }
+    }
     document.getElementById('debrief-step-modal').style.display='block';
     $('#debrief-step-modal-cmd').text(atob($(elem).attr('data-encoded-cmd')));
     restRequest('POST', {'index':'result','link_id':lnk}, loadResults);

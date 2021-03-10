@@ -31,83 +31,91 @@ $( document ).ready(function() {
         operations.forEach(function (op, index) {
             updateOperationTable(op);
             updateStepTable(op);
-        })
+        });
         updateAgentTable(data['agents']);
         updateTacticTechniqueTable(data['ttps']);
         nodesOrderedByTime = getNodesOrderedByTime();
     }
 
     function updateOperationTable(op){
-        $("#report-operations tbody").append("<tr>" +
-            "<td>"+op.name+"</td>" +
-            "<td style='text-transform: capitalize;'>"+op.state+"</td>" +
-            "<td>"+op.planner.name+"</td>" +
-            "<td>"+op.objective.name+"</td>" +
-            "<td>"+op.start+"</td>" +
-            "</tr>");
+        $("#report-operations tbody").append($("<tr></tr>")
+            .append($("<td></td>").text(op.name))
+            .append($("<td></td>").text(op.state).css("text-transform", "capitalize"))
+            .append($("<td></td>").text(op.planner.name))
+            .append($("<td></td>").text(op.objective.name))
+            .append($("<td></td>").text(op.start))
+        );
     }
 
     function updateStepTable(op){
         op.chain.forEach(function (step, index) {
-            $("#report-steps tbody").append("<tr>" +
-                "<td>"+statusName(step.status) +"</td>" +  //
-                "<td>"+step.finish+"</td>" +  //
-                "<td>"+step.ability.name+"</td>" +
-                "<td>"+step.paw+"</td>" +
-                "<td>"+op.name+"</td>" +  //
-                "<td><button data-encoded-cmd='"+step.command +"' onclick='findResults(this,"+step.id+")'>Show" +
-                " Command</button></td>" +
-                "</tr>");
-        })
+            $("#report-steps tbody").append($("<tr></tr>")
+                .append($("<td></td>").text(statusName(step.status)))
+                .append($("<td></td>").text(step.finish))
+                .append($("<td></td>").text(step.ability.name))
+                .append($("<td></td>").text(step.paw))
+                .append($("<td></td>").text(op.name))
+                .append($("<td></td>")
+                    .append($("<button></button>")
+                        .text("Show Command")
+                        .attr("data-encoded-cmd", step.command)
+                        .attr("onclick", "findResults(this, " + step.id + ")")
+                    )
+                )
+            );
+        });
     }
 
     function updateTacticTechniqueTable(ttps) {
+
         function generateList(objList, innerList) {
-            let ret = innerList ? "<ul>" : "<ul style='padding: 0px'>";
+            let ret = $("<ul></ul>");
+            if (!innerList) {
+                ret.css("padding", "0px");
+            }
             objList.forEach(function(obj) {
-                ret += "<li>" + obj + "</li>"
-            })
-            ret += "</ul>"
+                ret.append($("<li></li>)").text(obj));
+            });
             return ret;
         }
+
         function generateTechniqueList(techniques) {
             let arr = [];
-            for (let name in techniques) {
+            for (name in techniques) {
                 arr.push(techniques[name] + ": " + name);
             }
             return generateList(arr, false);
         }
+
         function generateStepList(steps) {
-            let ret = "<ul style='padding: 0px'>"
-            for (let opName in steps) {
-                ret += "<li style='color: grey'>" + opName + "</li>";
-                ret += generateList(steps[opName], true);
+            let ret = $("<ul></ul>").css("padding", "0px");
+            for (opName in steps) {
+                ret.append($("<li></li>").text(opName).css("color", "grey"));
+                ret.append(generateList(steps[opName], true));
             }
-            ret += "</ul>"
             return ret;
         }
-        for (let key in ttps) {
+        for (key in ttps) {
             let tactic = ttps[key];
-            $("#report-tactics-techniques tbody").append("<tr>" +
-                "<td style='text-transform: capitalize;'>" + tactic.name + "</td>" +
-                "<td>" + generateTechniqueList(tactic.techniques) + "</td>" +
-                "<td>" + generateStepList(tactic.steps) + "</td>" +
-                "</tr");
+            $("#report-tactics-techniques tbody").append($("<tr></tr>")
+                .append($("<td></td>").text(tactic.name).css("text-transform", "capitalize"))
+                .append($("<td></td>").append(generateTechniqueList(tactic.techniques)))
+                .append($("<td></td>").append(generateStepList(tactic.steps)))
+            );
         }
     }
 
     function updateAgentTable(agents) {
         agents.forEach(function(agent) {
-            $("#report-agents tbody").append("<tr>" +
-                "<td>" + agent.paw + "</td>" +
-                "<td>" + agent.host + "</td>" +
-                "<td>" + agent.platform + "</td>" +
-                "<td>" + agent.username + "</td>" +
-                "<td>" + agent.privilege + "</td>" +
-                "<td>" + agent.exe_name + "</td>" +
-                "</tr>"
+            $("#report-agents tbody").append($("<tr></tr>")
+                .append($("<td></td>").text(agent.paw))
+                .append($("<td></td>").text(agent.host))
+                .append($("<td></td>").text(agent.platform))
+                .append($("<td></td>").text(agent.username))
+                .append($("<td></td>").text(agent.privilege))
+                .append($("<td></td>").text(agent.exe_name))
             );
-        })
+        });
     }
 });
 
@@ -165,22 +173,24 @@ function downloadReport(downloadType) {
             downloadAnchorNode.click();
             downloadAnchorNode.remove();
         }
-    }
+    };
 }
 
 function findResults(elem, lnk){
     function loadResults(data){
         if (data) {
             let res = atob(data.output);
+            $('#debrief-step-modal-view').text(res);
+            let resultText = $('#debrief-step-modal-view').html();
             $.each(data.link.facts, function (k, v) {
-                let regex = new RegExp(String.raw`${v.value}`, "g");
-                res = res.replace(regex, "<span class='highlight'>" + v.value + "</span>");
+                let enc_val = $('<div/>').text(v.value).html();
+                resultText = resultText.replaceAll(enc_val, "<span class='highlight'>" + enc_val + "</span>");
             });
-            $('#debrief-step-modal-view').html(res);
+            $('#debrief-step-modal-view').html(resultText);
         }
     }
     document.getElementById('debrief-step-modal').style.display='block';
-    $('#debrief-step-modal-cmd').html(atob($(elem).attr('data-encoded-cmd')));
+    $('#debrief-step-modal-cmd').text(atob($(elem).attr('data-encoded-cmd')));
     restRequest('POST', {'index':'result','link_id':lnk}, loadResults);
 }
 
@@ -488,29 +498,29 @@ function displayReportSections() {
 	});
 
 	// Clear current display
-	document.getElementById("selected-report-section-ordering-list").innerHTML = '';
+	$("#selected-report-section-ordering-list").empty();
 
 	// Display enabled sections
-	var enabledOptGroupHTML = '<optgroup label="ENABLED SECTIONS">';
-	for (i = 0; i < orderedList.length; i++) {
+	var enabledOptGroupHTML = $("<optgroup></optgroup>").attr("label", "ENABLED SECTIONS");
+    for (i = 0; i < orderedList.length; i++) {
 		var sectionId = orderedList[i];
-		enabledOptGroupHTML += '<option class="ordered-report-section" value="' + sectionId + '">' + displayNames[sectionId] + '</option>';
-	}
-	enabledOptGroupHTML += '</optgroup>';
-	document.getElementById("selected-report-section-ordering-list").insertAdjacentHTML('beforeend', enabledOptGroupHTML);
+		enabledOptGroupHTML.append($('<option></option>')
+		    .addClass("ordered-report-section")
+		    .text(displayNames[sectionId]).val(sectionId));
+    }
+    $("#selected-report-section-ordering-list").append(enabledOptGroupHTML);
 
-	var separatorHTML = '<hr style="margin: 5 0 5;">';
-	document.getElementById("selected-report-section-ordering-list").insertAdjacentHTML('beforeend', separatorHTML);
+    $("#selected-report-section-ordering-list").append('<hr style="margin: 5 0 5;">');
 
 	// Display disabled sections
-	var disabledOptGroupHTML = '<optgroup label="DISABLED SECTIONS">';
-	var numDisabled = disabledSections.length;
-	for (i = 0; i < numDisabled; i++) {
+	var disabledOptGroupHTML = $("<optgroup></optgroup>").attr("label", "DISABLED SECTIONS");
+	for (i = 0; i < disabledSections.length; i++) {
 		var sectionId = disabledSections[i];
-		disabledOptGroupHTML += '<option class="disabled-report-section" value="' + sectionId + '">' + displayNames[sectionId] + '</option>';
+		disabledOptGroupHTML.append($('<option></option>')
+		    .addClass("disabled-report-section")
+		    .text(displayNames[sectionId]).val(sectionId));
 	}
-	disabledOptGroupHTML += '</optgroup>';
-	document.getElementById("selected-report-section-ordering-list").insertAdjacentHTML('beforeend', disabledOptGroupHTML);
+	$("#selected-report-section-ordering-list").append(disabledOptGroupHTML);
 
 	// Keep selected item highlighted
 	if (selectedItemId != null) {
@@ -583,20 +593,22 @@ function moveReportSection(direction) {
 
 function updateLogoSelection(filename) {
 	// Add the newly uploaded logo file to the displayed list of logos.
-	let rowHTML = '<option class="header-logo-option" value="' + filename + '">' + filename + '</option>';
-	let logoList = document.getElementById("debrief-header-logo-list");
-	logoList.insertAdjacentHTML('beforeend', rowHTML);
-	logoList.value = filename;
+    $("#debrief-header-logo-list").append($("<option></option>")
+	    .addClass("header-logo-option")
+	    .val(filename)
+	    .text(filename)
+    ).val(filename);
 }
 
 function showLogoPreview() {
 	var selectedLogoName = $('#debrief-header-logo-list').val();
-	let element = document.getElementById("debrief-report-logo-preview");
-	if (element.hasChildNodes()) {
-		element.removeChild(element.childNodes[0]);
+	let element = $("#debrief-report-logo-preview");
+	if (element.children().length > 0) {
+	    element.children().first().remove();
 	}
 	if (selectedLogoName != null && selectedLogoName != 'no-logo') {
-		let imgHTML = '<img style="width: 100%; height: auto; border-radius:0; border:none;" src="/logodebrief/header-logos/' + selectedLogoName  + '"/>';
-		element.insertAdjacentHTML('beforeend', imgHTML);
+	    element.append($('<img style="width: 100%; height: auto; border-radius:0; border:none;" />')
+	        .attr("src", "/logodebrief/header-logos/" + selectedLogoName)
+	    );
 	}
 }

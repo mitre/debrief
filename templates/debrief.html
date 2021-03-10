@@ -18,7 +18,7 @@
                 <select id="debrief-operation-list" size="5" data-placeholder="No operations to show." multiple style="overflow-y:auto">
                   {% for op in operations %}
                         {%  if op.start|length%}
-                            <option class="operationOption" id="{{ op.id }}-{{ op.name }}" value="{{ op.id }}">{{ op.name }}</option>
+                            <option class="operationOption" id="{{ op.id|e }}-{{ op.name|e }}" value="{{ op.id|e }}">{{ op.name|e }}</option>
                         {% endif %}
                   {% endfor %}
                 </select>
@@ -79,7 +79,7 @@
                     <select id="debrief-header-logo-list" size="5" data-placeholder="No logos to show." onchange="showLogoPreview()" style="overflow-y:auto">
                         <option class="header-logo-option" value="no-logo" selected>Do not use a logo</option>
                         {% for logo in header_logos %}
-                            <option class="header-logo-option" value="{{ logo }}">{{ logo }}</option>
+                            <option class="header-logo-option" value="{{ logo|e }}">{{ logo|e }}</option>
                         {% endfor %}
                     </select>
                 </div>

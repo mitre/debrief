@@ -141,10 +141,10 @@ function writeGraph(graph, graphObj) {
         .selectAll("g")
         .data(graph.nodes)
         .enter().append("g")
-            .attr("data-op", function(d) { return encodeHTML(d.operation) })
-            .attr("id", function(d) { return "node-" + encodeHTML(d.id) })
-            .attr("class", function(d) { return "node " + encodeHTML(d.type); })
-            .attr("data-timestamp", function(d) { return encodeHTML(d.timestamp); })
+            .attr("data-op", function(d) { return d.operation })
+            .attr("id", function(d) { return "node-" + d.id })
+            .attr("class", function(d) { return "node " + d.type; })
+            .attr("data-timestamp", function(d) { return d.timestamp; })
             .call(d3.drag()
                 .on("start", dragstarted)
                 .on("drag", dragged)
@@ -170,7 +170,7 @@ function writeGraph(graph, graphObj) {
         .style("font-size", "12px").style("fill", "white")
         .text(function(d) {
             if (d.type != 'link') {
-                return encodeHTML(d.name);
+                return d.name;
             }
         });
 
@@ -178,11 +178,11 @@ function writeGraph(graph, graphObj) {
         .attr("class", "icons")
         .html(function(d) {
             let c;
-            if (d.img.indexOf(" ") == -1 && $("#" + encodeHTML(d.img) + "-img").length > 0) {
-                c = $("#" + encodeHTML(d.img) + "-img")[0].cloneNode(true);
+            if (d.img.indexOf(" ") == -1 && $("#" + d.img + "-img").length > 0) {
+                c = $("#" + d.img + "-img")[0].cloneNode(true);
             }
             else {
-                c = $("#" + encodeHTML(d.type) + "-img")[0].cloneNode(true);
+                c = $("#" + d.type + "-img")[0].cloneNode(true);
             }
             c = updateIconAttr(c, d.status);
             let l = "";
@@ -227,7 +227,7 @@ function writeGraph(graph, graphObj) {
         .attr("width", 20)
         .attr("height", 20)
         .html(function(d) {
-            let imgToClone = d.img.indexOf(" ") == -1 ? $("#" + encodeHTML(d.img) + "-img") : $("#" + encodeHTML(d.type) + "-img");
+            let imgToClone = d.img.indexOf(" ") == -1 ? $("#" + d.img + "-img") : $("#" + d.type + "-img");
             let clone = imgToClone[0].cloneNode(true);
             this.id = clone.id + "-legend";
             this.setAttribute("viewBox", clone.getAttribute("viewBox"));

@@ -9,6 +9,7 @@ from aiohttp_jinja2 import template
 from datetime import datetime
 from importlib import import_module
 from io import BytesIO
+from reportlab import rl_settings
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfbase import pdfmetrics
@@ -19,7 +20,6 @@ from app.service.auth_svc import for_all_public_methods, check_authorization
 from app.utility.base_world import BaseWorld
 from plugins.debrief.app.debrief_svc import DebriefService
 from plugins.debrief.app.objects.c_story import Story
-
 
 @for_all_public_methods(check_authorization)
 class DebriefGui(BaseWorld):
@@ -37,6 +37,8 @@ class DebriefGui(BaseWorld):
         self.report_section_modules = dict()
         self.report_section_names = dict()
         self.loaded_report_sections = False
+
+        rl_settings.trustedHosts = [BaseWorld.get_config('host')]
 
     async def _get_access(self, request):
         return dict(access=tuple(await self.auth_svc.get_permissions(request)))

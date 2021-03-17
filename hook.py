@@ -9,6 +9,7 @@ access = BaseWorld.Access.RED
 
 
 async def enable(services):
+    BaseWorld.apply_config('debrief', BaseWorld.strip_yml('plugins/debrief/conf/default.yml')[0])
     app = services.get('app_svc').application
     debrief_gui = DebriefGui(services)
     app.router.add_static('/debrief', 'plugins/debrief/static/', append_version=True)

@@ -21,6 +21,7 @@ from app.utility.base_world import BaseWorld
 from plugins.debrief.app.debrief_svc import DebriefService
 from plugins.debrief.app.objects.c_story import Story
 
+
 @for_all_public_methods(check_authorization)
 class DebriefGui(BaseWorld):
     def __init__(self, services):
@@ -38,7 +39,7 @@ class DebriefGui(BaseWorld):
         self.report_section_names = dict()
         self.loaded_report_sections = False
 
-        rl_settings.trustedHosts = [BaseWorld.get_config('host')]
+        rl_settings.trustedHosts = BaseWorld.get_config(prop='reportlab_trusted_hosts', name='debrief') or None
 
     async def _get_access(self, request):
         return dict(access=tuple(await self.auth_svc.get_permissions(request)))

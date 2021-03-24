@@ -114,20 +114,7 @@ label {
     font-size: 14px;
     text-transform: capitalize;
 }
-li.legend {
-    flex-direction: row;
-    display: flex;
-    align-items: center;
-}
-.legend-box {
-    position: absolute;
-    right: 25px;
-    margin-top: 15px;
-    padding: 10px;
-    border-radius: 10px;
-    width: 165px;
-    background-color: rgba(155, 155, 155, .6);
-}
+
 #fact-limit-msg {
     position: absolute;
     top: 0px;

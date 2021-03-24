@@ -177,14 +177,7 @@ function writeGraph(graph, graphObj) {
     nodes.append("g")
         .attr("class", "icons")
         .html(function(d) {
-            let c;
-            if (d.img.indexOf(" ") == -1 && $("#" + d.img + "-img").length > 0) {
-                c = $("#" + d.img + "-img")[0].cloneNode(true);
-            }
-            else {
-                c = $("#" + d.type + "-img")[0].cloneNode(true);
-            }
-            c = updateIconAttr(c, d.status);
+            let c = updateIconAttr(cloneImgIcon(d), d.status);
             let l = "";
             if (d.type == "link") {
                 l = $("#link-img")[0].cloneNode(true);
@@ -219,16 +212,23 @@ function writeGraph(graph, graphObj) {
 	    .enter()
 	    .append("g")
 
+    let lineHeight = 30;
+    let upperPadding = 60;
+
     entry.append("svg")
         .attr("x", width - 170)
         .attr("y", function(d, i){
-            $("#legend-rect-" + graphObj.type).attr("height", parseInt($("#legend-rect-" + graphObj.type).attr("height")) + 30);
-            return i *  30 + 60;})
+            $("#legend-rect-" + graphObj.type).attr("height", parseInt($("#legend-rect-" + graphObj.type).attr("height")) + lineHeight);
+            let yVal = i * lineHeight + upperPadding;
+            if (yVal > height - 90) {
+                $("#debrief-graph").height(height + lineHeight);
+                height = $("#debrief-graph").height();
+            }
+            return yVal})
         .attr("width", 20)
         .attr("height", 20)
         .html(function(d) {
-            let imgToClone = d.img.indexOf(" ") == -1 ? $("#" + d.img + "-img") : $("#" + d.type + "-img");
-            let clone = imgToClone[0].cloneNode(true);
+            let clone = cloneImgIcon(d);
             this.id = clone.id + "-legend";
             this.setAttribute("viewBox", clone.getAttribute("viewBox"));
             this.setAttribute("preserveAspectRatio", "xMidYMid meet");
@@ -239,7 +239,7 @@ function writeGraph(graph, graphObj) {
 
     entry.append("text")
         .attr("x", width - 135)
-        .attr("y", function(d, i){ return i *  30 + 77;})
+        .attr("y", function(d, i){ return i *  lineHeight + upperPadding + lineHeight/2;})
         .style("fill", "white")
         .style("font-size", 13)
         .style("text-transform", "capitalize")
@@ -377,6 +377,17 @@ function writeGraph(graph, graphObj) {
       let angleDeg = Math.atan2(deltaY, deltaX) * 180 / Math.PI + 180;
       return `rotate(${angleDeg}, ${x1}, ${y1})`;
     }
+}
+
+function cloneImgIcon(d) {
+    let c;
+    if (d.img.indexOf(" ") == -1 && $("#" + d.img + "-img").length > 0) {
+        c = $("#" + d.img + "-img")[0].cloneNode(true);
+    }
+    else {
+        c = $("#" + d.type + "-img")[0].cloneNode(true);
+    }
+    return c;
 }
 
 function updateIconAttr(svg, status) {

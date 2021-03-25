@@ -20,7 +20,7 @@ class DebriefService(BaseService):
         self._add_agents_to_d3(agents, id_store, graph_output)
 
         for op_id in operation_ids:
-            operation = (await self.data_svc.locate('operations', match=dict(id=int(op_id))))[0]
+            operation = (await self.data_svc.locate('operations', match=dict(id=op_id)))[0]
             graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation',
                                               timestamp=self._format_timestamp(operation.created)))
             previous_link_graph_id = None
@@ -61,7 +61,7 @@ class DebriefService(BaseService):
         self._add_agents_to_d3(agents, id_store, graph_output)
 
         operations = [op for op_id in operation_ids for op in await self.data_svc.locate('operations',
-                                                                                         match=dict(id=int(op_id)))]
+                                                                                         match=dict(id=op_id))]
         for agent in agents:
             if agent.origin_link_id:
                 operation = await self.app_svc.find_op_with_link(agent.origin_link_id)
@@ -84,7 +84,7 @@ class DebriefService(BaseService):
         id_store = dict(default=0)
 
         for op_id in operation_ids:
-            operation = (await self.data_svc.locate('operations', match=dict(id=int(op_id))))[0]
+            operation = (await self.data_svc.locate('operations', match=dict(id=op_id)))[0]
             graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation',
                                               timestamp=self._format_timestamp(operation.created)))
             op_nodes, op_links = [], []
@@ -128,7 +128,7 @@ class DebriefService(BaseService):
         id_store = dict(default=0)
 
         for op_id in operation_ids:
-            operation = (await self.data_svc.locate('operations', match=dict(id=int(op_id))))[0]
+            operation = (await self.data_svc.locate('operations', match=dict(id=op_id)))[0]
             graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation',
                                               timestamp=self._format_timestamp(operation.created)))
             previous_prop_graph_id = None

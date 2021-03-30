@@ -48,7 +48,9 @@ var imgs = {
     "persistence": "debrief/img/persistence.svg",
     "privilege-escalation": "debrief/img/privesc.svg",
     "initial-access": "debrief/img/access.svg",
-    "command-and-control": "debrief/img/commandcontrol.svg"}
+    "command-and-control": "debrief/img/commandcontrol.svg",
+    "unknown" : "debrief/img/unknown.svg"
+    };
 
 for (var key in imgs) {
     getImage(key, imgs[key])
@@ -381,11 +383,16 @@ function writeGraph(graph, graphObj) {
 
 function cloneImgIcon(d) {
     let c;
-    if (d.img.indexOf(" ") == -1 && $("#" + d.img + "-img").length > 0) {
-        c = $("#" + d.img + "-img")[0].cloneNode(true);
+    try {
+        if (d.img.indexOf(" ") == -1 && $("#" + d.img + "-img").length > 0) {
+            c = $("#" + d.img + "-img")[0].cloneNode(true);
+        }
+        else {
+            c = $("#" + d.type + "-img")[0].cloneNode(true);
+        }
     }
-    else {
-        c = $("#" + d.type + "-img")[0].cloneNode(true);
+    catch {
+        c = $("#unknown-img")[0].cloneNode(true);
     }
     return c;
 }

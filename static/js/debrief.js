@@ -59,7 +59,9 @@ $( document ).ready(function() {
                     .append($("<button></button>")
                         .text("Show Command")
                         .attr("data-encoded-cmd", step.command)
-                        .attr("onclick", "findResults(this, " + step.id + ")")
+                        .click(event => {
+                            findResults($(event.currentTarget), step.id)
+                        })
                     )
                 )
             );

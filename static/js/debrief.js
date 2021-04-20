@@ -181,7 +181,7 @@ function downloadReport(downloadType) {
 function findResults(elem, lnk){
     function loadResults(data){
         if (data) {
-            let res = atob(data.output);
+            let res = b64DecodeUnicode(data.output);
             $('#debrief-step-modal-view').text(res);
             let resultText = $('#debrief-step-modal-view').html();
             $.each(data.link.facts, function (k, v) {
@@ -192,7 +192,7 @@ function findResults(elem, lnk){
         }
     }
     document.getElementById('debrief-step-modal').style.display='block';
-    $('#debrief-step-modal-cmd').text(atob($(elem).attr('data-encoded-cmd')));
+    $('#debrief-step-modal-cmd').text(b64DecodeUnicode($(elem).attr('data-encoded-cmd')));
     restRequest('POST', {'index':'result','link_id':lnk}, loadResults);
 }
 

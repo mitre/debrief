@@ -385,10 +385,10 @@ function cloneImgIcon(d) {
     let c;
     try {
         if (d.img.indexOf(" ") == -1 && $("#" + d.img + "-img").length > 0) {
-            c = $("#" + d.img + "-img")[0].cloneNode(true);
+            c = $("#" + CSS.escape(d.img) + "-img")[0].cloneNode(true);
         }
         else {
-            c = $("#" + d.type + "-img")[0].cloneNode(true);
+            c = $("#" + CSS.escape(d.type) + "-img")[0].cloneNode(true);
         }
     }
     catch {

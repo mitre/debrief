@@ -93,7 +93,7 @@ class DebriefService(BaseService):
                     id_store['fact' + fact.unique] = node_id = max(id_store.values()) + 1
                     node = dict(name=fact.trait, id=node_id, type='fact', operation=op_id,
                                 attrs=self._get_pub_attrs(fact), img='fact',
-                                timestamp=self._format_timestamp(fact.created))
+                                timestamp=fact.created.strftime('%Y-%m-%dT%H:%M:%S'))
                 else:
                     node_id = id_store['fact' + fact.unique]
                     node = next(n for n in graph_output['nodes'] if n['id'] == node_id)

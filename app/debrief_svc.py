@@ -88,7 +88,8 @@ class DebriefService(BaseService):
             graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation',
                                               timestamp=self._format_timestamp(operation.created)))
             op_nodes, op_links = [], []
-            for fact in operation.all_facts():
+            all_facts = await operation.all_facts()
+            for fact in all_facts:
                 if 'fact' + fact.unique not in id_store.keys():
                     id_store['fact' + fact.unique] = node_id = max(id_store.values()) + 1
                     node = dict(name=fact.trait, id=node_id, type='fact', operation=op_id,
@@ -103,7 +104,8 @@ class DebriefService(BaseService):
                     d3_link = dict(source=op_id, target=node_id, type='relationship')
                     op_links.append(d3_link)
 
-            for relationship in operation.all_relationships():
+            all_relationships = await operation.all_relationships()
+            for relationship in all_relationships:
                 if relationship.edge and relationship.target.value:
                     d3_link = dict(source=id_store.get('fact' + relationship.source.unique),
                                    target=id_store.get('fact' + relationship.target.unique),

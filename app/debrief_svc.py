@@ -199,7 +199,9 @@ class DebriefService(BaseService):
 
     @staticmethod
     def _get_pub_attrs(fact):
-        return {k: v for k, v in vars(fact).items() if not k.startswith('_')}
+        filtered_fact = {k: v for k, v in vars(fact).items() if not k.startswith('_')}
+        filtered_fact['origin_type'] = filtered_fact['origin_type'].name
+        return filtered_fact
 
     @staticmethod
     def _get_by_prop_order(chain, prop):

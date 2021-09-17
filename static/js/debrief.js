@@ -2,7 +2,12 @@ var nodesOrderedByTime;
 var visualizeInterval;
 
 $( document ).ready(function() {
-    $('#debrief-operation-list').change(function (e){
+    $.getScript('/debrief/js/d3.v4.min.js');
+    $.getScript('/debrief/js/d3-selection-multi.v1.js');
+    $.getScript('/debrief/js/d3-zoom.v1.min.js');
+    $.getScript('/debrief/js/graph.js');
+
+    $('#debrief-operation-list').change(function (e) {
         clearReport();
         let operations = $(e.target).val();
         if (operations) {
@@ -19,107 +24,132 @@ $( document ).ready(function() {
         $(this).next(".debrief-sidebar").slideToggle("slow");
     });
 
-    function clearReport(){
-        $("#report-operations tbody tr").remove();
-        $("#report-steps tbody tr").remove();
-        $("#report-agents tbody tr").remove();
-        $("#report-tactics-techniques tbody tr").remove();
-    }
+    initPage();
+});
 
-    function displayReport(data){
-        let operations = data['operations'];
-        operations.forEach(function (op, index) {
-            updateOperationTable(op);
-            updateStepTable(op);
-        });
-        updateAgentTable(data['agents']);
-        updateTacticTechniqueTable(data['ttps']);
-        nodesOrderedByTime = getNodesOrderedByTime();
+function statusName(status) {
+    if (status === 0) {
+        return 'success';
+    } else if (status === -2) {
+        return 'discarded';
+    } else if (status === 1) {
+        return 'failure';
+    } else if (status === 124) {
+        return 'timeout';
+    } else if (status === -3) { // && chain.collect) {
+        return 'collected';
+    } else if (status === -4) {
+        return 'untrusted';
+    } else if (status === -5) {
+        return 'visibility';
     }
+    return 'queued';
+}
 
-    function updateOperationTable(op){
-        $("#report-operations tbody").append($("<tr></tr>")
+function checkUploadButton() {
+    validateFormState(($('#logo-file').val()), '#debrief-upload-logo');
+}
+
+function clearReport(){
+    $("#report-operations tbody tr").remove();
+    $("#report-steps tbody tr").remove();
+    $("#report-agents tbody tr").remove();
+    $("#report-tactics-techniques tbody tr").remove();
+}
+
+function displayReport(data){
+    let operations = data['operations'];
+    operations.forEach(function (op, index) {
+        updateOperationTable(op);
+        updateStepTable(op);
+    });
+    updateAgentTable(data['agents']);
+    updateTacticTechniqueTable(data['ttps']);
+    nodesOrderedByTime = getNodesOrderedByTime();
+}
+
+function updateOperationTable(op){
+    $("#report-operations tbody").append($("<tr></tr>")
+        .append($("<td></td>").text(op.name))
+        .append($("<td></td>").text(op.state).css("text-transform", "capitalize"))
+        .append($("<td></td>").text(op.planner.name))
+        .append($("<td></td>").text(op.objective.name))
+        .append($("<td></td>").text(op.start))
+    );
+}
+
+function updateStepTable(op){
+    op.chain.forEach(function (step, index) {
+        $("#report-steps tbody").append($("<tr></tr>")
+            .append($("<td></td>").text(statusName(step.status)))
+            .append($("<td></td>").text(step.finish))
+            .append($("<td></td>").text(step.ability.name))
+            .append($("<td></td>").text(step.paw))
             .append($("<td></td>").text(op.name))
-            .append($("<td></td>").text(op.state).css("text-transform", "capitalize"))
-            .append($("<td></td>").text(op.planner.name))
-            .append($("<td></td>").text(op.objective.name))
-            .append($("<td></td>").text(op.start))
+            .append($("<td></td>")
+                .append($("<button></button>")
+                    .text("Show Command")
+                    .attr("data-encoded-cmd", step.command)
+                    .click(event => {
+                        findResults($(event.currentTarget), step.id)
+                    })
+                )
+            )
+        );
+    });
+}
+
+function updateTacticTechniqueTable(ttps) {
+
+    function generateList(objList, innerList) {
+        let ret = $("<ul></ul>");
+        if (!innerList) {
+            ret.css("padding", "0px");
+        }
+        objList.forEach(function(obj) {
+            ret.append($("<li></li>)").text(obj));
+        });
+        return ret;
+    }
+
+    function generateTechniqueList(techniques) {
+        let arr = [];
+        for (name in techniques) {
+            arr.push(techniques[name] + ": " + name);
+        }
+        return generateList(arr, false);
+    }
+
+    function generateStepList(steps) {
+        let ret = $("<ul></ul>").css("padding", "0px");
+        for (opName in steps) {
+            ret.append($("<li></li>").text(opName).css("color", "grey"));
+            ret.append(generateList(steps[opName], true));
+        }
+        return ret;
+    }
+    for (key in ttps) {
+        let tactic = ttps[key];
+        $("#report-tactics-techniques tbody").append($("<tr></tr>")
+            .append($("<td></td>").text(tactic.name).css("text-transform", "capitalize"))
+            .append($("<td></td>").append(generateTechniqueList(tactic.techniques)))
+            .append($("<td></td>").append(generateStepList(tactic.steps)))
         );
     }
+}
 
-    function updateStepTable(op){
-        op.chain.forEach(function (step, index) {
-            $("#report-steps tbody").append($("<tr></tr>")
-                .append($("<td></td>").text(statusName(step.status)))
-                .append($("<td></td>").text(step.finish))
-                .append($("<td></td>").text(step.ability.name))
-                .append($("<td></td>").text(step.paw))
-                .append($("<td></td>").text(op.name))
-                .append($("<td></td>")
-                    .append($("<button></button>")
-                        .text("Show Command")
-                        .attr("data-encoded-cmd", step.command)
-                        .click(event => {
-                            findResults($(event.currentTarget), step.id)
-                        })
-                    )
-                )
-            );
-        });
-    }
-
-    function updateTacticTechniqueTable(ttps) {
-
-        function generateList(objList, innerList) {
-            let ret = $("<ul></ul>");
-            if (!innerList) {
-                ret.css("padding", "0px");
-            }
-            objList.forEach(function(obj) {
-                ret.append($("<li></li>)").text(obj));
-            });
-            return ret;
-        }
-
-        function generateTechniqueList(techniques) {
-            let arr = [];
-            for (name in techniques) {
-                arr.push(techniques[name] + ": " + name);
-            }
-            return generateList(arr, false);
-        }
-
-        function generateStepList(steps) {
-            let ret = $("<ul></ul>").css("padding", "0px");
-            for (opName in steps) {
-                ret.append($("<li></li>").text(opName).css("color", "grey"));
-                ret.append(generateList(steps[opName], true));
-            }
-            return ret;
-        }
-        for (key in ttps) {
-            let tactic = ttps[key];
-            $("#report-tactics-techniques tbody").append($("<tr></tr>")
-                .append($("<td></td>").text(tactic.name).css("text-transform", "capitalize"))
-                .append($("<td></td>").append(generateTechniqueList(tactic.techniques)))
-                .append($("<td></td>").append(generateStepList(tactic.steps)))
-            );
-        }
-    }
-
-    function updateAgentTable(agents) {
-        agents.forEach(function(agent) {
-            $("#report-agents tbody").append($("<tr></tr>")
-                .append($("<td></td>").text(agent.paw))
-                .append($("<td></td>").text(agent.host))
-                .append($("<td></td>").text(agent.platform))
-                .append($("<td></td>").text(agent.username))
-                .append($("<td></td>").text(agent.privilege))
-                .append($("<td></td>").text(agent.exe_name))
-            );
-        });
-    }
-});
+function updateAgentTable(agents) {
+    agents.forEach(function(agent) {
+        $("#report-agents tbody").append($("<tr></tr>")
+            .append($("<td></td>").text(agent.paw))
+            .append($("<td></td>").text(agent.host))
+            .append($("<td></td>").text(agent.platform))
+            .append($("<td></td>").text(agent.username))
+            .append($("<td></td>").text(agent.privilege))
+            .append($("<td></td>").text(agent.exe_name))
+        );
+    });
+}
 
 function switchGraphView(btn) {
     $(".op-svg").hide();

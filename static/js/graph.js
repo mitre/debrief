@@ -93,12 +93,18 @@ function updateReportGraph(operations){
 
 function buildGraph(graphObj, operations) {
     let url = "/plugin/debrief/graph?type=" + graphObj.type + "&operations=" + operations.join();
-    d3.json(url, function (error, graph) {
-        if (error) throw error;
+    fetch(url).then(response => {
+        if (!response.ok) {
+            throw new Error(`${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    }).then(graph => {
         writeGraph(graph, graphObj);
         if (graphObj.type == "fact") {
             limitFactsDisplayed(operations);
         }
+    }).catch((error) => {
+        console.error('Fetch', error);
     });
 }
 

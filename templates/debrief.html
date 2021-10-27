@@ -17,15 +17,15 @@
 
         <div class="buttons">
             <button class="button is-primary is-small" x-bind:disabled="!selectedOperationIds.length" @click="showGraphSettingsModal = true">
-                <span class="icon"><i class="fas fa-cog"></i></span>
+                <span class="icon"><em class="fas fa-cog"></em></span>
                 <span>Graph Settings</span>
             </button>
             <button class="button is-primary is-small" x-bind:disabled="!selectedOperationIds.length" @click="showReportModal = true">
-                <span class="icon"><i class="fas fa-file-pdf"></i></span>
+                <span class="icon"><em class="fas fa-file-pdf"></em></span>
                 <span>Download PDF Report</span>
             </button>
             <button class="button is-primary is-small" x-bind:disabled="!selectedOperationIds.length" @click="downloadJSON()">
-                <span class="icon"><i class="fas fa-file-code"></i></span>
+                <span class="icon"><em class="fas fa-file-code"></em></span>
                 <span>Download Operation JSON</span>
             </button>
         </div>
@@ -79,22 +79,22 @@
                     <!-- PLAYBACK BUTTONS -->
                     <div class="buttons is-justify-content-center mt-2">
                         <button class="button is-small" @click="visualizeBeginning()">
-                            <span class="icon"><i class="fas fa-fast-backward"></i></span>
+                            <span class="icon"><em class="fas fa-fast-backward"></em></span>
                         </button>
                         <button class="button is-small"  @click="visualizeStepBack()">
-                            <span class="icon"><i class="fas fa-backward"></i></span>
+                            <span class="icon"><em class="fas fa-backward"></em></span>
                         </button>
                         <button class="button is-small" x-show="isGraphPlaying" @click="visualizePlayPause()">
-                            <span class="icon" ><i class="fas fa-pause"></i></span>
+                            <span class="icon" ><em class="fas fa-pause"></em></span>
                         </button>
                         <button class="button is-small" x-show="!isGraphPlaying" @click="visualizePlayPause()">
-                            <span class="icon" ><i class="fas fa-play"></i></span>
+                            <span class="icon" ><em class="fas fa-play"></em></span>
                         </button>
                         <button class="button is-small" @click="visualizeStepForward()">
-                            <span class="icon"><i class="fas fa-forward"></i></span>
+                            <span class="icon"><em class="fas fa-forward"></em></span>
                         </button>
                         <button class="button is-small"  @click="visualizeEnd()">
-                            <span class="icon"><i class="fas fa-fast-forward"></i></span>
+                            <span class="icon"><em class="fas fa-fast-forward"></em></span>
                         </button>
                     </div>
                 </div>
@@ -129,6 +129,7 @@
 
             <div x-show="activeTab === 'stats'">
                 <table class="table is-striped">
+                    <caption>Operation Statistics</caption>
                     <thead>
                         <th>Name</th>
                         <th>State</th>
@@ -152,6 +153,7 @@
 
             <div x-show="activeTab === 'agents'">
                 <table class="table is-striped">
+                    <caption>Operation Agents</caption>
                     <thead>
                         <th>Paw</th>
                         <th>Host</th>
@@ -177,6 +179,7 @@
 
             <div x-show="activeTab === 'steps'">
                 <table class="table is-striped">
+                    <caption>Operation Steps</caption>
                     <thead>
                         <th>Status</th>
                         <th>Time</th>
@@ -372,7 +375,7 @@
                                         <label class="file-label">
                                             <input class="file-input" x-ref="fileInput" x-on:change="uploadLogo($el)" type="file" name="userLogo" accept="image/*">
                                             <span class="file-cta">
-                                                <span class="file-icon"><i class="fas fa-upload"></i></span>
+                                                <span class="file-icon"><em class="fas fa-upload"></em></span>
                                                 <span class="file-label">Upload new logo…</span>
                                             </span>
                                         </label>
@@ -383,7 +386,7 @@
                         </div>
                         <div class="column is-6 m-0 is-flex is-align-items-center is-justify-content-center">
                             <template x-if="logoFilename">
-                                <img x-bind:src="`/logodebrief/header-logos/${logoFilename}`">
+                                <img alt="Logo to use for report header" x-bind:src="`/logodebrief/header-logos/${logoFilename}`">
                             </template>
                             <p x-show="!logoFilename">Select a logo to see preview</p>
                         </div>
@@ -392,12 +395,18 @@
                     <h5>Report Sections</h5>
                     <p class="help">Sections that are checked will be displayed in the report in order as shown in the list below.</p>
                     <table>
+                        <caption>Sections to display in report</caption>
+                        <thead>
+                            <th></th>
+                            <th></th>
+                            <th></th>
+                        </thead>
                         <tbody>
                             <template x-for="(section, index) of reportSections" :key="section.key">
                                 <tr>
                                     <td class="is-flex is-flex-direction-column is-align-items-center is-justify-content-center">
-                                        <span class="icon is-small" @click="moveReportSectionOrder(index, index - 1)"><i x-show="index" class="fas fa-sort-up"></i></span>
-                                        <span class="icon is-small" @click="moveReportSectionOrder(index, index + 1)"><i x-show="index < reportSections.length - 1" class="fas fa-sort-down"></i></span>
+                                        <span class="icon is-small" @click="moveReportSectionOrder(index, index - 1)"><em x-show="index" class="fas fa-sort-up"></em></span>
+                                        <span class="icon is-small" @click="moveReportSectionOrder(index, index + 1)"><em x-show="index < reportSections.length - 1" class="fas fa-sort-down"></em></span>
                                     </td>
                                     <td>
                                         <div class="is-flex is-align-items-center">

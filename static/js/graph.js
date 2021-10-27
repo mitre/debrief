@@ -1,98 +1,125 @@
-var factDisplayLimit = 15;
+const FACT_DISPLAY_LIMIT = 15;
 
-class Graph {
-    constructor(id, type, tooltip) {
-        this.id = id;
-        this.type = type;
-        this.svg = d3.select(id);
-        this.tooltip = tooltip;
-        this.simulation = createForceSimulation();
+const OP_GRAPH_WIDTH = 600;
+const OP_GRAPH_HEIGHT = 400;
+const FACT_GRAPH_WIDTH = 800;
+const FACT_GRAPH_HEIGHT = 400;
+
+const LINK_LENGTHS = {
+    agent_contact: 100, 
+    next_link: 50, 
+    has_agent: 50, 
+    relationship: 100
+};
+const NODE_CHARGES = {
+    c2: -200, 
+    operation: -100, 
+    agent: -200, 
+    link: -150, 
+    fact: -50, 
+    tactic: -200, 
+    technique_name: -200
+};
+const GRAPH_IMAGE_URLS = {
+    server: 'debrief/img/cloud.svg',
+    operation: 'debrief/img/operation.svg',
+    link: 'debrief/img/link.svg',
+    fact: 'debrief/img/star.svg',
+    darwin: 'debrief/img/darwin.svg',
+    windows: 'debrief/img/windows.svg',
+    linux: 'debrief/img/linux.svg',
+    tactic: 'debrief/img/tactic.svg',
+    technique_name: 'debrief/img/technique.svg',
+    collection: 'debrief/img/collection.svg',
+    'credential-access': 'debrief/img/credaccess.svg',
+    'defense-evasion': 'debrief/img/defevasion.svg',
+    discovery: 'debrief/img/discovery.svg',
+    execution: 'debrief/img/execution.svg',
+    exfiltration: 'debrief/img/exfil.svg',
+    impact: 'debrief/img/impact.svg',
+    'lateral-movement': 'debrief/img/latmove.svg',
+    persistence: 'debrief/img/persistence.svg',
+    'privilege-escalation': 'debrief/img/privesc.svg',
+    'initial-access': 'debrief/img/access.svg',
+    'command-and-control': 'debrief/img/commandcontrol.svg',
+    unknown: 'debrief/img/unknown.svg'
+};
+
+function init() {
+    getImages();
+}
+
+function getImages() {
+    for (let key in GRAPH_IMAGE_URLS) {
+        fetch(GRAPH_IMAGE_URLS[key]).then((data) => {
+            return data.text();
+        }).then((svg) => {
+            let parser = new DOMParser();
+	        let doc = parser.parseFromString(svg, 'text/html');
+            let child = doc.body.firstChild;
+            child.id = key + '-img';
+            child.classList.add('svg-icon');
+            document.getElementById('images').append(child);
+        });
     }
 }
 
-var width = $("#debrief-graph").width(),
-    height = $("#debrief-graph").height()
-
-$('svg').width('100%')
-$('svg').height('100%')
-
-var link_lengths = {'agent_contact': 100, 'next_link': 50, 'has_agent': 50, 'relationship': 100};
-var node_charges = {'c2': -200, 'operation': -100, 'agent': -200, 'link': -150, 'fact': -50, 'tactic': -200, 'technique_name': -200}
-
-var graphSvg = new Graph("#debrief-graph-svg", "graph", d3.select("#op-tooltip")),
-    attackPathSvg = new Graph("#debrief-attackpath-svg", "attackpath", d3.select("#op-tooltip")),
-    tacticSvg = new Graph("#debrief-tactic-svg", "tactic", d3.select('#op-tooltip')),
-    techniqueSvg = new Graph("#debrief-technique-svg", "technique", d3.select('#op-tooltip')),
-    factSvg = new Graph("#debrief-fact-svg", "fact", d3.select('#fact-tooltip'))
-
-var graphs = [graphSvg, attackPathSvg, factSvg, tacticSvg, techniqueSvg];
-
-var imgs = {
-    "server": "debrief/img/cloud.svg",
-    "operation": "debrief/img/operation.svg",
-    "link": "debrief/img/link.svg",
-    "fact": "debrief/img/star.svg",
-    "darwin": "debrief/img/darwin.svg",
-    "windows": "debrief/img/windows.svg",
-    "linux": "debrief/img/linux.svg",
-    "tactic": "debrief/img/tactic.svg",
-    "technique_name": "debrief/img/technique.svg",
-    "collection": "debrief/img/collection.svg",
-    "credential-access": "debrief/img/credaccess.svg",
-    "defense-evasion": "debrief/img/defevasion.svg",
-    "discovery": "debrief/img/discovery.svg",
-    "execution": "debrief/img/execution.svg",
-    "exfiltration": "debrief/img/exfil.svg",
-    "impact": "debrief/img/impact.svg",
-    "lateral-movement": "debrief/img/latmove.svg",
-    "persistence": "debrief/img/persistence.svg",
-    "privilege-escalation": "debrief/img/privesc.svg",
-    "initial-access": "debrief/img/access.svg",
-    "command-and-control": "debrief/img/commandcontrol.svg",
-    "unknown" : "debrief/img/unknown.svg"
-    };
-
-for (var key in imgs) {
-    getImage(key, imgs[key])
+function statusName(status) {
+    if (status === 0) {
+        return 'success';
+    } else if (status === -2) {
+        return 'discarded';
+    } else if (status === 1) {
+        return 'failure';
+    } else if (status === 124) {
+        return 'timeout';
+    } else if (status === -3) { // && chain.collect) {
+        return 'collected';
+    } else if (status === -4) {
+        return 'untrusted';
+    } else if (status === -5) {
+        return 'visibility';
+    }
+    return 'queued';
 }
 
-function getImage(i, value) {
-    $.get(value, function(data) {
-        data.documentElement.id = i + "-img"
-        data.documentElement.classList.add("svg-icon")
-        $('#images').append(data.documentElement);
-    })
-}
-
-var colors = d3.scaleOrdinal(d3.schemeCategory10);
-
-function createForceSimulation() {
+function createForceSimulation(type) {
+    let width = (type === 'operation') ? OP_GRAPH_WIDTH : FACT_GRAPH_WIDTH;
+    let height = (type === 'operation') ? OP_GRAPH_HEIGHT : FACT_GRAPH_HEIGHT;
     return d3.forceSimulation()
-            .force("link", d3.forceLink().id(function(d) { return d.id; }))
+            .force('link', d3.forceLink().id((d) => d.id ))
             .force('charge', d3.forceManyBody()
-                .strength(function(d) { return node_charges.hasOwnProperty(d.type) ? node_charges[d.type] : -200 })
+                .strength((d) => NODE_CHARGES[d.type] || -200)
                 .theta(0.8)
                 .distanceMax(100))
-            .force("center", d3.forceCenter(width / 2, height / 2))
-            .force('collision', d3.forceCollide().radius(16));
+            .force('center', d3.forceCenter((width - 200) / 2, height / 2))
+            .force('collision', d3.forceCollide().radius(40));
 }
 
-function updateReportGraph(operations){
-    $('.debrief-svg').innerHTML = "";
-    d3.selectAll(".debrief-svg > *").remove();
+function updateReportGraph(operations) {
+    Array.from(document.getElementsByClassName('debrief-svg')).forEach((svg) => svg.innerHTML = '');
+    d3.selectAll('.debrief-svg > *').remove();
+
+    this.graphs = [
+        { id: '#debrief-graph-svg', type: 'graph', tooltip: d3.select('#op-tooltip'), simulation: createForceSimulation('operation'), svg: d3.select('#debrief-graph-svg') },
+        { id: '#debrief-attackpath-svg', type: 'attackpath', tooltip: d3.select('#op-tooltip'), simulation: this.createForceSimulation('operation'), svg: d3.select('#debrief-attackpath-svg') },
+        { id: '#debrief-tactic-svg', type: 'tactic', tooltip: d3.select('#op-tooltip'), simulation: this.createForceSimulation('operation'), svg: d3.select('#debrief-tactic-svg') },
+        { id: '#debrief-technique-svg', type: 'technique', tooltip: d3.select('#op-tooltip'), simulation: this.createForceSimulation('operation'), svg: d3.select('#debrief-technique-svg') },
+        { id: '#debrief-fact-svg', type: 'fact', tooltip: d3.select('#fact-tooltip'), simulation: this.createForceSimulation('fact'), svg: d3.select('#debrief-fact-svg') }
+    ]
 
     graphs.forEach(function(graphObj) {
         buildGraph(graphObj, operations)
         graphObj.simulation.alpha(1).restart();
-        graphObj.svg.call(d3.zoom().scaleExtent([0.5, 5]).on("zoom", function() {
-            d3.select(graphObj.id + " .graphContainer")
-                .attr("transform", "translate(" + d3.event.transform.x + "," + d3.event.transform.y + ")scale(" + d3.event.transform.k + ")");
+        graphObj.svg.call(d3.zoom().scaleExtent([0.5, 5]).on('zoom', () => {
+            d3.select(graphObj.id + ' .graphContainer')
+                .attr('transform', 'translate(' + d3.event.transform.x + ',' + d3.event.transform.y + ')scale(' + d3.event.transform.k + ')');
         }));
     });
 }
 
 function buildGraph(graphObj, operations) {
-    let url = "/plugin/debrief/graph?type=" + graphObj.type + "&operations=" + operations.join();
+    let url = '/plugin/debrief/graph?type=' + graphObj.type + '&operations=' + operations.join();
     fetch(url).then(response => {
         if (!response.ok) {
             throw new Error(`${response.status}: ${response.statusText}`);
@@ -100,7 +127,7 @@ function buildGraph(graphObj, operations) {
         return response.json();
     }).then(graph => {
         writeGraph(graph, graphObj);
-        if (graphObj.type == "fact") {
+        if (graphObj.type === 'fact') {
             limitFactsDisplayed(operations);
         }
     }).catch((error) => {
@@ -109,260 +136,250 @@ function buildGraph(graphObj, operations) {
 }
 
 function writeGraph(graph, graphObj) {
-
+    let width = (graphObj.type !== 'fact') ? OP_GRAPH_WIDTH : FACT_GRAPH_WIDTH;
+    let height = (graphObj.type !== 'fact') ? OP_GRAPH_HEIGHT : FACT_GRAPH_HEIGHT;
     graphObj.svg.append('defs').append('marker')
-        .attrs({'id':'arrowhead'+graphObj.type,
-            'viewBox':'-0 -5 10 10',
-            'refX':30,
-            'refY':0,
-            'orient':'auto',
-            'markerWidth':8,
-            'markerHeight':8,
-            'xoverflow':'visible'})
+        .attr('id', `arrowhead${graphObj.type}`)
+        .attr('viewBox', '-0 -5 10 10')
+        .attr('refX', 30)
+        .attr('refY', 0)
+        .attr('orient', 'auto')
+        .attr('markerWidth', 8)
+        .attr('markerHeight', 8)
+        .attr('xoverflow', 'visible')
         .append('svg:path')
         .attr('d', 'M 0,-5 L 10 ,0 L 0,5')
         .attr('fill', '#999')
         .style('stroke','none');
 
-    var container = graphObj.svg.append("g")
-                        .attr("class", "container")
-                        .attr("width", "100%")
-                        .attr("height", "100%")
+    let container = graphObj.svg.append('g')
+                        .attr('class', 'container')
+                        .attr('width', '100%')
+                        .attr('height', '100%')
 
-    var graphContainer = container.append("g")
-                        .attr("class", "graphContainer")
+    let graphContainer = container.append('g')
+                        .attr('class', 'graphContainer')
 
-    var arrows = graphContainer.append("g")
-                .style("stroke", "#aaa")
-                .style("fill", "#aaa")
-                .selectAll("polyline")
+    let arrows = graphContainer.append('g')
+                .style('stroke', '#aaa')
+                .style('fill', '#aaa')
+                .selectAll('polyline')
                 .data(graph.links)
-                .enter().append("polyline")
-                .attr("data-source", function(d) { return d.source })
-                .attr("data-target", function(d) { return d.target })
-                .attr("class", function(d) { return d.type;})
-                .attr("stroke-linecap", "round");
+                .enter().append('polyline')
+                .attr('data-source', (d) => d.source)
+                .attr('data-target', (d) => d.target)
+                .attr('class', (d) => d.type)
+                .attr('stroke-linecap', 'round');
 
     container.selectAll('g.nodes').remove();
-    var nodes = graphContainer.append("g")
-        .attr("class", "nodes")
-        .selectAll("g")
+    let nodes = graphContainer.append('g')
+        .attr('class', 'nodes')
+        .selectAll('g')
         .data(graph.nodes)
-        .enter().append("g")
-            .attr("data-op", function(d) { return d.operation })
-            .attr("id", function(d) { return "node-" + d.id })
-            .attr("class", function(d) { return "node " + d.type; })
-            .attr("data-timestamp", function(d) { return d.timestamp; })
+        .enter().append('g')
+            .attr('data-op', (d) => d.operation)
+            .attr('id', (d) => `node-${d.id}`)
+            .attr('class', (d) => `node ${d.type}`)
+            .attr('data-timestamp', (d) => d.timestamp)
             .call(d3.drag()
-                .on("start", dragstarted)
-                .on("drag", dragged)
-                .on("end", dragended));
+                .on('start', dragstarted)
+                .on('drag', dragged)
+                .on('end', dragended));
 
-    nodes.append("circle")
-        .attr("r", 16)
-        .style("fill", function(d) {
-            if (d.status || d.status == 0) {
-                return statusColor(d.status);
-            }
-            else {
-                return "#efefef";
-            }
-        })
-        .style("stroke", "#424242")
-        .style("stroke-width", "1px")
+    nodes.append('circle')
+        .attr('r', 16)
+        .style('fill', (d) => (d.status || d.status == 0) ? statusColor(d.status) : '#efefef')
+        .style('stroke', '#424242')
+        .style('stroke-width', '1px')
 
-    nodes.append("text")
-        .attr("class", "label")
-        .attr("x", "18")
-        .attr("y", "8")
-        .style("font-size", "12px").style("fill", "white")
-        .text(function(d) {
+    nodes.append('text')
+        .attr('class', 'label')
+        .attr('x', '18')
+        .attr('y', '8')
+        .style('font-size', '12px').style('fill', 'white')
+        .text((d) => {
             if (d.type != 'link') {
                 return d.name;
             }
         });
 
-    nodes.append("g")
-        .attr("class", "icons")
-        .html(function(d) {
+    nodes.append('g')
+        .attr('class', 'icons')
+        .html((d) => {
             let c = updateIconAttr(cloneImgIcon(d), d.status);
-            let l = "";
-            if (d.type == "link") {
-                l = $("#link-img")[0].cloneNode(true);
+            let l = '';
+            if (d.type == 'link') {
+                l = document.getElementById('link-img').cloneNode(true);
                 l = updateIconAttr(l, d.status);
-                $(c).addClass("hidden");
-                $(c).hide();
+                c.classList.add('hidden');
+                c.style.display = 'none';
             }
             return c.outerHTML + l.outerHTML;
         })
 
-    var legend = container.append("g")
-	    .attr("class", "legend")
+    let legend = container.append('g')
+	    .attr('class', 'legend')
 
-	legend.append("rect")
-	    .attr("id", "legend-rect-" + graphObj.type)
-	    .attr("x", width - 185)
-	    .attr("y", 20)
-	    .attr("rx", 6)
-	    .attr("width", 183)
-	    .attr("height", 50)
-	    .style("fill", "rgba(170, 170, 170, 0.5)")
+	legend.append('rect')
+	    .attr('id', 'legend-rect-' + graphObj.type)
+	    .attr('x', width - 193)
+	    .attr('y', 10)
+	    .attr('rx', 6)
+	    .attr('width', 183)
+	    .attr('height', 50)
+	    .style('fill', 'rgba(170, 170, 170, 0.5)')
 
-	legend.append("text")
-	    .attr("x", width - 120)
-	    .attr("y", 45)
-	    .style("font-weight", "bold")
-	    .style("fill", "white")
-	    .text("Legend")
+	legend.append('text')
+	    .attr('x', width - 130)
+	    .attr('y', 35)
+	    .style('font-weight', 'bold')
+	    .style('fill', 'white')
+	    .text('Legend')
 
-	var entry = legend.selectAll("g")
+	let entry = legend.selectAll('g')
 	    .data(graph.nodes.filter(isUniqueImg).concat(addLinkImg(graphObj.type)))
 	    .enter()
-	    .append("g")
+	    .append('g')
 
     let lineHeight = 30;
     let upperPadding = 60;
 
-    entry.append("svg")
-        .attr("x", width - 170)
-        .attr("y", function(d, i){
-            $("#legend-rect-" + graphObj.type).attr("height", parseInt($("#legend-rect-" + graphObj.type).attr("height")) + lineHeight);
+    entry.append('svg')
+        .attr('x', width - 180)
+        .attr('y', (d, i) => {
+            document.getElementById(`legend-rect-${graphObj.type}`).setAttribute('height', parseInt(document.getElementById(`legend-rect-${graphObj.type}`).getAttribute('height')) + lineHeight);
             let yVal = i * lineHeight + upperPadding;
-            if (yVal > height - 90) {
-                $("#debrief-graph").height(height + lineHeight);
-                height = $("#debrief-graph").height();
+            if (yVal > height - 80) {
+                document.getElementById('debrief-graph').setAttribute('height', height + lineHeight);
+                height = document.getElementById('debrief-graph').getAttribute('height');
             }
-            return yVal})
-        .attr("width", 20)
-        .attr("height", 20)
-        .html(function(d) {
+            return yVal;
+        })
+        .attr('width', 20)
+        .attr('height', 20)
+        .html(function (d) {
             let clone = cloneImgIcon(d);
-            this.id = clone.id + "-legend";
-            this.setAttribute("viewBox", clone.getAttribute("viewBox"));
-            this.setAttribute("preserveAspectRatio", "xMidYMid meet");
-            this.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-            this.setAttribute("version", "1.0");
+            this.id = clone.id + '-legend';
+            this.setAttribute('viewBox', clone.getAttribute('viewBox'));
+            this.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+            this.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+            this.setAttribute('version', '1.0');
             return clone.innerHTML;
         })
 
-    entry.append("text")
-        .attr("x", width - 135)
-        .attr("y", function(d, i){ return i *  lineHeight + upperPadding + lineHeight/2;})
-        .style("fill", "white")
-        .style("font-size", 13)
-        .style("text-transform", "capitalize")
-        .text(function(d) {
-            return d.img.indexOf(" ") == -1 ? d.img : d.type;
-        });
+    entry.append('text')
+        .attr('x', width - 135)
+        .attr('y', (d, i) => i *  lineHeight + upperPadding + lineHeight / 2)
+        .style('fill', 'white')
+        .style('font-size', 13)
+        .style('text-transform', 'capitalize')
+        .text((d) => d.img.indexOf(' ') == -1 ? d.img : d.type);
 
-    if (graphObj.type == "fact") {
-        let legendHeight = 50 + parseInt($("#legend-rect-" + graphObj.type).attr("height"));
+    if (graphObj.type === 'fact') {
+        let legendHeight = 50 + parseInt(document.getElementById(`legend-rect-${graphObj.type}`).getAttribute('height'));
 
-        var factCountTable  = legend.append("g")
-            .attr("class", "fact-count")
+        let factCountTable  = legend.append('g')
+            .attr('class', 'fact-count')
 
-        var factEntry = factCountTable.selectAll("g")
-            .data(graph.nodes.filter(x => x.type == "fact").filter(isUniqueFactTrait))
+        let factEntry = factCountTable.selectAll('g')
+            .data(graph.nodes.filter(x => x.type == 'fact').filter(isUniqueFactTrait))
             .enter()
-            .append("g")
+            .append('g')
 
-        factEntry.append("text")
-            .attr("x", width - 170)
-            .attr("y", function(d, i) { return legendHeight + i * 20;})
-            .style("fill", "white")
-            .style("font-size", 13)
-            .text(function(d) {
-                return graph.nodes.filter(x => x.name == d.name).length;
-            })
+        factEntry.append('text')
+            .attr('x', width - 190)
+            .attr('y', (d, i) => legendHeight + i * 20)
+            .style('fill', 'white')
+            .style('font-size', 13)
+            .text((d) => graph.nodes.filter(x => x.name == d.name).length)
 
-        factEntry.append("text")
-            .attr("x", width - 135)
-            .attr("y", function(d, i) { return legendHeight + i * 20; })
-            .style("fill", "white")
-            .style("font-size", 13)
-            .style("font-weight", "normal")
-            .text(function(d) { return d.name; })
+        factEntry.append('text')
+            .attr('x', width - 160)
+            .attr('y', (d, i) => legendHeight + i * 20)
+            .style('fill', 'white')
+            .style('font-size', 13)
+            .style('font-weight', 'normal')
+            .text((d) => d.name)
     }
 
     let simulation = graphObj.simulation;
 
     simulation
         .nodes(graph.nodes)
-        .on("tick", ticked)
+        .on('tick', ticked)
         .force('link')
         .links(graph.links)
-        .distance(function(d) {return link_lengths[d.type];});
+        .distance((d) => LINK_LENGTHS[d.type]);
 
     function ticked() {
-
         arrows
-            .attr("points", function(d) { return getPolylineCoords(d.source.x, d.source.y, d.target.x, d.target.y) })
-            .attr("transform", function(d) { return rotateArrow(d.source.x, d.source.y, d.target.x, d.target.y) });
+            .attr('points', (d) => getPolylineCoords(d.source.x, d.source.y, d.target.x, d.target.y))
+            .attr('transform', (d) => rotateArrow(d.source.x, d.source.y, d.target.x, d.target.y));
 
         nodes
-            .attr('transform', function(d) {return 'translate(' + d.x + ',' + d.y + ')';})
-            .on("mouseover", function(d) {
+            .attr('transform', (d) => 'translate(' + d.x + ',' + d.y + ')')
+            .on('mouseover', (d, i) => {
                 if (graphObj.tooltip) {
                     graphObj.tooltip.transition()
                         .duration(200)
-                        .style("opacity", .9);
+                        .style('opacity', .9);
                     graphObj.tooltip.html(generateTooltipHTML(d))
-                        .style("left", d.x+50 + "px")
-                        .style("top", d.y + "px");
+                        .style('left', `${d.x + 10}px`)
+                        .style('top', `${d.y + 10}px`);
                 }
             })
-            .on("mouseout", function(d) {
+            .on('mouseout', (d) => {
                 if (graphObj.tooltip) {
                     graphObj.tooltip.transition()
                         .duration(500)
-                        .style("opacity", 0);
+                        .style('opacity', 0);
                 }
             });
     }
 
     function dragstarted(d) {
-      if (!d3.event.active) simulation.alphaTarget(0.3).restart()
-      d.fx = d.x
-      d.fy = d.y
+        if (!d3.event.active) simulation.alphaTarget(0.3).restart()
+        d.fx = d.x
+        d.fy = d.y
     }
 
     function dragged(d) {
-      d.fx = d3.event.x
-      d.fy = d3.event.y
+        d.fx = d3.event.x
+        d.fy = d3.event.y
     }
 
     function dragended(d) {
-      d.fx = d3.event.x
-      d.fy = d3.event.y
-      if (!d3.event.active) simulation.alphaTarget(0);
+        d.fx = d3.event.x
+        d.fy = d3.event.y
+        if (!d3.event.active) simulation.alphaTarget(0);
     }
 
     function generateTooltipHTML(d) {
-        let ret = "";
-        switch (d["type"]) {
-            case "operation":
-                ret += "name: " + d["name"] + "<br/>";
-                ret += "op_id: " + d["id"] + "<br/>";
-                ret += "created: " + d["timestamp"] + "<br/>";
+        let ret = '';
+        switch (d['type']) {
+            case 'operation':
+                ret += 'name: ' + d['name'] + '<br/>';
+                ret += 'op_id: ' + d['id'] + '<br/>';
+                ret += 'created: ' + d['timestamp'] + '<br/>';
                 break;
-            case "tactic":
-            case "technique_name":
-                let p = d["attrs"][d["type"]]
-                ret += d["type"] + ": " + p + "<br/>";
-                ret += "created: " + d["timestamp"] + "<br/>";
-                for (let attr in d["attrs"]) {
-                    if (attr != d["type"]) {
-                        ret += attr + ": " + d["attrs"][attr] + "<br/>";
+            case 'tactic':
+            case 'technique_name':
+                let p = d['attrs'][d['type']]
+                ret += d['type'] + ': ' + p + '<br/>';
+                ret += 'created: ' + d['timestamp'] + '<br/>';
+                for (let attr in d['attrs']) {
+                    if (attr != d['type']) {
+                        ret += attr + ': ' + d['attrs'][attr] + '<br/>';
                     }
                 }
                 break;
             default:
-                ret += d["timestamp"] ? "created: " + d["timestamp"] + "<br/>" : "";
-                for (let attr in d["attrs"]) {
-                    if (d["attrs"][attr] != null) {
-                        ret += attr + ": ";
-                        ret += attr == "status" ? statusName(d["attrs"][attr]) : d["attrs"][attr];
-                        ret += "<br/>";
+                ret += d['timestamp'] ? 'created: ' + d['timestamp'] + '<br/>' : '';
+                for (let attr in d['attrs']) {
+                    if (d['attrs'][attr] != null) {
+                        ret += attr + ': ';
+                        ret += attr == 'status' ? statusName(d['attrs'][attr]) : d['attrs'][attr];
+                        ret += '<br/>';
                     }
                 }
         }
@@ -390,27 +407,25 @@ function writeGraph(graph, graphObj) {
 function cloneImgIcon(d) {
     let c;
     try {
-        if (d.img.indexOf(" ") == -1 && $("#" + d.img + "-img").length > 0) {
-            c = $("#" + CSS.escape(d.img) + "-img")[0].cloneNode(true);
+        if (d.img.indexOf(' ') === -1 && document.getElementById(`${d.img}-img`)) {
+            c = document.getElementById(`${CSS.escape(d.img)}-img`).cloneNode(true);
+        } else {
+            c = document.getElementById(`${CSS.escape(d.type)}-img`).cloneNode(true);
         }
-        else {
-            c = $("#" + CSS.escape(d.type) + "-img")[0].cloneNode(true);
-        }
-    }
-    catch {
-        c = $("#unknown-img")[0].cloneNode(true);
+    } catch {
+        c = document.getElementById('#unknown-img').cloneNode(true);
     }
     return c;
 }
 
 function updateIconAttr(svg, status) {
-    $(svg).removeAttr("id");
-    $(svg).attr("width", 32);
-    $(svg).attr("height", 16);
-    $(svg).attr("x", "-16");
-    $(svg).attr("y", "-8");
+    svg.setAttribute('id', null);
+    svg.setAttribute('width', 32);
+    svg.setAttribute('height', 16);
+    svg.setAttribute('x', '-16');
+    svg.setAttribute('y', '-8');
     if (status && status == -2) {
-        $($(svg).children()[0]).attr("fill", "white");
+        svg.children[0].setAttribute('fill', 'white');
     }
     return svg;
 }
@@ -435,33 +450,37 @@ function statusColor(status) {
 }
 
 function limitFactsDisplayed(operations) {
-    let hasOverFactLimit = operations.some(function(op) { return $("#debrief-fact-svg g.fact[data-op='" + op + "']").slice(factDisplayLimit).length > 0 })
+    let hasOverFactLimit = operations.some((op) => Array.from(document.querySelectorAll(`#debrief-fact-svg g.fact[data-op="${op}"]`)).slice(FACT_DISPLAY_LIMIT).length > 0)
     if (hasOverFactLimit) {
-        $("#fact-limit-msg p").html("More than " + factDisplayLimit + " facts found in the operation(s) selected. For readability, only the first " + factDisplayLimit + " facts of each operation are displayed.");
-        $("#fact-limit-msg").show();
-        operations.forEach(function(opId) {
-            let nodesToRemove = $("#debrief-fact-svg g.fact[data-op='" + opId + "']").splice(factDisplayLimit);
-            nodesToRemove.forEach(function(node) {
-                let nodeId = node.id.split("node-")[1];
-                $("#debrief-fact-svg polyline.relationship[data-source='" + nodeId + "']").remove();
-                $("#debrief-fact-svg polyline.relationship[data-target='" + nodeId + "']").remove();
+        document.getElementById('fact-limit-msg').innerHTML = `More than ${FACT_DISPLAY_LIMIT} facts found in the operation(s) selected. For readability, only the first ${FACT_DISPLAY_LIMIT} facts of each operation are displayed.`;
+        document.getElementById('fact-limit').style.display = '';
+        operations.forEach((opId) => {
+            let nodesToRemove = Array.from(document.querySelectorAll(`#debrief-fact-svg g.fact[data-op="${opId}"]`)).splice(FACT_DISPLAY_LIMIT);
+            nodesToRemove.forEach((node) => {
+                let nodeId = node.id.split('node-')[1];
+                Array.from(document.querySelectorAll(`#debrief-fact-svg polyline.relationship[data-source="${nodeId}"]`)).forEach((el) => el.remove());
+                Array.from(document.querySelectorAll(`#debrief-fact-svg polyline.relationship[data-target="${nodeId}"]`)).forEach((el) => el.remove());
                 node.remove();
             })
         })
+    } else {
+        document.getElementById('fact-limit').style.display = 'none';
     }
 }
 
 function isUniqueImg(value, index, self) {
-    let arr = Array.from(self, x => x.img.indexOf(" ") == -1 ? x.img : x.type);
-    let v = value.img.indexOf(" ") == -1 ? value.img : value.type;
+    let arr = Array.from(self, x => x.img.indexOf(' ') === -1 ? x.img : x.type);
+    let v = value.img.indexOf(' ') === -1 ? value.img : value.type;
     return arr.indexOf(v) === index;
 }
 
 function addLinkImg(graphType) {
-    return graphType == "graph" ? [{"name": "link-image", "img": "link"}] : [];
+    return graphType == 'graph' ? [{'name': 'link-image', 'img': 'link'}] : [];
 }
 
 function isUniqueFactTrait(value, index, self) {
     let arr = Array.from(self, x => x.name);
-    return arr.indexOf(value.name) == index;
+    return arr.indexOf(value.name) === index;
 }
+
+init();

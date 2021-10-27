@@ -1,122 +1,134 @@
 <link rel="stylesheet" href="/debrief/css/debrief.css">
+<script src="/debrief/js/d3.v4.min.js"></script>
+<script src="/debrief/js/d3-zoom.v1.min.js"></script>
+<script src="/debrief/js/graph.js"></script>
 
-<div id="debrief-section" class="section-profile">
-    <div class="row">
-        <div class="column section-border" style="flex:20%;text-align:left;padding:15px;">
-            <h1 style="font-size:70px;margin-top:-20px;">Debrief</h1>
-            <h2 style="margin-top:-50px">Campaign Analytics</h2>
-            <p>Select from the operations below to view analytics. CTRL/CMD/SHIFT + click to select multiple operations.</p>
-            <div style="text-align: center">
-                <select id="debrief-operation-list" size="5" data-placeholder="No operations to show." multiple style="overflow-y:auto">
-                  {% for op in operations %}
-                        {%  if op.start|length%}
-                            <option class="operationOption" id="{{ op.id|e }}-{{ op.name|e }}" value="{{ op.id|e }}">{{ op.name|e }}</option>
-                        {% endif %}
-                  {% endfor %}
-                </select>
+<div x-data="alpineDebrief()" x-init="initPage()">
+    <div>
+        <h2>Debrief</h2>
+        <p>
+            <strong>Campaign Analytics.</strong> Debrief gathers overall campaign information and analytics for a selected 
+            set of operations. It provides a centralized view of operation metadata, graphical displays of 
+            the operations, the techniques and tactics used, and the facts discovered by the operations.
+        </p>
+    </div>
+    <hr>
+    <div>
+
+        <div class="buttons">
+            <button class="button is-primary is-small" x-bind:disabled="!selectedOperationIds.length" @click="showGraphSettingsModal = true">
+                <span class="icon"><i class="fas fa-cog"></i></span>
+                <span>Graph Settings</span>
+            </button>
+            <button class="button is-primary is-small" x-bind:disabled="!selectedOperationIds.length" @click="showReportModal = true">
+                <span class="icon"><i class="fas fa-file-pdf"></i></span>
+                <span>Download PDF Report</span>
+            </button>
+            <button class="button is-primary is-small" x-bind:disabled="!selectedOperationIds.length" @click="downloadJSON()">
+                <span class="icon"><i class="fas fa-file-code"></i></span>
+                <span>Download Operation JSON</span>
+            </button>
+        </div>
+
+        <div class="columns mb-6">
+
+            <!-- SELECT OPERATION -->
+
+            <div class="column is-4">
+                <form>
+                    <div class="field">
+                        <label class="label">Select one or more operations</label>
+                        <div class="control is-expanded">
+                            <div class="select is-small is-fullwidth is-multiple">
+                                <select x-on:change="loadOperation()" x-model="selectedOperationIds" size="10" multiple>
+                                    <template x-for="operation of operations" :key="operation.id">
+                                        <option x-bind:value="operation.id" x-text="operation.name" x-on:mousedown.prevent="operationSelectMousedown($el)"></option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+                        <p class="help is-underlined" data-tooltip="Only operations with an agent listed in the agents page (alive or dead) will show in this list.">Can't find an operation?</p>
+                    </div>
+                </form>
             </div>
-            <div class="sidebar-cutout sidebar-header debrief-sidebar-header">
-                <h4 style="margin-bottom:0px">GRAPH OPTIONS</h4>
-            </div>
-            <div class="sidebar-cutout debrief-sidebar" style="display: none">
-                <h5>Display Options</h5>
-                <input type="checkbox" id="show-labels" class="debrief-display-opt" value="labels" checked onclick="toggleLabels(this)">
-                <label for="show-labels">Show labels</label><br>
-                <input type="checkbox" id="show-images" class="debrief-display-opt" value="images" checked onclick="toggleIcons(this)">
-                <label for="show-images">Show icons</label>
-                <h5>Data Options</h5>
-                <input type="checkbox" id="show-steps" class="debrief-display-opt" value="steps" checked onclick="toggleSteps(this)">
-                <label for="show-steps">Show operation steps</label><br>
-                <input type="checkbox" id="show-tactic-icons" class="debrief-display-opt" value="tactic-icons" onclick="toggleTacticIcons(this)">
-                <label for="show-tactic-icons">Show steps as tactics</label>
-            </div>
-            <div class="sidebar-cutout sidebar-header debrief-sidebar-header">
-                <h4 style="margin-bottom:0px">REPORT OPTIONS</h4>
-            </div>
-            <div class="sidebar-cutout debrief-sidebar" style="display: none">
-                <h5 style="margin: 0 0 5 0">Manage Report Sections</h5>
-                <div class="debrief-section-ordering" style="margin: 5px 5px 15px 5px;">
-                    <select id="selected-report-section-ordering-list" size="5" style="overflow-y:auto" data-placeholder="No sections to show.">
-                        <!-- Will be populated by javascript -->
-                    </select>
-                    <div class="section-ordering-button-container" style="width: 100%; overflow:hidden;">
-                        <button id="report-section-move-button-up" onclick="moveReportSection('up');displayReportSections();"
-                            class="button-success atomic-button debrief-report-section-move-button" type="button"
-                            style="align-items: center; justify-content: center; display: flex; padding: 8px; width:30%; float:left;">
-                            <div class="debrief-report-section-move-arrow" style="border-left: 1px solid rgba(0,0,0,1);
-                                 border-top: 1px solid rgba(0,0,0,1); transform: translateY(25%) rotate(45deg);"></div>
+
+            <!-- CAMPAIGN GRAPH -->
+
+            <div class="column is-8 is-flex is-justify-content-center m-0">
+                <div id="images" style="display: none"></div>
+                <div id="copy"></div>
+                <div id="debrief-graph" class="svg-container" x-show="selectedOperationIds.length">
+                    <div class="d3-tooltip" id="op-tooltip" style="opacity: 0"></div>
+                    <!-- GRAPH CONTROLS -->
+                    <div class="is-flex graph-controls m-2">
+                        <div class="select is-small mr-2">
+                            <select x-model="selectedGraphType">
+                                <option value="graph">Default</option>
+                                <option value="attackpath">Attack Path</option>
+                                <option value="tactic">Tactic</option>
+                                <option value="technique">Technique</option>
+                            </select>
+                        </div>
+                        <button class="button is-small" @click="toggleLegend()" x-text="`${showGraphLegend ? 'Hide' : 'Show'} Legend`">Show Legend</button>
+                    </div>
+                    <!-- GRAPHS -->
+                    <svg id="debrief-graph-svg" x-ref="graph" class="op-svg debrief-svg" x-show="selectedGraphType === 'graph'"></svg>
+                    <svg id="debrief-attackpath-svg" x-ref="attackpath" class="op-svg debrief-svg" x-show="selectedGraphType === 'attackpath'"></svg>
+                    <svg id="debrief-tactic-svg" x-ref="tactic" class="op-svg debrief-svg" x-show="selectedGraphType === 'tactic'"></svg>
+                    <svg id="debrief-technique-svg" x-ref="technique" class="op-svg debrief-svg" x-show="selectedGraphType === 'technique'"></svg>
+                    <!-- PLAYBACK BUTTONS -->
+                    <div class="buttons is-justify-content-center mt-2">
+                        <button class="button is-small" @click="visualizeBeginning()">
+                            <span class="icon"><i class="fas fa-fast-backward"></i></span>
                         </button>
-                        <button id="report-section-move-button-down" onclick="moveReportSection('down');displayReportSections();"
-                                class="button-success atomic-button debrief-report-section-move-button" type="button"
-                                style="align-items: center; justify-content: center; display: flex; padding: 8px; width:30%; float:left;">
-                            <div class="debrief-report-section-move-arrow" style="border-right: 1px solid rgba(0,0,0,1);
-                                 border-bottom: 1px solid rgba(0,0,0,1);
-                                 transform: translateY(-25%) rotate(45deg);"></div>
+                        <button class="button is-small"  @click="visualizeStepBack()">
+                            <span class="icon"><i class="fas fa-backward"></i></span>
                         </button>
-                        <button id="report-section-toggle-button" onclick="toggleReportSection();displayReportSections();"
-                                class="button-success atomic-button" type="button"
-                                style="align-items: center; justify-content: center; display: flex; padding: 8px; width:40%; float:right;">
-                            <p style="color: black;">Enable/Disable
-
-
-
-                            </p>
+                        <button class="button is-small" x-show="isGraphPlaying" @click="visualizePlayPause()">
+                            <span class="icon" ><i class="fas fa-pause"></i></span>
+                        </button>
+                        <button class="button is-small" x-show="!isGraphPlaying" @click="visualizePlayPause()">
+                            <span class="icon" ><i class="fas fa-play"></i></span>
+                        </button>
+                        <button class="button is-small" @click="visualizeStepForward()">
+                            <span class="icon"><i class="fas fa-forward"></i></span>
+                        </button>
+                        <button class="button is-small"  @click="visualizeEnd()">
+                            <span class="icon"><i class="fas fa-fast-forward"></i></span>
                         </button>
                     </div>
                 </div>
-                <hr style="margin: 5 0 5;">
-                <div class="debrief-header-logo-select" style="margin: 5px 5px 15px 5px;">
-                    <h5 style="margin-bottom:5px">Report Header Logo Selection</h5>
-                    <p style="margin-bottom:5px">Select a logo to appear in the top right corner of each page.</p>
-                    <select id="debrief-header-logo-list" size="5" data-placeholder="No logos to show." onchange="showLogoPreview()" style="overflow-y:auto">
-                        <option class="header-logo-option" value="no-logo" selected>Do not use a logo</option>
-                        {% for logo in header_logos %}
-                            <option class="header-logo-option" value="{{ logo|e }}">{{ logo|e }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div id="debrief-report-logo-preview"></div>
-                <div class="debrief-logo-upload-wrapper">
-                    <button id="logo-upload-button" type="button" class="button-success atomic-button"
-                            onclick="triggerLogoUploadButton();" style="margin-bottom:0;">
-                        Upload logo file
-                    </button>
-                    <input id="logo-file" name="logo" type="file" value=""
-                           onchange="uploadHeaderLogo();" accept="image/*"/>
-                </div>
-                <hr style="margin: 5 0 10;">
-            </div>
-            <div id="debrief-download" style="text-align: center;">
-                <button id="debrief-download-pdf" type="button" class="button-success atomic-button" style="margin-top:0;"
-                        onclick="downloadPDF()">Download Report PDF</button>
-                <button id="debrief-download-raw" type="button" class="button-success atomic-button"
-                        style="margin-top:0;" onclick="downloadJSON()">Download Operation JSON</button>
             </div>
         </div>
 
-        <div class="column" style="flex:80%;">
-            <div id="debrief-graph" class="row svg-container">
-                <button id="graph-switch-technique" class="graph-switch" value="technique" onclick="switchGraphView(this)">Technique</button>
-                <button id="graph-switch-tactic" class="graph-switch" value="tactic" onclick="switchGraphView(this)">Tactic</button>
-                <button id="graph-switch-attackpath" class="graph-switch" value="attackpath" onclick="switchGraphView(this)">Attack Path</button>
-                <button id="graph-switch-graph" class="graph-switch" disabled value="graph" onclick="switchGraphView(this)">Default</button>
-                <div style="float: left;display: flex;position: absolute;bottom: 20px;left: 430px;">
-                    <div id="graph-media-beginning" class="graph-media-control" style="transform: scaleX(-1);" onclick="visualizeBeginning()">&#x25B6;&#x25B6;|</div>
-                    <div id="graph-media-backward" class="graph-media-control" style="transform: scaleX(-1);" onclick="visualizeStepBack()">&nbsp;&#x25B6;|&nbsp;</div>
-                    <div id="graph-media-play" class="graph-media-control paused" style="width: 20px;" onclick="visualizeTogglePlay()">&#x25B6;</div>
-                    <div id="graph-media-forward" class="graph-media-control" onclick="visualizeStepForward()">&nbsp;&#x25B6;|&nbsp;</div>
-                    <div id="graph-media-end" class="graph-media-control" onclick="visualizeEnd()">&#x25B6;&#x25B6;|</div>
-                </div>
-                <div class="d3-tooltip" id="op-tooltip" style="opacity: 0"></div>
-                <svg id="debrief-graph-svg" class="op-svg debrief-svg"></svg>
-                <svg id="debrief-attackpath-svg" class="op-svg debrief-svg" style="display: none"></svg>
-                <svg id="debrief-tactic-svg" class="op-svg debrief-svg" style="display: none"></svg>
-                <svg id="debrief-technique-svg" class="op-svg debrief-svg" style="display: none"></svg>
-            </div>
+        <!-- TABS -->
 
-            <h3>Stats</h3>
-            <div class="row">
-                <table id="report-operations" class="report-table" border=1 frame=void rules=rows>
+        <div class="tabs is-centered" x-show="selectedOperationIds.length">
+            <ul>
+                <li @click="activeTab = 'stats'" x-bind:class="{ 'is-active': activeTab === 'stats' }">
+                    <a>Stats</a>
+                </li>
+                <li @click="activeTab = 'agents'" x-bind:class="{ 'is-active': activeTab === 'agents' }">
+                    <a>Agents</a>
+                </li>
+                <li @click="activeTab = 'steps'" x-bind:class="{ 'is-active': activeTab === 'steps' }">
+                    <a>Steps</a>
+                </li>
+                <li @click="activeTab = 'tactics'" x-bind:class="{ 'is-active': activeTab === 'tactics' }">
+                    <a>Tactics & Techniques</a>
+                </li>
+                <li @click="activeTab = 'facts'" x-bind:class="{ 'is-active': activeTab === 'facts' }">
+                    <a>Fact Graph</a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- ACTIVE TAB DISPLAY -->
+
+        <div x-show="selectedOperationIds.length">
+
+            <div x-show="activeTab === 'stats'">
+                <table class="table is-striped">
                     <thead>
                         <th>Name</th>
                         <th>State</th>
@@ -124,13 +136,22 @@
                         <th>Objective</th>
                         <th>Time</th>
                     </thead>
-                    <tbody></tbody>
+                    <tbody>
+                        <template x-for="stat of stats">
+                            <tr>
+                                <td x-text="stat.name"></td>
+                                <td x-text="stat.state.toUpperCase()"></td>
+                                <td x-text="stat.planner.name"></td>
+                                <td x-text="stat.objective.name"></td>
+                                <td x-text="stat.start"></td>
+                            </tr>
+                        </template>
+                    </tbody>
                 </table>
             </div>
 
-            <h3>Agents</h3>
-            <div class="row">
-                <table id="report-agents" class="report-table" border=1 frame=void rules=rows>
+            <div x-show="activeTab === 'agents'">
+                <table class="table is-striped">
                     <thead>
                         <th>Paw</th>
                         <th>Host</th>
@@ -139,13 +160,23 @@
                         <th>Privilege</th>
                         <th>Executable</th>
                     </thead>
-                    <tbody></tbody>
+                    <tbody>
+                        <template x-for="agent of agents">
+                            <tr>
+                                <td x-text="agent.paw"></td>
+                                <td x-text="agent.host"></td>
+                                <td x-text="agent.platform"></td>
+                                <td x-text="agent.username"></td>
+                                <td x-text="agent.privilege"></td>
+                                <td x-text="agent.exe_name"></td>
+                            </tr>
+                        </template>
+                    </tbody>
                 </table>
             </div>
 
-            <h3>Steps</h3>
-            <div class="row">
-                <table id="report-steps" class="report-table" border=1 frame=void rules=rows>
+            <div x-show="activeTab === 'steps'">
+                <table class="table is-striped">
                     <thead>
                         <th>Status</th>
                         <th>Time</th>
@@ -154,57 +185,670 @@
                         <th>Operation</th>
                         <th>Command</th>
                     </thead>
-                    <tbody></tbody>
+                    <tbody>
+                        <template x-for="step of steps">
+                            <tr>
+                                <td x-text="getStatusName(step.status)"></td>
+                                <td x-text="step.finish"></td>
+                                <td x-text="step.ability.name"></td>
+                                <td x-text="step.paw"></td>
+                                <td x-text="step.operation_name"></td>
+                                <td>
+                                    <button class="button is-small" @click="showCommand(step.id, step.command, step.ability.name)">Show Command</button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
                 </table>
             </div>
 
-            <h3>Tactics and Techniques</h3>
-            <div class="row">
-                <table id="report-tactics-techniques" class="report-table" border=1 frame=void rules=rows>
-                    <thead>
-                        <th>Tactics</th>
-                        <th>Techniques</th>
-                        <th>Abilities</th>
-                    </thead>
-                    <tbody></tbody>
-                </table>
+            <div id="tactic-section" x-show="activeTab === 'tactics'">
+                <template x-for="tactic of tacticsAndTechniques">
+                    <div class="card mb-4">
+                        <header class="card-header">
+                            <p class="card-header-title is-size-5" x-text="tactic.name"></p>
+                        </header>
+                        <div class="card-content">
+                            <div class="content">
+                                <p class="has-text-centered">
+                                    <strong>Techniques</strong>
+                                </p>
+                                <ul>
+                                    <template x-for="technique of Object.keys(tactic.techniques)">
+                                        <li x-text="`${tactic.techniques[technique]} | ${technique}`"></li>
+                                    </template>
+                                </ul>
+                                <p class="has-text-centered">
+                                    <strong>Steps</strong>
+                                </p>
+                                <template x-for="step of tactic.steps">
+                                    <div class="block">
+                                        <p x-text="step.operation"></p>
+                                        <ul>
+                                            <template x-for="ability of step.abilities" :key="ability">
+                                                <li x-text="ability"></li>
+                                            </template>
+                                        </ul>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </template>
             </div>
 
-            <h3>Fact Graph</h3>
-            <div id="fact-graph" class="row svg-container" style="background-color: black; height: 400px; background-image: none;">
-                <div id="fact-limit-msg">
-                    <p style="margin: 0;"></p>
+            <div x-show="activeTab === 'facts'">
+                <div id="fact-graph">
+                    <svg id="debrief-fact-svg" class="debrief-svg"></svg>
+                    <div class="d3-tooltip" id="fact-tooltip" style="opacity: 0"></div>
                 </div>
-                <div class="d3-tooltip" id="fact-tooltip" style="opacity: 0"></div>
-                <svg id="debrief-fact-svg" class="debrief-svg"></svg>
+                <article id="fact-limit" class="message is-info mt-3">
+                    <div id="fact-limit-msg" class="message-body"></div>
+                </article>
             </div>
 
         </div>
+
+        <!-- MODALS -->
+
+        <div class="modal" x-bind:class="{ 'is-active': showGraphSettingsModal }">
+            <div class="modal-background" @click="showGraphSettingsModal = false"></div>
+            <div class="modal-card">
+                <header class="modal-card-head">
+                    <p class="modal-card-title">Graph Settings</p>
+                </header>
+                <section class="modal-card-body">
+                    <p><strong>Display Options</strong></p>
+                    <form>
+                        <div class="field">
+                            <div class="control">
+                                <label class="checkbox">
+                                    <input type="checkbox" x-model="graphOptionLabels" x-on:change="toggleLabels()">
+                                    Show labels
+                                  </label>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <div class="control">
+                                <label class="checkbox">
+                                    <input type="checkbox" x-model="graphOptionIcons" x-on:change="toggleIcons()">
+                                    Show icons
+                                  </label>
+                            </div>
+                        </div>
+                    </form>
+                    <p><strong>Data Options</strong></p>
+                    <form>
+                        <div class="field">
+                            <div class="control">
+                                <label class="checkbox">
+                                    <input type="checkbox" x-model="graphOptionSteps" x-on:change="toggleSteps()">
+                                    Show operation steps
+                                  </label>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <div class="control">
+                                <label class="checkbox">
+                                    <input type="checkbox" x-on:change="toggleTactics()">
+                                    Show steps as tactics
+                                  </label>
+                            </div>
+                        </div>
+                    </form>
+                </section>
+                <footer class="modal-card-foot">
+                    <nav class="level">
+                        <div class="level-left"></div>
+                        <div class="level-right">
+                            <div class="level-item">
+                                <button class="button is-small" @click="showGraphSettingsModal = false">Close</button>
+                            </div>
+                        </div>
+                    </nav>
+                </footer>
+            </div>
+        </div>
+
+        <div class="modal" x-bind:class="{ 'is-active': showCommandModal }">
+            <div class="modal-background" @click="showCommandModal = false"></div>
+            <div class="modal-card">
+                <header class="modal-card-head">
+                    <p class="modal-card-title" x-text="`Step: ${commandAbilityName}`"></p>
+                </header>
+                <section class="modal-card-body">
+                    <p>Command</p>
+                    <pre x-text="command"></pre>
+                    <p>Output</p>
+                    <pre x-text="commandOutput"></pre>
+                </section>
+                <footer class="modal-card-foot">
+                    <nav class="level">
+                        <div class="level-left"></div>
+                        <div class="level-right">
+                            <div class="level-item">
+                                <button class="button is-small" @click="showCommandModal = false">Close</button>
+                            </div>
+                        </div>
+                    </nav>
+                </footer>
+            </div>
+        </div>
+
+        <div class="modal" x-bind:class="{ 'is-active': showReportModal }">
+            <div class="modal-background" @click="showReportModal = false"></div>
+            <div class="modal-card">
+                <header class="modal-card-head">
+                    <p class="modal-card-title">Download Report as PDF</p>
+                </header>
+                <section class="modal-card-body content mb-0">
+                    <h5>Report Header Logo</h5>
+                    <p class="help">Select a logo to appear in the top right corner of each page.</p>
+                    <form>
+                        <label class="checkbox">
+                            <input type="checkbox" x-model="doNotUseLogo" @change="if (doNotUseLogo) logoFilename = ''">
+                            Don't use a logo
+                        </label>
+                    </form>
+                    <div class="columns mt-3" x-show="!doNotUseLogo">
+                        <div class="column is-6 m-0">
+                            <form>
+                                <div class="field">
+                                    <label class="label">Select a logo</label>
+                                    <div class="control">
+                                        <div class="select is-small is-fullwidth">
+                                            <select x-model="logoFilename">
+                                                <option default disabled value="">Select a logo</option>
+                                                <template x-for="logo of logos" :key="logo">
+                                                    <option x-bind:value="logo" x-text="logo"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="field">
+                                    <div class="file is-dark is-small is-fullwidth">
+                                        <label class="file-label">
+                                            <input class="file-input" x-ref="fileInput" x-on:change="uploadLogo($el)" type="file" name="userLogo" accept="image/*">
+                                            <span class="file-cta">
+                                                <span class="file-icon"><i class="fas fa-upload"></i></span>
+                                                <span class="file-label">Upload new logo…</span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </form>
+                            
+                        </div>
+                        <div class="column is-6 m-0 is-flex is-align-items-center is-justify-content-center">
+                            <template x-if="logoFilename">
+                                <img x-bind:src="`/logodebrief/header-logos/${logoFilename}`">
+                            </template>
+                            <p x-show="!logoFilename">Select a logo to see preview</p>
+                        </div>
+                    </div>
+                    
+                    <h5>Report Sections</h5>
+                    <p class="help">Sections that are checked will be displayed in the report in order as shown in the list below.</p>
+                    <table>
+                        <tbody>
+                            <template x-for="(section, index) of reportSections" :key="section.key">
+                                <tr>
+                                    <td class="is-flex is-flex-direction-column is-align-items-center is-justify-content-center">
+                                        <span class="icon is-small" @click="moveReportSectionOrder(index, index - 1)"><i x-show="index" class="fas fa-sort-up"></i></span>
+                                        <span class="icon is-small" @click="moveReportSectionOrder(index, index + 1)"><i x-show="index < reportSections.length - 1" class="fas fa-sort-down"></i></span>
+                                    </td>
+                                    <td>
+                                        <div class="is-flex is-align-items-center">
+                                            <input type="checkbox" x-bind:checked="activeReportSections.includes(section.key)" x-on:change="toggleReportSection(section.key)">
+                                        </div>
+                                    </td>
+                                    <td x-text="section.name"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </section>
+                <footer class="modal-card-foot">
+                    <nav class="level">
+                        <div class="level-left">
+                            <div class="level-item">
+                                <button class="button is-small" @click="showReportModal = false">Close</button>
+                            </div>
+                        </div>
+                        <div class="level-right">
+                            <div class="level-item">
+                                <button class="button is-small is-primary" @click="downloadPDF()">Download</button>
+                            </div>
+                        </div>
+                    </nav>
+                </footer>
+            </div>
+        </div>
+
     </div>
-
 </div>
-
-<div id="debrief-step-modal" class="modal">
-    <form class="modal-content ability-viewer">
-        <div class="imgcontainer">
-          <span onclick="resetDebriefStepModal();" class="close" title="Close Modal">&times;</span>
-        </div>
-        <div class="container" style="text-align:left">
-            <code id="debrief-step-modal-cmd"></code>
-            <hr>
-            <pre id="debrief-step-modal-view" style="text-align: left;max-width:800px;"></pre>
-        </div>
-    </form>
-</div>
-
-<div id="copy"></div>
-<div id="images" style="display: none"></div>
-
-<script src="/debrief/js/debrief.js"></script>
 
 <script>
-    function initPage() {
-        initSectionOrderingList(JSON.parse(`{{ report_sections|tojson }}`));
-        displayReportSections();
-    }
+function alpineDebrief() {
+    return {
+        operations: [],
+        selectedOperationIds: [],
+        activeTab: 'stats',
+
+        stats: [],
+        agents: [],
+        steps: [],
+        tacticsAndTechniques: [],
+
+        showCommandModal: false,
+        command: '',
+        commandOutput: '',
+        commandAbilityName: '',
+
+        showGraphSettingsModal: false,
+        graphOptionLabels: true,
+        graphOptionIcons: true,
+        graphOptionSteps: true,
+
+        showReportModal: false,
+        reportSections: JSON.parse(`{{ report_sections | tojson }}`),
+        activeReportSections: [],
+        doNotUseLogo: true,
+        logoFilename: '',
+        logos: [],
+
+        selectedGraphType: 'graph',
+        nodesOrderedByTime: {},
+        showGraphLegend: true,
+        isGraphPlaying: false,
+        graphInterval: null,
+        
+
+        initPage() {
+            apiV2('GET', '/api/v2/operations').then((operations) => {
+                return this.filterOperations(operations);
+            }).then(() => {
+                this.initReportSections();
+                return apiV2('GET', '/plugin/debrief/logos');
+            }).then((data) => {
+                this.logos = data.logos;
+            }).catch((error) => {
+                console.error(error);
+                toast('Error getting operations');
+            });
+        },
+
+        filterOperations(operations) {
+            return apiV2('GET', '/api/v2/agents').then((agents) => {
+                let aliveAgentPaws = agents.map((agent) => agent.paw);
+                this.operations = operations.filter((op) => {
+                    let opPaws = op.host_group.map((group) => group.paw);
+                    return opPaws.every((paw) => aliveAgentPaws.includes(paw));
+                });
+            });
+        },
+
+        initReportSections() {
+            const BASE_ORDERING = [ 
+                "main-summary",
+                "statistics",
+                "agents",
+                "default-graph",
+                "attackpath-graph",
+                "tactic-graph",
+                "technique-graph",
+                "fact-graph",
+                "tactic-technique-table",
+                "steps-table",
+                "facts-table"
+            ];
+            this.reportSections.sort((a, b) => {
+                let aIndex = BASE_ORDERING.indexOf(a.key);
+                let bIndex = BASE_ORDERING.indexOf(b.key);
+                return aIndex - bIndex;
+            });
+            this.activeReportSections = this.reportSections.map((section) => section.key);
+        },
+
+        loadOperation() {
+            if (!this.selectedOperationIds.length) return;
+            apiV2('POST', '/plugin/debrief/report', { operations: this.selectedOperationIds }).then((data) => {
+                this.stats = data.operations;
+                this.agents = data.agents;
+
+                this.steps = [];
+                this.stats.forEach((stat) => {
+                    stat.chain.forEach((c) => {
+                        this.steps.push({ ...c, operation_name: stat.name });
+                    });
+                });
+
+                Object.keys(data.ttps).forEach((tactic) => {
+                    data.ttps[tactic].steps = Object.keys(data.ttps[tactic].steps).map((op) => {
+                        return {
+                            operation: op,
+                            abilities: data.ttps[tactic].steps[op]
+                        }
+                    })
+                })
+                this.tacticsAndTechniques = data.ttps;
+
+                updateReportGraph(this.selectedOperationIds);
+            }).catch((error) => {
+                toast('Error loading operation', false);
+                console.error(error);
+            })
+        },
+
+        operationSelectMousedown(el) {
+            // An override to the select field so users don't need to hold CMD or Ctrl while selecting multiple op's
+            el.selected = !el.selected;
+            this.selectedOperationIds = Array.from(el.parentNode.childNodes)
+                .filter((node) => node.localName === 'option' && node.selected)
+                .map((node) => node.value);
+            this.loadOperation();
+        },
+        
+        getStatusName(status) {
+            if (status === 0) {
+                return 'success';
+            } else if (status === -2) {
+                return 'discarded';
+            } else if (status === 1) {
+                return 'failure';
+            } else if (status === 124) {
+                return 'timeout';
+            } else if (status === -3) {
+                return 'collected';
+            } else if (status === -4) {
+                return 'untrusted';
+            } else if (status === -5) {
+                return 'visibility';
+            }
+            return 'queued';
+        },
+
+        showCommand(id, command, abilityName) {
+            this.commandAbilityName = abilityName;
+            let requestBody = {
+                index: 'result',
+                link_id: id
+            };
+            apiV2('POST', '/api/rest', requestBody).then((data) => {
+                if (data) {
+                    this.command = b64DecodeUnicode(data.link.command);
+                    this.commandOutput = b64DecodeUnicode(data.output);
+                } else {
+                    this.command = 'No command to display';
+                    this.commandOutput = '';
+                }
+                this.showCommandModal = true;
+            });
+        },
+
+        moveReportSectionOrder(index, toIndex) {
+            if (toIndex < 0 || toIndex >= this.reportSections.length) return;
+
+            let temp = this.reportSections[index];
+            this.reportSections[index] = this.reportSections[toIndex];
+            this.reportSections[toIndex] = temp;
+
+            let sortedActiveSections = this.activeReportSections;
+            this.activeReportSections = this.reportSections.map((section) => section.key).filter((section) => sortedActiveSections.includes(section));
+        },
+
+        toggleReportSection(section) {
+            let index = this.activeReportSections.indexOf(section);
+            index >= 0 ? this.activeReportSections.splice(index, 1) : this.activeReportSections.push(section);
+        },
+
+        toggleLegend() {
+            this.showGraphLegend = !this.showGraphLegend;
+            document.querySelectorAll('.legend').forEach((legend) => {
+                legend.style.display = (this.showGraphLegend ? 'block' : 'none');
+            });
+        },
+        
+        uploadLogo(el) {
+            if (el.files.length === 0) return;
+
+            let formData = new FormData()
+            formData.append('header-logo', el.files[0])
+            apiV2('POST', '/plugin/debrief/logo', formData, false).then((data) => {
+                this.logos.push(data.filename);
+                this.logoFilename = data.filename;
+            }).catch((error) => {
+                console.error(error);
+                toast('Error uploading file', false);
+            });
+        },
+
+        downloadPDF() {
+            let requestBody = {
+                'operations': this.selectedOperationIds,
+                'graphs': this.getGraphData(),
+                'report-sections': this.activeReportSections,
+                'header-logo': this.logoFilename
+            };
+            apiV2('POST', '/plugin/debrief/pdf', requestBody, true).then((data) => {
+                let dataStr = URL.createObjectURL(new Blob([data["pdf_bytes"]], { type: "application/pdf" }));
+                let downloadAnchorNode = document.createElement("a");
+                downloadAnchorNode.setAttribute("href", dataStr);
+                downloadAnchorNode.setAttribute("download", data.filename);
+                document.body.appendChild(downloadAnchorNode);
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+            }).catch((error) => {
+                console.error(error);
+                toast('Error downloading PDF report', false);
+            });
+        },
+
+        downloadJSON() {
+            apiV2('POST', '/plugin/debrief/json', { 'operations': this.selectedOperationIds }).then((data) => {
+                downloadJson(data.filename, data);
+            }).catch((error) => {
+                console.error(error);
+                toast('Error downloading JSON report', false);
+            });
+        },
+
+        getGraphData() {
+            let encodedGraphs = {}
+
+            document.querySelectorAll('.debrief-svg').forEach((svg) => {
+                newSvg = svg.cloneNode(true);
+                newSvg.setAttribute('id', 'copy-svg');
+                document.getElementById('copy').appendChild(newSvg)
+                document.querySelectorAll('#copy-svg .container').forEach((container) => container.setAttribute('transform', 'scale(5)'))
+
+                // resize svg viewBox to fit content
+                var copy = document.getElementById('copy-svg');
+                if (copy.style.display == "none") {
+                    copy.style.display = "";
+                }
+                var bbox = copy.getBBox();
+                var viewBox = [bbox.x - 10, bbox.y - 10, bbox.width + 20, bbox.height + 20].join(" ");
+                copy.setAttribute("viewBox", viewBox);
+
+                // re-enable any hidden nodes
+                document.querySelectorAll('#copy-svg .link').forEach((el) => el.style.display = '');
+                document.querySelectorAll('#copy-svg polyline').forEach((el) => el.style.display = '');
+                document.querySelectorAll('#copy-svg .link .icons').forEach((el) => {
+                    Array.from(el.children).forEach((child) => { 
+                        if (child.getAttribute('class').includes('svg-icon')) {
+                            child.style.display = '';
+                        }
+                    })
+                })
+                document.querySelectorAll('#copy-svg .link .icons').forEach((el) => {
+                    Array.from(el.children).forEach((child) => { 
+                        if (child.getAttribute('class').includes('hidden')) {
+                            child.remove();
+                        }
+                    })
+                })
+                document.querySelectorAll('#copy-svg text').forEach((el) => el.style.display = '');
+                document.querySelectorAll('#copy-svg text').forEach((el) => el.style.fill = '#333');
+
+                let serializedSvg = new XMLSerializer().serializeToString(document.getElementById('copy-svg'));
+                let encodedData = window.btoa(serializedSvg);
+                let graphKey = svg.id.split("-")[1];
+                encodedGraphs[graphKey] = encodedData;
+                document.getElementById('copy').innerHTML = '';
+            })
+
+            return encodedGraphs
+        },
+
+        toggleLabels() {
+            if (this.graphOptionLabels) {
+                document.querySelectorAll('#debrief-graph .label').forEach((el) => el.style.display = '');
+            } else {
+                document.querySelectorAll('#debrief-graph .label').forEach((el) => el.style.display = 'none');
+            }
+        },
+
+        toggleIcons() {
+            if (this.graphOptionIcons) {
+                document.querySelectorAll('#debrief-graph .svg-icon:not(.hidden)').forEach((el) => el.style.display = '');
+            } else {
+                document.querySelectorAll('#debrief-graph .svg-icon:not(.hidden)').forEach((el) => el.style.display = 'none');
+            }
+        },
+
+        toggleSteps() {
+            if (this.graphOptionSteps) {
+                document.querySelectorAll('#debrief-graph .link').forEach((el) => el.style.display = '');
+                document.querySelectorAll('#debrief-graph-svg .next_link').forEach((el) => el.style.display = '');
+            } else {
+                document.querySelectorAll('#debrief-graph .link').forEach((el) => el.style.display = 'none');
+                document.querySelectorAll('#debrief-graph-svg .next_link').forEach((el) => el.style.display = 'none');
+            }
+        },
+
+        toggleTactics() {
+            let showing = [];
+            document.querySelectorAll('#debrief-graph .link .icons').forEach((el) => {
+                Array.from(el.children).forEach((child) => { 
+                    if (child.classList.contains('svg-icon') && !child.classList.contains('hidden')) showing.push(child);
+                });
+            });
+            let hidden = [];
+            document.querySelectorAll('#debrief-graph .link .icons').forEach((el) => {
+                Array.from(el.children).forEach((child) => { 
+                    if (child.classList.contains('hidden')) hidden.push(child);
+                });
+            });
+
+            showing.forEach((child) => {
+                child.style.display = 'none';
+                child.classList.add('hidden');
+            });
+            hidden.forEach((child) => {
+                child.style.display = '';
+                child.classList.remove('hidden');
+            });
+        },
+
+        // Graph functions
+
+        getNodesOrderedByTime() {
+            function compareTimestamp(a, b) {
+                if (Date.parse(a.dataset.timestamp) < Date.parse(b.dataset.timestamp)) {
+                    return -1;
+                }
+                if (Date.parse(a.dataset.timestamp) > Date.parse(b.dataset.timestamp)) {
+                    return 1;
+                }
+                return 0;
+            }
+            function getSortedNodes(id) {
+                return Array.from(document.querySelectorAll(`#${id} .node`)).sort(compareTimestamp);
+            }
+            
+            this.nodesOrderedByTime = {};
+            this.nodesOrderedByTime["debrief-graph-svg"] = getSortedNodes("debrief-graph-svg");
+            this.nodesOrderedByTime["debrief-attackpath-svg"] = getSortedNodes("debrief-attackpath-svg");
+            this.nodesOrderedByTime["debrief-tactic-svg"] = getSortedNodes("debrief-tactic-svg");
+            this.nodesOrderedByTime["debrief-technique-svg"] = getSortedNodes("debrief-technique-svg");
+        },
+
+        async visualizePlayPause() {
+            this.getNodesOrderedByTime();
+            this.isGraphPlaying = !this.isGraphPlaying;
+            let id = this.$refs[this.selectedGraphType].id;
+
+            if (this.isGraphPlaying) {
+                if (!this.nodesOrderedByTime[id].find(node => node.style.display == "none")) {
+                    this.visualizeBeginning();
+                }
+
+                while (this.isGraphPlaying) {
+                    await sleep(1000);
+                    if (this.isGraphPlaying) {
+                        this.visualizeStepForward();
+                    }
+                }
+            }
+        },
+
+        visualizeBeginning() {
+            let id = this.$refs[this.selectedGraphType].id;
+            console.log(document.querySelectorAll(`#${id} .node:not(.c2)`))
+            document.querySelectorAll(`#${id} .node:not(.c2)`).forEach((node) => node.style.display = 'none');
+            document.querySelectorAll(`#${id} polyline`).forEach((node) => node.style.display = 'none');
+        },
+
+        visualizeEnd() {
+            let id = this.$refs[this.selectedGraphType].id;
+            document.querySelectorAll(`#${id} .node`).forEach((node) => node.style.display = 'block');
+            document.querySelectorAll(`#${id} polyline`).forEach((node) => node.style.display = 'block');
+        },
+
+        visualizeStepForward() {
+            this.getNodesOrderedByTime();
+            let id = this.$refs[this.selectedGraphType].id;
+
+            let nextNode = this.nodesOrderedByTime[id].find(node => node.style.display == "none");
+            if (nextNode) {
+                nextNode.style.display = 'block';
+
+                let showingNodesIds = this.nodesOrderedByTime[id].filter(node => node.style.display !== "none").map(node => node.id);
+                document.querySelectorAll(`#${id} polyline`).forEach((line) => {
+                    if (showingNodesIds.includes(`node-${line.getAttribute('data-target')}`) && showingNodesIds.includes(`node-${line.getAttribute('data-source')}`)) {
+                        line.style.display = "block";
+                    }
+                })
+            }
+
+            if (!this.nodesOrderedByTime[id].find(node => node.style.display == "none")) {
+                this.isGraphPlaying = false;
+            }
+        },
+
+        visualizeStepBack() {
+            this.getNodesOrderedByTime();
+            let id = this.$refs[this.selectedGraphType].id;
+
+            let prevNode = this.nodesOrderedByTime[id].slice().reverse().find(node => node.style.display != "none");
+
+            if (prevNode.id !== "node-0") {
+                prevNode.style.display = 'none';
+
+                let showingNodesIds = this.nodesOrderedByTime[id].filter(node => node.style.display != "none").map(node => node.id);
+                document.querySelectorAll(`#${id} polyline`).forEach((line) => {
+                    if (!showingNodesIds.includes(`node-${line.getAttribute('data-target')}`) || !showingNodesIds.includes(`node-${line.getAttribute('data-source')}`)) {
+                        line.style.display = 'none';
+                    }
+                });
+            }
+        },
+
+    };
+}
+
+// # sourceURL=debrief.js
 </script>

@@ -201,6 +201,10 @@ class DebriefService(BaseService):
     def _get_pub_attrs(fact):
         filtered_fact = {k: v for k, v in vars(fact).items() if not k.startswith('_')}
         filtered_fact['origin_type'] = filtered_fact['origin_type'].name
+        temp = []
+        for lnk in filtered_fact['links']:
+            temp.append(lnk.id)
+        filtered_fact['links'] = temp
         return filtered_fact
 
     @staticmethod

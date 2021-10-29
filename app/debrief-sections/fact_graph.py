@@ -1,5 +1,4 @@
 from reportlab.lib.units import inch
-from reportlab.platypus import Spacer
 
 from plugins.debrief.app.utility.base_report_section import BaseReportSection
 
@@ -15,7 +14,7 @@ class DebriefReportSection(BaseReportSection):
                            'to their discovery. For readability, only the first 15 facts discovered in an operation ' \
                            'are included in the graph.'
 
-    def generate_section_elements(self, styles, **kwargs):
+    async def generate_section_elements(self, styles, **kwargs):
         flowable_list = []
         path = kwargs.get('graph_files', {}).get('fact')
         if path:

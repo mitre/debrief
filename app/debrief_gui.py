@@ -12,8 +12,6 @@ from io import BytesIO
 from reportlab import rl_settings
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import SimpleDocTemplate, Spacer
 
 from app.service.auth_svc import for_all_public_methods, check_authorization
@@ -97,7 +95,7 @@ class DebriefGui(BaseWorld):
                           if str(o.id) in data.get('operations')]
             filename = 'debrief_' + datetime.today().strftime('%Y-%m-%d_%H-%M-%S')
             agents = await self.data_svc.locate('agents')
-            pdf_bytes = self._build_pdf(operations, agents, filename, data['report-sections'], header_logo_path)
+            pdf_bytes = await self._build_pdf(operations, agents, filename, data['report-sections'], header_logo_path)
             self._clean_downloads()
             return web.json_response(dict(filename=filename, pdf_bytes=pdf_bytes))
         return web.json_response('No operations selected')
@@ -135,7 +133,8 @@ class DebriefGui(BaseWorld):
         if not self.loaded_report_sections:
             for plugin in plugins:
                 if plugin.name:
-                    report_sections_dir = os.path.relpath(os.path.join('plugins', plugin.name, 'app', 'debrief-sections'))
+                    report_sections_dir = os.path.relpath(
+                        os.path.join('plugins', plugin.name, 'app', 'debrief-sections'))
                     if os.path.isdir(report_sections_dir):
                         for filepath in glob.iglob('%s/*.py' % report_sections_dir):
                             module_name = filepath.replace('/', '.').replace('\\', '.').replace('.py', '')
@@ -150,7 +149,7 @@ class DebriefGui(BaseWorld):
                                 self.log.error("Failed to load debrief report section module %s" % module_name)
             self.loaded_report_sections = True
 
-    def _build_pdf(self, operations, agents, filename, sections, header_logo_path):
+    async def _build_pdf(self, operations, agents, filename, sections, header_logo_path):
         # pdf setup
         pdf_buffer = BytesIO()
         doc = SimpleDocTemplate(pdf_buffer, pagesize=letter,
@@ -173,7 +172,7 @@ class DebriefGui(BaseWorld):
             for section in sections:
                 section_module = self.report_section_modules.get(section, None)
                 if section_module:
-                    flowables = section_module.generate_section_elements(
+                    flowables = await section_module.generate_section_elements(
                         styles,
                         operations=operations,
                         agents=agents,

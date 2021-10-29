@@ -12,7 +12,7 @@ class DebriefReportSection(BaseReportSection):
                            'executed the agent, the privilege level of the agent process, and the name of the agent ' \
                            'executable.'
 
-    def generate_section_elements(self, styles, **kwargs):
+    async def generate_section_elements(self, styles, **kwargs):
         flowable_list = []
         if 'agents' in kwargs:
             flowable_list.append(self.generate_section_title_and_description(styles))

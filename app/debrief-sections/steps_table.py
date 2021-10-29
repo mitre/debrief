@@ -14,7 +14,7 @@ class DebriefReportSection(BaseReportSection):
         self.description = 'The table below shows detailed information about the steps taken in an operation and ' \
                            'whether the command run discovered any facts.'
 
-    def generate_section_elements(self, styles, **kwargs):
+    async def generate_section_elements(self, styles, **kwargs):
         flowable_list = []
         if 'operations' in kwargs:
             operations = kwargs.get('operations', [])

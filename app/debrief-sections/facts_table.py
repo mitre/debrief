@@ -20,7 +20,7 @@ class DebriefReportSection(BaseReportSection):
                            'scores first. A fact with a score of 0, is blacklisted - meaning it cannot be used in ' \
                            'an operation.'
 
-    def generate_section_elements(self, styles, **kwargs):
+    async def generate_section_elements(self, styles, **kwargs):
         flowable_list = []
         if 'operations' in kwargs:
             operations = kwargs.get('operations', [])
@@ -31,19 +31,26 @@ class DebriefReportSection(BaseReportSection):
                         Paragraph(self.description, styles['Normal'])
                     ])
                 )
-                flowable_list.append(self._generate_facts_table(o))
+                flowable_list.append(await self._generate_facts_table(o))
         return flowable_list
 
-    def _generate_facts_table(self, operation):
-        fact_data = [['Trait', 'Value', 'Score', 'Paw', 'Command Run']]
+    async def _generate_facts_table(self, operation):
+        fact_data = [['Trait', 'Value', 'Score', 'Source', 'Command Run']]
         exceeds_cell_msg = '... <font color="maroon"><i>(Value exceeds table cell character limit)</i></font>'
-        for lnk in operation.chain:
-            if len(lnk.facts) > 0:
-                for f in lnk.facts:
-                    fact_data.append(
-                        [f.trait,
-                         f.value if len(f.value) < TABLE_CHAR_LIMIT else f.value[:TABLE_CHAR_LIMIT] + exceeds_cell_msg,
-                         str(f.score),
-                         '<link href="#agent-{0}" color="blue">{0}</link>'.format(lnk.paw),
-                         lnk.decode_bytes(lnk.command)])
+        facts = await operation.all_facts()
+        for f in facts:
+            try:
+                lnk = f.links[0]
+                paw_value = '<link href="#agent-{0}" color="blue">{0}</link>'.format(lnk.paw)
+                command_value = lnk.decode_bytes(lnk.command)
+            except IndexError:
+                paw_value = f'{f.source[:3] + ".." + f.source[-3:]}'
+                command_value = f'No Command ({f.origin_type.name})'
+            fact_data.append(
+                [f.trait,
+                 f.value if len(f.value) < TABLE_CHAR_LIMIT else f.value[:TABLE_CHAR_LIMIT] + exceeds_cell_msg,
+                 str(f.score),
+                 paw_value,
+                 command_value])
+
         return self.generate_table(fact_data, [1 * inch, 2.1 * inch, .6 * inch, .6 * inch, 2.1 * inch])

@@ -14,7 +14,7 @@ class DebriefReportSection(BaseReportSection):
                            'current objective status is evaluated in light of the current knowledge of the ' \
                            'operation, with the operation completing should all goals be met.'
 
-    def generate_section_elements(self, styles, **kwargs):
+    async def generate_section_elements(self, styles, **kwargs):
         flowable_list = []
         if 'operations' in kwargs:
             operations = kwargs.get('operations', [])

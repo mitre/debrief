@@ -1,5 +1,4 @@
 from reportlab.lib.units import inch
-from reportlab.platypus import Paragraph
 
 from plugins.debrief.app.utility.base_report_section import BaseReportSection
 
@@ -13,7 +12,7 @@ class DebriefReportSection(BaseReportSection):
         self.description = 'This is a graphical display of the agents connected to the command and control (C2), the ' \
                            'operations run, and the steps of each operation as they relate to the agents.'
 
-    def generate_section_elements(self, styles, **kwargs):
+    async def generate_section_elements(self, styles, **kwargs):
         flowable_list = []
         path = kwargs.get('graph_files', {}).get('graph')
         if path:

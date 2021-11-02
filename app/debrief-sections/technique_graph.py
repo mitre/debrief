@@ -1,5 +1,4 @@
 from reportlab.lib.units import inch
-from reportlab.platypus import Spacer
 
 from plugins.debrief.app.utility.base_report_section import BaseReportSection
 
@@ -13,7 +12,7 @@ class DebriefReportSection(BaseReportSection):
         self.description = 'This graph displays the order of techniques executed by the operation. A technique ' \
                            'explains the technical method or the "how" of a step.'
 
-    def generate_section_elements(self, styles, **kwargs):
+    async def generate_section_elements(self, styles, **kwargs):
         flowable_list = []
         path = kwargs.get('graph_files', {}).get('technique')
         if path:

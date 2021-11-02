@@ -1,6 +1,5 @@
 from app.utility.base_world import BaseWorld
 from plugins.debrief.app.debrief_gui import DebriefGui
-from aiohttp import web
 
 name = 'Debrief'
 description = 'some good bones'

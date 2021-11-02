@@ -1,5 +1,4 @@
 from reportlab.lib.units import inch
-from reportlab.platypus import Paragraph
 
 from plugins.debrief.app.utility.base_report_section import BaseReportSection
 
@@ -13,7 +12,7 @@ class DebriefReportSection(BaseReportSection):
         self.description = 'This graph displays the order of tactics executed by the operation. A tactic explains ' \
                            'the general purpose or the "why" of a step.'
 
-    def generate_section_elements(self, styles, **kwargs):
+    async def generate_section_elements(self, styles, **kwargs):
         flowable_list = []
         path = kwargs.get('graph_files', {}).get('tactic')
         if path:

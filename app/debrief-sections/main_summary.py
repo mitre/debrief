@@ -17,7 +17,7 @@ class DebriefReportSection(BaseReportSection):
                            'facts discovered by the operations. The following sections include a more in depth ' \
                            'review of each specific operation ran.'
 
-    def generate_section_elements(self, styles, **kwargs):
+    async def generate_section_elements(self, styles, **kwargs):
         title = styles['Heading1']
         title.fontName = 'Helvetica-Bold'
         title.textColor = 'maroon'

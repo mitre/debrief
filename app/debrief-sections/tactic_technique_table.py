@@ -13,7 +13,7 @@ class DebriefReportSection(BaseReportSection):
         self.section_title = 'TACTICS AND TECHNIQUES'
         self.description = ''
 
-    def generate_section_elements(self, styles, **kwargs):
+    async def generate_section_elements(self, styles, **kwargs):
         flowable_list = []
         if 'operations' in kwargs:
             operations = kwargs.get('operations', [])

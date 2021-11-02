@@ -1,5 +1,4 @@
 from reportlab.lib.units import inch
-from reportlab.platypus import Spacer
 
 from plugins.debrief.app.utility.base_report_section import BaseReportSection
 
@@ -13,7 +12,7 @@ class DebriefReportSection(BaseReportSection):
         self.description = 'This graph displays the attack path of hosts compromised by CALDERA. Source and target ' \
                            'hosts are connected by the method of execution used to start the agent on the target host.'
 
-    def generate_section_elements(self, styles, **kwargs):
+    async def generate_section_elements(self, styles, **kwargs):
         flowable_list = []
         path = kwargs.get('graph_files', {}).get('attackpath')
         if path:

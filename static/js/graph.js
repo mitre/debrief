@@ -1,57 +1,61 @@
-const FACT_DISPLAY_LIMIT = 15;
+// Constants are wrapped in a function to prevent redeclarations when tab is closed and openned again
+function global() {
+    return {
+        FACT_DISPLAY_LIMIT: 15,
 
-const OP_GRAPH_WIDTH = 600;
-const OP_GRAPH_HEIGHT = 400;
-const FACT_GRAPH_WIDTH = 800;
-const FACT_GRAPH_HEIGHT = 400;
+        OP_GRAPH_HEIGHT: 400,
+        FACT_GRAPH_WIDTH: 800,
+        FACT_GRAPH_HEIGHT: 600,
 
-const LINK_LENGTHS = {
-    agent_contact: 100, 
-    next_link: 50, 
-    has_agent: 50, 
-    relationship: 100
-};
-const NODE_CHARGES = {
-    c2: -200, 
-    operation: -100, 
-    agent: -200, 
-    link: -150, 
-    fact: -50, 
-    tactic: -200, 
-    technique_name: -200
-};
-const GRAPH_IMAGE_URLS = {
-    server: 'debrief/img/cloud.svg',
-    operation: 'debrief/img/operation.svg',
-    link: 'debrief/img/link.svg',
-    fact: 'debrief/img/star.svg',
-    darwin: 'debrief/img/darwin.svg',
-    windows: 'debrief/img/windows.svg',
-    linux: 'debrief/img/linux.svg',
-    tactic: 'debrief/img/tactic.svg',
-    technique_name: 'debrief/img/technique.svg',
-    collection: 'debrief/img/collection.svg',
-    'credential-access': 'debrief/img/credaccess.svg',
-    'defense-evasion': 'debrief/img/defevasion.svg',
-    discovery: 'debrief/img/discovery.svg',
-    execution: 'debrief/img/execution.svg',
-    exfiltration: 'debrief/img/exfil.svg',
-    impact: 'debrief/img/impact.svg',
-    'lateral-movement': 'debrief/img/latmove.svg',
-    persistence: 'debrief/img/persistence.svg',
-    'privilege-escalation': 'debrief/img/privesc.svg',
-    'initial-access': 'debrief/img/access.svg',
-    'command-and-control': 'debrief/img/commandcontrol.svg',
-    unknown: 'debrief/img/unknown.svg'
-};
+        LINK_LENGTHS: {
+            agent_contact: 100, 
+            next_link: 50, 
+            has_agent: 50, 
+            relationship: 100
+        },
+        NODE_CHARGES: {
+            c2: -200, 
+            operation: -100, 
+            agent: -200, 
+            link: -150, 
+            fact: -50, 
+            tactic: -200, 
+            technique_name: -200
+        },
+        GRAPH_IMAGE_URLS: {
+            server: 'debrief/img/cloud.svg',
+            operation: 'debrief/img/operation.svg',
+            link: 'debrief/img/link.svg',
+            fact: 'debrief/img/star.svg',
+            darwin: 'debrief/img/darwin.svg',
+            windows: 'debrief/img/windows.svg',
+            linux: 'debrief/img/linux.svg',
+            tactic: 'debrief/img/tactic.svg',
+            technique_name: 'debrief/img/technique.svg',
+            collection: 'debrief/img/collection.svg',
+            'credential-access': 'debrief/img/credaccess.svg',
+            'defense-evasion': 'debrief/img/defevasion.svg',
+            discovery: 'debrief/img/discovery.svg',
+            execution: 'debrief/img/execution.svg',
+            exfiltration: 'debrief/img/exfil.svg',
+            impact: 'debrief/img/impact.svg',
+            'lateral-movement': 'debrief/img/latmove.svg',
+            persistence: 'debrief/img/persistence.svg',
+            'privilege-escalation': 'debrief/img/privesc.svg',
+            'initial-access': 'debrief/img/access.svg',
+            'command-and-control': 'debrief/img/commandcontrol.svg',
+            unknown: 'debrief/img/unknown.svg'
+        }
+    }
+}
 
 function init() {
     getImages();
 }
 
 function getImages() {
-    for (let key in GRAPH_IMAGE_URLS) {
-        fetch(GRAPH_IMAGE_URLS[key]).then((data) => {
+    for (let key in global().GRAPH_IMAGE_URLS) {
+        fetch(global().GRAPH_IMAGE_URLS[key]).then((data) => {
             return data.text();
         }).then((svg) => {
             let parser = new DOMParser();
@@ -84,12 +88,13 @@ function statusName(status) {
 }
 
 function createForceSimulation(type) {
-    let width = (type === 'operation') ? OP_GRAPH_WIDTH : FACT_GRAPH_WIDTH;
-    let height = (type === 'operation') ? OP_GRAPH_HEIGHT : FACT_GRAPH_HEIGHT;
+    let opGraphWidth = document.getElementById('debrief-graph').offsetWidth;
+    let width = (type === 'operation') ? opGraphWidth : global().FACT_GRAPH_WIDTH;
+    let height = (type === 'operation') ? global().OP_GRAPH_HEIGHT : global().FACT_GRAPH_HEIGHT;
     return d3.forceSimulation()
             .force('link', d3.forceLink().id((d) => d.id ))
             .force('charge', d3.forceManyBody()
-                .strength((d) => NODE_CHARGES[d.type] || -200)
+                .strength((d) => global().NODE_CHARGES[d.type] || -200)
                 .theta(0.8)
                 .distanceMax(100))
             .force('center', d3.forceCenter((width - 200) / 2, height / 2))
@@ -100,46 +105,38 @@ function updateReportGraph(operations) {
     Array.from(document.getElementsByClassName('debrief-svg')).forEach((svg) => svg.innerHTML = '');
     d3.selectAll('.debrief-svg > *').remove();
 
-    this.graphs = [
+    graphs = [
         { id: '#debrief-graph-svg', type: 'graph', tooltip: d3.select('#op-tooltip'), simulation: createForceSimulation('operation'), svg: d3.select('#debrief-graph-svg') },
-        { id: '#debrief-attackpath-svg', type: 'attackpath', tooltip: d3.select('#op-tooltip'), simulation: this.createForceSimulation('operation'), svg: d3.select('#debrief-attackpath-svg') },
-        { id: '#debrief-tactic-svg', type: 'tactic', tooltip: d3.select('#op-tooltip'), simulation: this.createForceSimulation('operation'), svg: d3.select('#debrief-tactic-svg') },
-        { id: '#debrief-technique-svg', type: 'technique', tooltip: d3.select('#op-tooltip'), simulation: this.createForceSimulation('operation'), svg: d3.select('#debrief-technique-svg') },
-        { id: '#debrief-fact-svg', type: 'fact', tooltip: d3.select('#fact-tooltip'), simulation: this.createForceSimulation('fact'), svg: d3.select('#debrief-fact-svg') }
+        { id: '#debrief-attackpath-svg', type: 'attackpath', tooltip: d3.select('#op-tooltip'), simulation: createForceSimulation('operation'), svg: d3.select('#debrief-attackpath-svg') },
+        { id: '#debrief-tactic-svg', type: 'tactic', tooltip: d3.select('#op-tooltip'), simulation: createForceSimulation('operation'), svg: d3.select('#debrief-tactic-svg') },
+        { id: '#debrief-technique-svg', type: 'technique', tooltip: d3.select('#op-tooltip'), simulation: createForceSimulation('operation'), svg: d3.select('#debrief-technique-svg') },
+        { id: '#debrief-fact-svg', type: 'fact', tooltip: d3.select('#fact-tooltip'), simulation: createForceSimulation('fact'), svg: d3.select('#debrief-fact-svg') }
     ]
 
-    graphs.forEach(function(graphObj) {
-        buildGraph(graphObj, operations)
-        graphObj.simulation.alpha(1).restart();
-        graphObj.svg.call(d3.zoom().scaleExtent([0.5, 5]).on('zoom', () => {
-            d3.select(graphObj.id + ' .graphContainer')
-                .attr('transform', 'translate(' + d3.event.transform.x + ',' + d3.event.transform.y + ')scale(' + d3.event.transform.k + ')');
-        }));
+    graphs.forEach((graph) => {
+        apiV2('GET', `/plugin/debrief/graph?type=${graph.type}&operations=${operations.join()}`).then((graphData) => {
+            graph.nodes = graphData.nodes;
+            graph.links = graphData.links;
+
+            writeGraph(graph);
+            if (graph.type === 'fact') {
+                limitFactsDisplayed(operations);
+            }
+
+            graph.simulation.alpha(1).restart();
+            graph.svg.call(d3.zoom().scaleExtent([0.5, 5]).on('zoom', () => {
+                d3.select(graph.id + ' .graphContainer')
+                    .attr('transform', 'translate(' + d3.event.transform.x + ',' + d3.event.transform.y + ')scale(' + d3.event.transform.k + ')');
+            }));
+        }).catch((error) => {
+            console.error('Fetch', error);
+        });
     });
 }
 
-function buildGraph(graphObj, operations) {
-    let url = '/plugin/debrief/graph?type=' + graphObj.type + '&operations=' + operations.join();
-    fetch(url).then(response => {
-        if (!response.ok) {
-            throw new Error(`${response.status}: ${response.statusText}`);
-        }
-        return response.json();
-    }).then(graph => {
-        writeGraph(graph, graphObj);
-        if (graphObj.type === 'fact') {
-            limitFactsDisplayed(operations);
-        }
-    }).catch((error) => {
-        console.error('Fetch', error);
-    });
-}
-
-function writeGraph(graph, graphObj) {
-    let width = (graphObj.type !== 'fact') ? OP_GRAPH_WIDTH : FACT_GRAPH_WIDTH;
-    let height = (graphObj.type !== 'fact') ? OP_GRAPH_HEIGHT : FACT_GRAPH_HEIGHT;
-    graphObj.svg.append('defs').append('marker')
-        .attr('id', `arrowhead${graphObj.type}`)
+function writeGraph(graph) {
+    graph.svg.append('defs').append('marker')
+        .attr('id', `arrowhead${graph.type}`)
         .attr('viewBox', '-0 -5 10 10')
         .attr('refX', 30)
         .attr('refY', 0)
@@ -152,7 +149,7 @@ function writeGraph(graph, graphObj) {
         .attr('fill', '#999')
         .style('stroke','none');
 
-    let container = graphObj.svg.append('g')
+    let container = graph.svg.append('g')
                         .attr('class', 'container')
                         .attr('width', '100%')
                         .attr('height', '100%')
@@ -217,99 +214,16 @@ function writeGraph(graph, graphObj) {
             return c.outerHTML + l.outerHTML;
         })
 
-    let legend = container.append('g')
-	    .attr('class', 'legend')
+    createLegend(container, graph, graph.type);
 
-	legend.append('rect')
-	    .attr('id', 'legend-rect-' + graphObj.type)
-	    .attr('x', width - 193)
-	    .attr('y', 10)
-	    .attr('rx', 6)
-	    .attr('width', 183)
-	    .attr('height', 50)
-	    .style('fill', 'rgba(170, 170, 170, 0.5)')
-
-	legend.append('text')
-	    .attr('x', width - 130)
-	    .attr('y', 35)
-	    .style('font-weight', 'bold')
-	    .style('fill', 'white')
-	    .text('Legend')
-
-	let entry = legend.selectAll('g')
-	    .data(graph.nodes.filter(isUniqueImg).concat(addLinkImg(graphObj.type)))
-	    .enter()
-	    .append('g')
-
-    let lineHeight = 30;
-    let upperPadding = 60;
-
-    entry.append('svg')
-        .attr('x', width - 180)
-        .attr('y', (d, i) => {
-            document.getElementById(`legend-rect-${graphObj.type}`).setAttribute('height', parseInt(document.getElementById(`legend-rect-${graphObj.type}`).getAttribute('height')) + lineHeight);
-            let yVal = i * lineHeight + upperPadding;
-            if (yVal > height - 80) {
-                document.getElementById('debrief-graph').setAttribute('height', height + lineHeight);
-                height = document.getElementById('debrief-graph').getAttribute('height');
-            }
-            return yVal;
-        })
-        .attr('width', 20)
-        .attr('height', 20)
-        .html(function (d) {
-            let clone = cloneImgIcon(d);
-            this.id = clone.id + '-legend';
-            this.setAttribute('viewBox', clone.getAttribute('viewBox'));
-            this.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-            this.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-            this.setAttribute('version', '1.0');
-            return clone.innerHTML;
-        })
-
-    entry.append('text')
-        .attr('x', width - 135)
-        .attr('y', (d, i) => i *  lineHeight + upperPadding + lineHeight / 2)
-        .style('fill', 'white')
-        .style('font-size', 13)
-        .style('text-transform', 'capitalize')
-        .text((d) => d.img.indexOf(' ') == -1 ? d.img : d.type);
-
-    if (graphObj.type === 'fact') {
-        let legendHeight = 50 + parseInt(document.getElementById(`legend-rect-${graphObj.type}`).getAttribute('height'));
-
-        let factCountTable  = legend.append('g')
-            .attr('class', 'fact-count')
-
-        let factEntry = factCountTable.selectAll('g')
-            .data(graph.nodes.filter(x => x.type == 'fact').filter(isUniqueFactTrait))
-            .enter()
-            .append('g')
-
-        factEntry.append('text')
-            .attr('x', width - 190)
-            .attr('y', (d, i) => legendHeight + i * 20)
-            .style('fill', 'white')
-            .style('font-size', 13)
-            .text((d) => graph.nodes.filter(x => x.name == d.name).length)
-
-        factEntry.append('text')
-            .attr('x', width - 160)
-            .attr('y', (d, i) => legendHeight + i * 20)
-            .style('fill', 'white')
-            .style('font-size', 13)
-            .style('font-weight', 'normal')
-            .text((d) => d.name)
-    }
-
-    let simulation = graphObj.simulation;
+    let simulation = graph.simulation;
 
     simulation
         .nodes(graph.nodes)
         .on('tick', ticked)
         .force('link')
         .links(graph.links)
-        .distance((d) => LINK_LENGTHS[d.type]);
+        .distance((d) => global().LINK_LENGTHS[d.type]);
 
     function ticked() {
         arrows
@@ -319,18 +233,18 @@ function writeGraph(graph, graphObj) {
         nodes
             .attr('transform', (d) => 'translate(' + d.x + ',' + d.y + ')')
             .on('mouseover', (d, i) => {
-                if (graphObj.tooltip) {
-                    graphObj.tooltip.transition()
+                if (graph.tooltip) {
+                    graph.tooltip.transition()
                         .duration(200)
                         .style('opacity', .9);
-                    graphObj.tooltip.html(generateTooltipHTML(d))
+                    graph.tooltip.html(generateTooltipHTML(d))
                         .style('left', `${d.x + 10}px`)
                         .style('top', `${d.y + 10}px`);
                 }
             })
             .on('mouseout', (d) => {
-                if (graphObj.tooltip) {
-                    graphObj.tooltip.transition()
+                if (graph.tooltip) {
+                    graph.tooltip.transition()
                         .duration(500)
                         .style('opacity', 0);
                 }
@@ -404,6 +318,104 @@ function writeGraph(graph, graphObj) {
     }
 }
 
+function createLegend(container, graph) {
+    let opGraphWidth = document.getElementById('debrief-graph').offsetWidth;
+    let width = (graph.type !== 'fact') ? opGraphWidth : global().FACT_GRAPH_WIDTH;
+    let height = (graph.type !== 'fact') ? global().OP_GRAPH_HEIGHT : global().FACT_GRAPH_HEIGHT;
+  
+    let legend = container.append('g')
+	    .attr('class', 'legend')
+
+	legend.append('rect')
+	    .attr('id', 'legend-rect-' + graph.type)
+	    .attr('x', width - 193)
+	    .attr('y', 10)
+	    .attr('rx', 6)
+	    .attr('width', 183)
+	    .attr('height', 50)
+	    .style('fill', 'rgba(170, 170, 170, 0.5)')
+
+	legend.append('text')
+	    .attr('x', width - 130)
+	    .attr('y', 35)
+	    .style('font-weight', 'bold')
+	    .style('fill', 'white')
+	    .text('Legend')
+
+	let entry = legend.selectAll('g')
+	    .data(graph.nodes.filter(isUniqueImg).concat(addLinkImg(graph.type)))
+	    .enter()
+	    .append('g')
+
+    let lineHeight = 30;
+    let upperPadding = 60;
+
+    entry.append('svg')
+        .attr('x', width - 180)
+        .attr('y', (d, i) => {
+            document.getElementById(`legend-rect-${graph.type}`).setAttribute('height', parseInt(document.getElementById(`legend-rect-${graph.type}`).getAttribute('height')) + lineHeight);
+            let yVal = i * lineHeight + upperPadding;
+            if (yVal > height - 80) {
+                document.getElementById('debrief-graph').setAttribute('height', height + lineHeight);
+                height = document.getElementById('debrief-graph').getAttribute('height');
+            }
+            return yVal;
+        })
+        .attr('width', 20)
+        .attr('height', 20)
+        .html(function (d) {
+            let clone = cloneImgIcon(d);
+            this.id = clone.id + '-legend';
+            this.setAttribute('viewBox', clone.getAttribute('viewBox'));
+            this.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+            this.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+            this.setAttribute('version', '1.0');
+            return clone.innerHTML;
+        })
+
+    entry.append('text')
+        .attr('x', width - 135)
+        .attr('y', (d, i) => i *  lineHeight + upperPadding + lineHeight / 2)
+        .style('fill', 'white')
+        .style('font-size', 13)
+        .style('text-transform', 'capitalize')
+        .text((d) => d.img.indexOf(' ') == -1 ? d.img : d.type);
+
+    if (graph.type === 'fact') {
+        let legendHeight = 50 + parseInt(document.getElementById(`legend-rect-${graph.type}`).getAttribute('height'));
+
+        let factCountTable  = legend.append('g')
+            .attr('class', 'fact-count')
+
+        let factEntry = factCountTable.selectAll('g')
+            .data(graph.nodes.filter(x => x.type == 'fact').filter(isUniqueFactTrait))
+            .enter()
+            .append('g')
+
+        factEntry.append('text')
+            .attr('x', width - 190)
+            .attr('y', (d, i) => legendHeight + i * 20)
+            .style('fill', 'white')
+            .style('font-size', 13)
+            .text((d) => graph.nodes.filter(x => x.name == d.name).length)
+
+        factEntry.append('text')
+            .attr('x', width - 160)
+            .attr('y', (d, i) => legendHeight + i * 20)
+            .style('fill', 'white')
+            .style('font-size', 13)
+            .style('font-weight', 'normal')
+            .text((d) => d.name)
+    }
+}
+
+function moveLegend() {
+    d3.selectAll('.legend').remove();
+    graphs.forEach((graph) => {
+        createLegend(d3.select(`${graph.id} > .container`), graph);
+    });
+}
+
 function cloneImgIcon(d) {
     let c;
     try {
@@ -450,12 +462,12 @@ function statusColor(status) {
 }
 
 function limitFactsDisplayed(operations) {
-    let hasOverFactLimit = operations.some((op) => Array.from(document.querySelectorAll(`#debrief-fact-svg g.fact[data-op="${op}"]`)).slice(FACT_DISPLAY_LIMIT).length > 0)
+    let hasOverFactLimit = operations.some((op) => Array.from(document.querySelectorAll(`#debrief-fact-svg g.fact[data-op="${op}"]`)).slice(global().FACT_DISPLAY_LIMIT).length > 0)
     if (hasOverFactLimit) {
-        document.getElementById('fact-limit-msg').innerHTML = `More than ${FACT_DISPLAY_LIMIT} facts found in the operation(s) selected. For readability, only the first ${FACT_DISPLAY_LIMIT} facts of each operation are displayed.`;
+        document.getElementById('fact-limit-msg').innerHTML = `More than ${global().FACT_DISPLAY_LIMIT} facts found in the operation(s) selected. For readability, only the first ${global().FACT_DISPLAY_LIMIT} facts of each operation are displayed.`;
         document.getElementById('fact-limit').style.display = '';
         operations.forEach((opId) => {
-            let nodesToRemove = Array.from(document.querySelectorAll(`#debrief-fact-svg g.fact[data-op="${opId}"]`)).splice(FACT_DISPLAY_LIMIT);
+            let nodesToRemove = Array.from(document.querySelectorAll(`#debrief-fact-svg g.fact[data-op="${opId}"]`)).splice(global().FACT_DISPLAY_LIMIT);
             nodesToRemove.forEach((node) => {
                 let nodeId = node.id.split('node-')[1];
                 Array.from(document.querySelectorAll(`#debrief-fact-svg polyline.relationship[data-source="${nodeId}"]`)).forEach((el) => el.remove());

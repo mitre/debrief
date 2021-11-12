@@ -10,7 +10,7 @@ svg {
 #debrief-graph {
     position: relative;
     background-color: black;
-    width: 600px;
+    width: 80% !important;
     height: 400px;
     border-radius: 4px;
 }
@@ -21,7 +21,7 @@ svg {
     background-color: black;
     border-radius: 4px;
     width: 800px;
-    height: 400px;
+    height: 600px;
 }
 
 #fact-limit {

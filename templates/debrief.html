@@ -34,7 +34,7 @@
 
             <!-- SELECT OPERATION -->
 
-            <div class="column is-4">
+            <div class="column is-3">
                 <form>
                     <div class="field">
                         <label class="label">Select one or more operations</label>
@@ -54,7 +54,7 @@
 
             <!-- CAMPAIGN GRAPH -->
 
-            <div class="column is-8 is-flex is-justify-content-center m-0">
+            <div class="column is-9 is-flex is-justify-content-center m-0">
                 <div id="images" style="display: none"></div>
                 <div id="copy"></div>
                 <div id="debrief-graph" class="svg-container" x-show="selectedOperationIds.length">
@@ -483,6 +483,7 @@ function alpineDebrief() {
                 return apiV2('GET', '/plugin/debrief/logos');
             }).then((data) => {
                 this.logos = data.logos;
+                window.addEventListener('resize', moveLegend);
             }).catch((error) => {
                 console.error(error);
                 toast('Error getting operations');

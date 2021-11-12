@@ -4,7 +4,7 @@
 <script src="/debrief/js/graph.js"></script>
 
 <div x-data="alpineDebrief()" x-init="initPage()">
-    <div>
+    <div x-ref="debriefHeader">
         <h2>Debrief</h2>
         <p>
             <strong>Campaign Analytics.</strong> Debrief gathers overall campaign information and analytics for a selected 
@@ -481,12 +481,27 @@ function alpineDebrief() {
             }).then(() => {
                 this.initReportSections();
                 return apiV2('GET', '/plugin/debrief/logos');
-            }).then((data) => {
+            }).then(async (data) => {
                 this.logos = data.logos;
                 window.addEventListener('resize', moveLegend);
+
+                // While the debrief tab is open, keep checking for new/killed agents
+                while (this.$refs.debriefHeader) {
+                    await sleep(3000);
+                    this.refreshOperations();
+                }
             }).catch((error) => {
                 console.error(error);
                 toast('Error getting operations');
+            });
+        },
+
+        refreshOperations() {
+            apiV2('GET', '/api/v2/operations').then((operations) => {
+                this.filterOperations(operations);
+            }).catch((error) => {
+                console.error(error);
+                toast('Error refreshing operations');
             });
         },
 

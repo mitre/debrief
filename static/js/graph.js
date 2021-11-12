@@ -214,7 +214,7 @@ function writeGraph(graph) {
             return c.outerHTML + l.outerHTML;
         })
 
-    createLegend(container, graph, graph.type);
+    createLegend(container, graph);
 
     let simulation = graph.simulation;
 

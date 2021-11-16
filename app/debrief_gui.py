@@ -34,7 +34,7 @@ class DebriefGui(BaseWorld):
         self._suppress_logs('PIL')
         self._suppress_logs('svglib')
         self.report_section_modules = dict()
-        self.report_section_names = dict()
+        self.report_section_names = list()
         self.loaded_report_sections = False
 
         rl_settings.trustedHosts = BaseWorld.get_config(prop='reportlab_trusted_hosts', name='debrief') or None
@@ -89,7 +89,7 @@ class DebriefGui(BaseWorld):
         self._save_svgs(svg_data)
         if data['operations']:
             header_logo_path = None
-            if header_logo_filename and header_logo_filename != 'no-logo':
+            if header_logo_filename:
                 header_logo_path = os.path.relpath(os.path.join(self.uploads_dir, 'header-logos', header_logo_filename))
             operations = [o for o in await self.data_svc.locate('operations', match=await self._get_access(request))
                           if str(o.id) in data.get('operations')]
@@ -109,6 +109,13 @@ class DebriefGui(BaseWorld):
             filename = 'debrief_' + datetime.today().strftime('%Y-%m-%d_%H-%M-%S')
             return web.json_response(dict(filename=filename, json_bytes=operations))
         return web.json_response('No operations selected')
+
+    async def all_logos(self, request):
+        uploaded_logos_dir = os.path.relpath(os.path.join(self.uploads_dir, 'header-logos'))
+        logos = [filename for filename in os.listdir(uploaded_logos_dir) if os.path.isfile(
+            os.path.relpath(os.path.join(uploaded_logos_dir, filename))
+        ) and not filename.startswith('.')]
+        return web.json_response(dict(logos=logos))
 
     async def upload_logo(self, request):
         data = await request.post()
@@ -142,9 +149,8 @@ class DebriefGui(BaseWorld):
                             if module:
                                 module_obj = module.DebriefReportSection()
                                 safe_id = re.sub('[^A-Za-z0-9-_:.]', '', re.sub('\s+', '-', module_obj.id))
-                                html_id = 'reportsection-' + safe_id
                                 self.report_section_modules[safe_id] = module_obj
-                                self.report_section_names[html_id] = module_obj.display_name
+                                self.report_section_names.append({ 'key': safe_id, 'name': module_obj.display_name})
                             else:
                                 self.log.error("Failed to load debrief report section module %s" % module_name)
             self.loaded_report_sections = True

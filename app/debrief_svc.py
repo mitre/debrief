@@ -37,16 +37,16 @@ class DebriefService(BaseService):
                     graph_output['links'].append(dict(source=previous_link_graph_id, target=link_graph_id,
                                                       type='next_link'))
                 previous_link_graph_id = link_graph_id
-
-                agent = next((a for a in agents if a.paw == link.paw), None)
-                if 'agent' + agent.unique not in id_store.keys():
-                    id_store['agent' + agent.unique] = max(id_store.values()) + 1
-                graph_output['links'].append(dict(source=id_store['agent' + agent.unique], target=link_graph_id,
+                
+                agent = next((a for a in agents), None)
+                if 'agent' + agent.paw not in id_store.keys():
+                    id_store['agent' + agent.paw] = max(id_store.values()) + 1
+                graph_output['links'].append(dict(source=id_store['agent' + agent.paw], target=link_graph_id,
                                                   type='next_link'))
 
             for agent in operation.agents:
                 graph_output['links'].append(dict(source=op_id,
-                                                  target=id_store['agent' + agent.unique],
+                                                  target=id_store['agent' + agent.paw],
                                                   type='has_agent'))
         return graph_output
 
@@ -90,14 +90,10 @@ class DebriefService(BaseService):
             op_nodes, op_links = [], []
             all_facts = await operation.all_facts()
             for fact in all_facts:
-                if 'fact' + fact.unique not in id_store.keys():
-                    id_store['fact' + fact.unique] = node_id = max(id_store.values()) + 1
-                    node = dict(name=fact.trait, id=node_id, type='fact', operation=op_id,
-                                attrs=self._get_pub_attrs(fact), img='fact',
-                                timestamp=fact.created.strftime('%Y-%m-%dT%H:%M:%S'))
-                else:
-                    node_id = id_store['fact' + fact.unique]
-                    node = next(n for n in graph_output['nodes'] if n['id'] == node_id)
+                id_store['fact' + fact.unique] = node_id = max(id_store.values()) + 1
+                node = dict(name=fact.trait, id=node_id, type='fact', operation=op_id,
+                            attrs=self._get_pub_attrs(fact), img='fact',
+                            timestamp=fact.created.strftime('%Y-%m-%dT%H:%M:%S'))
                 op_nodes.append(node)
 
                 if fact in operation.source.facts:

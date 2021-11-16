@@ -1,92 +1,42 @@
-#debrief-operation-list {
-    height: 100px;
-    background-color: black;
-    color: var(--font-color);
+caption {
+    display: none;
 }
 
-#debrief-header-logo-list {
-    height: 150px;
-    width: 250px;
-    padding: 10px;
-    background-color: black;
-    color: var(--font-color);
-}
-
-#selected-report-section-ordering-list {
-    height: 150px;
-    width: 250px;
-    padding: 10px;
-    background-color: black;
-    color: var(--font-color);
+svg {
+    width: 100%;
+    height: 100%;
 }
 
 #debrief-graph {
+    position: relative;
     background-color: black;
+    width: 80% !important;
     height: 400px;
-    background-image: none;
-    display: block;
+    border-radius: 4px;
 }
 
-.report-table {
-    color: white;
-    width: 100%;
-    border-spacing: 5px;
-}
-.report-table img {
-    height: 18px;
-    margin: 5px;
-}
-.report-table input {
-    background-color: inherit;
-    color: white;
+#fact-graph {
+    position: relative;
+    margin: auto;
+    background-color: black;
+    border-radius: 4px;
+    width: 800px;
+    height: 600px;
 }
 
-.report-table th {
-    text-align: left;
+#fact-limit {
+    width: 800px;
+    margin: auto;
 }
 
-.d3-context-menu {
-	position: absolute;
-	display: none;
-	background-color: #f2f2f2;
-	border-radius: 4px;
-
-	font-family: Arial, sans-serif;
-	font-size: 14px;
-	min-width: 150px;
-	border: 1px solid #d4d4d4;
-
-	z-index:1200;
+#select-operation {
+    max-width: 800px;
+    margin: 0 auto;
 }
 
-.d3-context-menu ul {
-	list-style-type: none;
-	margin: 4px 0px;
-	padding: 0px;
-	cursor: default;
-}
-
-.d3-context-menu ul li {
-	padding: 4px 16px;
-}
-
-.d3-context-menu ul li:hover {
-	background-color: #4677f8;
-	color: #fefefe;
-}
-
-.section-header {
-    font-size:70px;
-    margin-top:-20px;
-}
-.section-sub-header {
-    margin-top:-55px;
-}
-.section-title {
-    flex:24%;text-align:left;padding:15px;
-}
-.section-content {
-    flex:75%;padding:15px;text-align: left
+#tactic-section {
+    width: 600px;
+    margin: auto;
 }
 
 div.d3-tooltip {
@@ -98,95 +48,10 @@ div.d3-tooltip {
     font: 12px sans-serif;
     background: #750b20;
     border: 0px;
-    border-radius: 8px;
+    border-radius: 4px;
     pointer-events: none;
 }
 
-button.graph-switch {
-    float: right;
-    width: auto;
-}
-
-h5 {
-    margin: 0px;
-}
-label {
-    font-size: 14px;
-    text-transform: capitalize;
-}
-
-#fact-limit-msg {
+.graph-controls {
     position: absolute;
-    top: 0px;
-    left: 0px;
-    width: 100%;
-    border-radius: 20px 20px 0 0;
-    display: none;
-    background-color: rgba(255, 0, 0, 0.5);
-    text-align: center;
-}
-
-.graph-media-control {
-    margin: 0 10;
-    padding: 5px;
-    width: auto;
-    border-radius: 5px;
-    background-color: grey;
-    font-size: 12px;
-    cursor: pointer;
-    user-select: none;
-}
-.graph-media-control:hover {
-    background-color: #4e4e4e;
-}
-
-.debrief-report-select {
-    width: 70%;
-    height: 150px;
-    padding: 10px;
-    margin: 5px 5px 15px 5px;
-    border-style: solid;
-    border-width: thin;
-    border-radius: 10px;
-    border-color: grey;
-    overflow-y: auto;
-}
-
-.debrief-logo-upload {
-	margin: 5px 5px 15px 5px;
-    text-align: center;
-}
-
-.debrief-sidebar-header {
-    margin: 30px 0px;
-    text-align: center;
-}
-
-.debrief-logo-upload-wrapper input[type="file"] {
-	position: absolute;
-	z-index: -1;
-	top: 6px;
-	left: 0;
-	font-size: 15px;
-	color: rgb(153, 153, 153);
-}
-
-.debrief-logo-upload-wrapper {
-	margin: 5px 5px 15px 5px;
-    text-align: center;
-    position: relative;
-}
-
-.debrief-report-section-move-button {
-	align-items: center;
-	justify-content: center;
-	display: flex;
-	padding: 8px;
-	width:45%;
-}
-
-.debrief-report-section-move-arrow {
-	background-color: transparent;
-	height: 12px;
-	width: 12px;
 }

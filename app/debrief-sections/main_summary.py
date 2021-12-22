@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from reportlab.platypus import Paragraph, Spacer
 from reportlab.platypus.flowables import KeepTogetherSplitAtTop
 
@@ -22,7 +22,7 @@ class DebriefReportSection(BaseReportSection):
         title.fontName = 'Helvetica-Bold'
         title.textColor = 'maroon'
         title.fontSize = 24
-        timestamp = "<i>Generated on %s</i>" % datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+        timestamp = "<i>Generated on %s</i>" % datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
         return [
             KeepTogetherSplitAtTop([
                 Paragraph(self.section_title, title),

@@ -39,11 +39,14 @@ class DebriefReportSection(BaseReportSection):
         exceeds_cell_msg = '... <font color="maroon"><i>(Value exceeds table cell character limit)</i></font>'
         facts = await operation.all_facts()
         for f in facts:
-            try:
-                lnk = f.links[0]
-                paw_value = '<link href="#agent-{0}" color="blue">{0}</link>'.format(lnk.paw)
-                command_value = lnk.decode_bytes(lnk.command)
-            except IndexError:
+            if f.collected_by:
+                paw_links = []
+                for paw in f.collected_by:
+                    paw_links.append('<link href="#agent-{0}" color="blue">{0}</link>'.format(paw))
+                paw_value = ', '.join(paw_links)
+                commands = set([lnk.decode_bytes(lnk.command) for lnk in operation.chain if lnk.id in f.links])
+                command_value = '<br />'.join(commands)
+            else:
                 paw_value = f'{f.source[:3] + ".." + f.source[-3:]}'
                 command_value = f'No Command ({f.origin_type.name})'
             fact_data.append(

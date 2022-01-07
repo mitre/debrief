@@ -106,7 +106,7 @@ function updateReportGraph(operations) {
     d3.selectAll('.debrief-svg > *').remove();
 
     graphs = [
-        { id: '#debrief-graph-svg', type: 'graph', tooltip: d3.select('#op-tooltip'), simulation: createForceSimulation('operation'), svg: d3.select('#debrief-graph-svg') },
+        { id: '#debrief-steps-svg', type: 'steps', tooltip: d3.select('#op-tooltip'), simulation: createForceSimulation('operation'), svg: d3.select('#debrief-steps-svg') },
         { id: '#debrief-attackpath-svg', type: 'attackpath', tooltip: d3.select('#op-tooltip'), simulation: createForceSimulation('operation'), svg: d3.select('#debrief-attackpath-svg') },
         { id: '#debrief-tactic-svg', type: 'tactic', tooltip: d3.select('#op-tooltip'), simulation: createForceSimulation('operation'), svg: d3.select('#debrief-tactic-svg') },
         { id: '#debrief-technique-svg', type: 'technique', tooltip: d3.select('#op-tooltip'), simulation: createForceSimulation('operation'), svg: d3.select('#debrief-technique-svg') },

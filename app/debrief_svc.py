@@ -199,7 +199,7 @@ class DebriefService(BaseService):
         filtered_fact['origin_type'] = filtered_fact['origin_type'].name
         temp = []
         for lnk in filtered_fact['links']:
-            temp.append(lnk.id)
+            temp.append(lnk)
         filtered_fact['links'] = temp
         return filtered_fact
 

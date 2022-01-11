@@ -11,7 +11,7 @@ class DebriefService(BaseService):
         self.data_svc = services.get('data_svc')
         self.log = logging.getLogger('debrief_svc')
 
-    async def build_operation_d3(self, operation_ids):
+    async def build_steps_d3(self, operation_ids):
         graph_output = dict(nodes=[], links=[])
         id_store = dict(c2=0)
         graph_output['nodes'].append(dict(name="C2 Server", type='c2', label='server', id=0, img='server',

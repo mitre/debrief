@@ -63,8 +63,8 @@
                     <div class="is-flex graph-controls m-2">
                         <div class="select is-small mr-2">
                             <select x-model="selectedGraphType">
-                                <option value="graph">Default</option>
                                 <option value="attackpath">Attack Path</option>
+                                <option value="steps">Steps</option>
                                 <option value="tactic">Tactic</option>
                                 <option value="technique">Technique</option>
                             </select>
@@ -72,7 +72,7 @@
                         <button class="button is-small" @click="toggleLegend()" x-text="`${showGraphLegend ? 'Hide' : 'Show'} Legend`">Show Legend</button>
                     </div>
                     <!-- GRAPHS -->
-                    <svg id="debrief-graph-svg" x-ref="graph" class="op-svg debrief-svg" x-show="selectedGraphType === 'graph'"></svg>
+                    <svg id="debrief-steps-svg" x-ref="steps" class="op-svg debrief-svg" x-show="selectedGraphType === 'steps'"></svg>
                     <svg id="debrief-attackpath-svg" x-ref="attackpath" class="op-svg debrief-svg" x-show="selectedGraphType === 'attackpath'"></svg>
                     <svg id="debrief-tactic-svg" x-ref="tactic" class="op-svg debrief-svg" x-show="selectedGraphType === 'tactic'"></svg>
                     <svg id="debrief-technique-svg" x-ref="technique" class="op-svg debrief-svg" x-show="selectedGraphType === 'technique'"></svg>
@@ -468,7 +468,7 @@ function alpineDebrief() {
         logoFilename: '',
         logos: [],
 
-        selectedGraphType: 'graph',
+        selectedGraphType: 'attackpath',
         nodesOrderedByTime: {},
         showGraphLegend: true,
         isGraphPlaying: false,
@@ -520,8 +520,8 @@ function alpineDebrief() {
                 "main-summary",
                 "statistics",
                 "agents",
-                "default-graph",
                 "attackpath-graph",
+                "steps-graph",
                 "tactic-graph",
                 "technique-graph",
                 "fact-graph",
@@ -747,10 +747,10 @@ function alpineDebrief() {
         toggleSteps() {
             if (this.graphOptionSteps) {
                 document.querySelectorAll('#debrief-graph .link').forEach((el) => el.style.display = '');
-                document.querySelectorAll('#debrief-graph-svg .next_link').forEach((el) => el.style.display = '');
+                document.querySelectorAll('#debrief-steps-svg .next_link').forEach((el) => el.style.display = '');
             } else {
                 document.querySelectorAll('#debrief-graph .link').forEach((el) => el.style.display = 'none');
-                document.querySelectorAll('#debrief-graph-svg .next_link').forEach((el) => el.style.display = 'none');
+                document.querySelectorAll('#debrief-steps-svg .next_link').forEach((el) => el.style.display = 'none');
             }
         },
 
@@ -795,7 +795,7 @@ function alpineDebrief() {
             }
             
             this.nodesOrderedByTime = {};
-            this.nodesOrderedByTime["debrief-graph-svg"] = getSortedNodes("debrief-graph-svg");
+            this.nodesOrderedByTime["debrief-steps-svg"] = getSortedNodes("debrief-steps-svg");
             this.nodesOrderedByTime["debrief-attackpath-svg"] = getSortedNodes("debrief-attackpath-svg");
             this.nodesOrderedByTime["debrief-tactic-svg"] = getSortedNodes("debrief-tactic-svg");
             this.nodesOrderedByTime["debrief-technique-svg"] = getSortedNodes("debrief-technique-svg");

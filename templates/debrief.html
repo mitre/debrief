@@ -47,7 +47,6 @@
                                 </select>
                             </div>
                         </div>
-                        <p class="help is-underlined" data-tooltip="Only operations with an agent listed in the agents page (alive or dead) will show in this list.">Can't find an operation?</p>
                     </div>
                 </form>
             </div>
@@ -349,11 +348,12 @@
                     <p class="help">Select a logo to appear in the top right corner of each page.</p>
                     <form>
                         <label class="checkbox">
-                            <input type="checkbox" x-model="doNotUseLogo" @change="if (doNotUseLogo) logoFilename = ''">
-                            Don't use a logo
+                            <input type="checkbox" x-model="useCustomLogo" @change="if (!useCustomLogo) logoFilename = ''">
+                            Use custom logo
                         </label>
                     </form>
-                    <div class="columns mt-3" x-show="!doNotUseLogo">
+                    <div class="mt-3"></div>
+                    <div class="columns" x-show="useCustomLogo">
                         <div class="column is-6 m-0">
                             <form>
                                 <div class="field">
@@ -464,7 +464,7 @@ function alpineDebrief() {
         showReportModal: false,
         reportSections: JSON.parse(`{{ report_sections | tojson }}`),
         activeReportSections: [],
-        doNotUseLogo: true,
+        useCustomLogo: false,
         logoFilename: '',
         logos: [],
 
@@ -477,8 +477,7 @@ function alpineDebrief() {
 
         initPage() {
             apiV2('GET', '/api/v2/operations').then((operations) => {
-                return this.filterOperations(operations);
-            }).then(() => {
+                this.operations = operations;
                 this.initReportSections();
                 return apiV2('GET', '/plugin/debrief/logos');
             }).then(async (data) => {
@@ -498,20 +497,10 @@ function alpineDebrief() {
 
         refreshOperations() {
             apiV2('GET', '/api/v2/operations').then((operations) => {
-                this.filterOperations(operations);
+                this.operations = operations;
             }).catch((error) => {
                 console.error(error);
                 toast('Error refreshing operations');
-            });
-        },
-
-        filterOperations(operations) {
-            return apiV2('GET', '/api/v2/agents').then((agents) => {
-                let aliveAgentPaws = agents.map((agent) => agent.paw);
-                this.operations = operations.filter((op) => {
-                    let opPaws = op.host_group.map((group) => group.paw);
-                    return opPaws.every((paw) => aliveAgentPaws.includes(paw));
-                });
             });
         },
 
@@ -541,7 +530,7 @@ function alpineDebrief() {
             if (!this.selectedOperationIds.length) return;
             apiV2('POST', '/plugin/debrief/report', { operations: this.selectedOperationIds }).then((data) => {
                 this.stats = data.operations;
-                this.agents = data.agents;
+                this.agents = data.operations.map((o) => o.host_group).flat();
 
                 this.steps = [];
                 this.stats.forEach((stat) => {

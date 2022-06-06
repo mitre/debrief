@@ -16,11 +16,15 @@ class DebriefService(BaseService):
         id_store = dict(c2=0)
         graph_output['nodes'].append(dict(name="C2 Server", type='c2', label='server', id=0, img='server',
                                           attrs={k: v for k, v in self.get_config().items() if k.startswith('app.')}))
-        agents = await self.data_svc.locate('agents')
+
+        operations = []
+        for op_id in operation_ids:
+            operations.append((await self.data_svc.locate('operations', match=dict(id=op_id)))[0])
+
+        agents = [x for xs in map(lambda o: o.agents, operations) for x in xs]
         self._add_agents_to_d3(agents, id_store, graph_output)
 
-        for op_id in operation_ids:
-            operation = (await self.data_svc.locate('operations', match=dict(id=op_id)))[0]
+        for operation in operations:
             graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation',
                                               timestamp=self._format_timestamp(operation.created)))
             previous_link_graph_id = None
@@ -57,11 +61,12 @@ class DebriefService(BaseService):
                                           attrs={config: value for config, value in self.get_config().items() if
                                                  config.startswith('app.')}))
 
-        agents = await self.data_svc.locate('agents')
-        self._add_agents_to_d3(agents, id_store, graph_output)
-
         operations = [op for op_id in operation_ids for op in await self.data_svc.locate('operations',
                                                                                          match=dict(id=op_id))]
+
+        agents = [x for xs in map(lambda o: o.agents, operations) for x in xs]
+        self._add_agents_to_d3(agents, id_store, graph_output)
+
         for agent in agents:
             if agent.origin_link_id:
                 operation = await self.app_svc.find_op_with_link(agent.origin_link_id)

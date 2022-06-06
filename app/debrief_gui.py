@@ -62,9 +62,8 @@ class DebriefGui(BaseWorld):
         operations = [o for o in await self.data_svc.locate('operations', match=await self._get_access(request))
                       if str(o.id) in data.get('operations')]
         op_displays = [o.display for o in operations]
-        agents = [a.display for a in await self.data_svc.locate('agents', match=await self._get_access(request))]
         ttps = DebriefService.generate_ttps(operations)
-        return web.json_response(dict(operations=op_displays, agents=agents, ttps=ttps))
+        return web.json_response(dict(operations=op_displays, ttps=ttps))
 
     async def graph(self, request):
         graphs = {

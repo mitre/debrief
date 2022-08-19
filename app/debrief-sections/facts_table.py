@@ -4,7 +4,7 @@ from reportlab.platypus.flowables import KeepTogetherSplitAtTop
 
 from plugins.debrief.app.utility.base_report_section import BaseReportSection
 
-TABLE_CHAR_LIMIT = 1800
+TABLE_CHAR_LIMIT = 1500
 
 
 class DebriefReportSection(BaseReportSection):

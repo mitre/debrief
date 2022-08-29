@@ -272,7 +272,7 @@ function writeGraph(graph) {
         let ret = '';
         switch (d['type']) {
             case 'operation':
-                ret += 'name: ' + d['name'] + '<br/>';
+                ret += 'name: ' + sanitize(d['name']) + '<br/>';
                 ret += 'op_id: ' + d['id'] + '<br/>';
                 ret += 'created: ' + d['timestamp'] + '<br/>';
                 break;
@@ -283,7 +283,7 @@ function writeGraph(graph) {
                 ret += 'created: ' + d['timestamp'] + '<br/>';
                 for (let attr in d['attrs']) {
                     if (attr != d['type']) {
-                        ret += attr + ': ' + d['attrs'][attr] + '<br/>';
+                        ret += sanitize(attr) + ': ' + sanitize(d['attrs'][attr]) + '<br/>';
                     }
                 }
                 break;
@@ -291,8 +291,8 @@ function writeGraph(graph) {
                 ret += d['timestamp'] ? 'created: ' + d['timestamp'] + '<br/>' : '';
                 for (let attr in d['attrs']) {
                     if (d['attrs'][attr] != null) {
-                        ret += attr + ': ';
-                        ret += attr == 'status' ? statusName(d['attrs'][attr]) : d['attrs'][attr];
+                        ret += sanitize(attr) + ': ';
+                        ret += attr == 'status' ? statusName(d['attrs'][attr]) : sanitize(d['attrs'][attr]);
                         ret += '<br/>';
                     }
                 }

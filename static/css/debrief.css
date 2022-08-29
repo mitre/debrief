@@ -55,3 +55,7 @@ div.d3-tooltip {
 .graph-controls {
     position: absolute;
 }
+
+#tactic-section > .card {
+    background-color: #121212;
+}

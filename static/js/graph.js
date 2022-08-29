@@ -410,6 +410,7 @@ function createLegend(container, graph) {
 }
 
 function moveLegend() {
+    if (!graphs) return
     d3.selectAll('.legend').remove();
     graphs.forEach((graph) => {
         createLegend(d3.select(`${graph.id} > .container`), graph);

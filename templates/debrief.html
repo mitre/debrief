@@ -603,6 +603,8 @@ function alpineDebrief() {
                         this.commandOutput = JSON.parse(b64DecodeUnicode(data.output));
                     } catch (error) { // occurs when data is not JSON
                         this.commandOutput = '';
+                        console.error(error);
+                        toast('Error getting command and/or command results.');
                     }
                 } else {
                     this.command = 'No command to display';

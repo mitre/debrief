@@ -321,8 +321,14 @@
                 <section class="modal-card-body">
                     <p>Command</p>
                     <pre x-text="command"></pre>
-                    <p>Output</p>
-                    <pre x-text="commandOutput"></pre>
+                    <p x-text="`Standard Output${commandOutput.stdout ? '' : ': Nothing to show'}`"></p>
+                    <template x-if="commandOutput != '' && commandOutput.stdout !== ''">
+                        <pre class="has-text-left white-space-pre-line" x-text="commandOutput.stdout"></pre>
+                    </template>
+                    <p x-text="`Standard Error${commandOutput.stderr ? '' : ': Nothing to show'}`"></p>
+                    <template x-if="commandOutput != '' && commandOutput.stderr !== ''">
+                        <pre class="has-text-left white-space-pre-line has-text-danger" x-text="commandOutput.stderr"></pre>
+                    </template>
                 </section>
                 <footer class="modal-card-foot">
                     <nav class="level">
@@ -592,8 +598,14 @@ function alpineDebrief() {
             };
             apiV2('POST', '/api/rest', requestBody).then((data) => {
                 if (data) {
-                    this.command = b64DecodeUnicode(data.link.command);
-                    this.commandOutput = b64DecodeUnicode(data.output);
+                    try {
+                        this.command = b64DecodeUnicode(data.link.command);
+                        this.commandOutput = JSON.parse(b64DecodeUnicode(data.output));
+                    } catch (error) { // occurs when data is not JSON
+                        this.commandOutput = '';
+                        console.error(error);
+                        toast('Error getting command and/or command results.');
+                    }
                 } else {
                     this.command = 'No command to display';
                     this.commandOutput = '';

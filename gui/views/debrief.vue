@@ -56,7 +56,7 @@ export default {
     };
   },
   created() {
-    this.initDebrief();
+    this.initPage();
   },
   methods: {
     initPage() {

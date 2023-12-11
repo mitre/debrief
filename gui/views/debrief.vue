@@ -1,20 +1,17 @@
 <script setup>
 import { inject, ref, onMounted, computed } from "vue";
 import { storeToRefs } from "pinia";
+import '../../static/js/d3-zoom.v1.min.js';
+import '../../static/js/d3.v4.min.js';
+import '../../static/js/graph.js';
 
 const $api = inject("$api");
 
 onMounted(async () => {});
 </script>
 
-<script>
-import '/debrief/js/d3.v4.min.js';
-import '/assets/d3-zoom.v1.min.js';
-import '/assets/graph.js';
-</script>
-
 <style scoped>
-@import "/debrief/css/debrief.css";
+@import "../../static/css/debrief.css";
 </style>
 
 <script>

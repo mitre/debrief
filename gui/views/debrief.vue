@@ -1,20 +1,98 @@
 <script setup>
 import { inject, ref, onMounted, computed } from "vue";
 import { storeToRefs } from "pinia";
-import '../../static/js/d3-zoom.v1.min.js';
-import '../../static/js/d3.v4.min.js';
-import '../../static/js/graph.js';
 
 const $api = inject("$api");
 
-onMounted(async () => {});
+onMounted(async () => {
+  let d3Script = document.createElement("script");
+  d3Script.setAttribute(
+    "src",
+    "/debrief/js/d3.v4.min.js"
+  );
+  let d4Script = document.createElement("script");
+  d4Script.setAttribute(
+    "src",
+    "/debrief/js/d3-zoom.v1.min.js"
+  );
+  let graphScript = document.createElement("script");
+  graphScript.setAttribute(
+    "src",
+    "/debrief/js/graph.js"
+  );
+  document.head.appendChild(d3Script);
+  document.head.appendChild(d4Script);
+  document.head.appendChild(graphScript);
+});
 </script>
 
 <style scoped>
-@import "../../static/css/debrief.css";
+caption {
+    display: none;
+}
+
+svg {
+    width: 100%;
+    height: 100%;
+}
+
+#debrief-graph {
+    position: relative;
+    background-color: black;
+    width: 80% !important;
+    height: 400px;
+    border-radius: 4px;
+}
+
+#fact-graph {
+    position: relative;
+    margin: auto;
+    background-color: black;
+    border-radius: 4px;
+    width: 800px;
+    height: 600px;
+}
+
+#fact-limit {
+    width: 800px;
+    margin: auto;
+}
+
+#select-operation {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+#tactic-section {
+    width: 600px;
+    margin: auto;
+}
+
+div.d3-tooltip {
+    position: absolute;
+    text-align: left;
+    width: auto;
+    height: auto;
+    padding: 5px;
+    font: 12px sans-serif;
+    background: #750b20;
+    border: 0px;
+    border-radius: 4px;
+    pointer-events: none;
+}
+
+.graph-controls {
+    position: absolute;
+}
+
+#tactic-section > .card {
+    background-color: #121212;
+}
 </style>
 
 <script>
+import { toast } from "bulma-toast";
+import { b64DecodeUnicode } from "@/utils/utils";
 export default {
   inject: ["$api"],
   data() {
@@ -39,7 +117,7 @@ export default {
         graphOptionSteps: true,
 
         showReportModal: false,
-        reportSections: JSON.parse(`{{ report_sections | tojson }}`),
+        reportSections: [],
         activeReportSections: [],
         useCustomLogo: false,
         logoFilename: '',
@@ -57,31 +135,62 @@ export default {
   },
   methods: {
     initPage() {
+            this.$api.get('/plugin/debrief/sections').then((data) => {
+                this.reportSections = data.data.report_sections;
+            }).catch((error) => {
+                console.error(error);
+                toast({
+                  message:
+                  "Error getting report sections",
+                  type: "is-danger",
+                  dismissible: true,
+                  pauseOnHover: true,
+                  duration: 2000,
+                  position: "bottom-right",
+                });
+            });
             this.$api.get('/api/v2/operations').then((operations) => {
-                this.operations = operations;
+                this.operations = operations.data;
                 this.initReportSections();
                 return this.$api.get('/plugin/debrief/logos');
             }).then(async (data) => {
-                this.logos = data.logos;
-                window.addEventListener('resize', moveLegend);
+                this.logos = data.data.logos;
+                if (typeof moveLegend !== 'undefined') {
+                  window.addEventListener('resize', moveLegend);
+                }
 
                 // While the debrief tab is open, keep checking for new/killed agents
-                while (this.$refs.debriefHeader) {
-                    await sleep(3000);
-                    this.refreshOperations();
-                }
+                setInterval(async () => {
+                  this.refreshOperations();
+                }, "3000");
             }).catch((error) => {
                 console.error(error);
-                toast('Error getting operations');
+                toast({
+                  message:
+                  "Error getting operations",
+                  type: "is-danger",
+                  dismissible: true,
+                  pauseOnHover: true,
+                  duration: 2000,
+                  position: "bottom-right",
+                });
             });
         },
 
         refreshOperations() {
           this.$api.get('/api/v2/operations').then((operations) => {
-                this.operations = operations;
+                this.operations = operations.data;
             }).catch((error) => {
                 console.error(error);
-                toast('Error refreshing operations');
+          toast({
+            message:
+            "Error refreshing operations",
+            type: "is-danger",
+            dismissible: true,
+            pauseOnHover: true,
+            duration: 2000,
+            position: "bottom-right",
+          });
             });
         },
 
@@ -110,6 +219,7 @@ export default {
         loadOperation() {
             if (!this.selectedOperationIds.length) return;
             this.$api.post('/plugin/debrief/report', { operations: this.selectedOperationIds }).then((data) => {
+                data = data.data;
                 this.stats = data.operations;
                 this.agents = data.operations.map((o) => o.host_group).flat();
 
@@ -132,7 +242,15 @@ export default {
 
                 updateReportGraph(this.selectedOperationIds);
             }).catch((error) => {
-                toast('Error loading operation', false);
+                toast({
+                  message:
+                  "Error loading operation",
+                  type: "is-danger",
+                  dismissible: true,
+                  pauseOnHover: true,
+                  duration: 2000,
+                  position: "bottom-right",
+                });
                 console.error(error);
             })
         },
@@ -172,14 +290,22 @@ export default {
                 link_id: id
             };
             this.$api.post('/api/rest', requestBody).then((data) => {
-                if (data) {
+                if (data.data) {
                     try {
-                        this.command = b64DecodeUnicode(data.link.command);
-                        this.commandOutput = JSON.parse(b64DecodeUnicode(data.output));
+                        this.command = data.data.link.command;
+                        this.commandOutput = JSON.parse(b64DecodeUnicode(data.data.output));
                     } catch (error) { // occurs when data is not JSON
                         this.commandOutput = '';
                         console.error(error);
-                        toast('Error getting command and/or command results.');
+                        toast({
+                          message:
+                          "Error getting command and/or command results.",
+                          type: "is-danger",
+                          dismissible: true,
+                          pauseOnHover: true,
+                          duration: 2000,
+                          position: "bottom-right",
+                        });
                     }
                 } else {
                     this.command = 'No command to display';
@@ -218,11 +344,20 @@ export default {
             let formData = new FormData()
             formData.append('header-logo', el.files[0])
             this.$api.post('/plugin/debrief/logo', formData, false).then((data) => {
+                data = data.data;
                 this.logos.push(data.filename);
                 this.logoFilename = data.filename;
             }).catch((error) => {
                 console.error(error);
-                toast('Error uploading file', false);
+                toast({
+                  message:
+                  "Error uploading file",
+                  type: "is-danger",
+                  dismissible: true,
+                  pauseOnHover: true,
+                  duration: 2000,
+                  position: "bottom-right",
+                });
             });
         },
 
@@ -234,6 +369,7 @@ export default {
                 'header-logo': this.logoFilename
             };
             this.$api.post('/plugin/debrief/pdf', requestBody, true).then((data) => {
+                data = data.data;
                 let dataStr = URL.createObjectURL(new Blob([data["pdf_bytes"]], { type: "application/pdf" }));
                 let downloadAnchorNode = document.createElement("a");
                 downloadAnchorNode.setAttribute("href", dataStr);
@@ -243,24 +379,51 @@ export default {
                 downloadAnchorNode.remove();
             }).catch((error) => {
                 console.error(error);
-                toast('Error downloading PDF report', false);
+                toast({
+                  message:
+                  "Error downloading PDF report",
+                  type: "is-danger",
+                  dismissible: true,
+                  pauseOnHover: true,
+                  duration: 2000,
+                  position: "bottom-right",
+                });
             });
         },
 
         downloadJSON() {
           this.$api.post('/plugin/debrief/json', { 'operations': this.selectedOperationIds }).then((data) => {
-                downloadJson(data.filename, data);
+                data = data.data;
+                this.downloadJson(data.filename, data);
             }).catch((error) => {
                 console.error(error);
-                toast('Error downloading JSON report', false);
+                toast({
+                  message:
+                  "Error downloading JSON report",
+                  type: "is-danger",
+                  dismissible: true,
+                  pauseOnHover: true,
+                  duration: 2000,
+                  position: "bottom-right",
+                });
             });
+        },
+
+         downloadJson(filename, data) {
+            let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+            let downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", filename + ".json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
         },
 
         getGraphData() {
             let encodedGraphs = {}
 
             document.querySelectorAll('.debrief-svg').forEach((svg) => {
-                newSvg = svg.cloneNode(true);
+                let newSvg = svg.cloneNode(true);
                 newSvg.setAttribute('id', 'copy-svg');
                 document.getElementById('copy').appendChild(newSvg)
                 document.querySelectorAll('#copy-svg .container').forEach((container) => container.setAttribute('transform', 'scale(5)'))
@@ -380,7 +543,7 @@ export default {
         async visualizePlayPause() {
             this.getNodesOrderedByTime();
             this.isGraphPlaying = !this.isGraphPlaying;
-            let id = this.$refs[this.selectedGraphType].id;
+            let id = `debrief-${this.selectedGraphType}-svg`;
 
             if (this.isGraphPlaying) {
                 if (!this.nodesOrderedByTime[id].find(node => node.style.display == "none")) {
@@ -388,7 +551,7 @@ export default {
                 }
 
                 while (this.isGraphPlaying) {
-                    await sleep(1000);
+                    await this.sleep(1000);
                     if (this.isGraphPlaying) {
                         this.visualizeStepForward();
                     }
@@ -396,21 +559,24 @@ export default {
             }
         },
 
+       sleep(ms) {
+          return new Promise((resolve) => setTimeout(resolve, ms));
+      },
         visualizeBeginning() {
-            let id = this.$refs[this.selectedGraphType].id;
+            let id = `debrief-${this.selectedGraphType}-svg`;
             document.querySelectorAll(`#${id} .node:not(.c2)`).forEach((node) => node.style.display = 'none');
             document.querySelectorAll(`#${id} polyline`).forEach((node) => node.style.display = 'none');
         },
 
         visualizeEnd() {
-            let id = this.$refs[this.selectedGraphType].id;
+            let id = `debrief-${this.selectedGraphType}-svg`;
             document.querySelectorAll(`#${id} .node`).forEach((node) => node.style.display = 'block');
             document.querySelectorAll(`#${id} polyline`).forEach((node) => node.style.display = 'block');
         },
 
         visualizeStepForward() {
             this.getNodesOrderedByTime();
-            let id = this.$refs[this.selectedGraphType].id;
+            let id = `debrief-${this.selectedGraphType}-svg`;
 
             let nextNode = this.nodesOrderedByTime[id].find(node => node.style.display == "none");
             if (nextNode) {
@@ -431,7 +597,7 @@ export default {
 
         visualizeStepBack() {
             this.getNodesOrderedByTime();
-            let id = this.$refs[this.selectedGraphType].id;
+            let id = `debrief-${this.selectedGraphType}-svg`;
 
             let prevNode = this.nodesOrderedByTime[id].slice().reverse().find(node => node.style.display != "none");
 
@@ -446,12 +612,15 @@ export default {
                 });
             }
         },
+        useCustomLogoChange () {
+            if (!this.useCustomLogo) this.logoFilename = '';
+        },
   },
 };
 </script>
 
 <template lang="pug">
-div(v-bind:ref="debriefHeader")
+div
   h2 Debrief
   p
     strong Campaign Analytics.
@@ -464,16 +633,16 @@ hr
 div
   .buttons
     button.button.is-primary.is-small(:disabled="!selectedOperationIds.length", @click="showGraphSettingsModal = true")
-      span.icon
-        em.fas.fa-cog
+      span.icon.is-small
+        font-awesome-icon(icon="fas fa-cog")
       span Graph Settings
     button.button.is-primary.is-small(:disabled="!selectedOperationIds.length", @click="showReportModal = true")
-      span.icon
-        em.fas.fa-file-pdf
+      span.icon.is-small
+        font-awesome-icon(icon="fas fa-download")
       span Download PDF Report
     button.button.is-primary.is-small(:disabled="!selectedOperationIds.length", @click="downloadJSON")
-      span.icon
-        em.fas.fa-file-code
+      span.icon.is-small
+        font-awesome-icon(icon="fas fa-download")
       span Download Operation JSON
 
   .columns.mb-6
@@ -505,23 +674,23 @@ div
         svg#debrief-technique-svg.op-svg.debrief-svg(v-show="selectedGraphType === 'technique'")
         .buttons.is-justify-content-center.mt-2
           button.button.is-small(@click="visualizeBeginning")
-            span.icon
-              em.fas.fa-fast-backward
+            span.icon.is-small
+              font-awesome-icon(icon="fas fa-fast-backward")
           button.button.is-small(@click="visualizeStepBack")
-            span.icon
-              em.fas.fa-backward
+            span.icon.is-small
+              font-awesome-icon(icon="fas fa-backward")
           button.button.is-small(v-show="isGraphPlaying", @click="visualizePlayPause")
-            span.icon
-              em.fas.fa-pause
+            span.icon.is-small
+              font-awesome-icon(icon="fas fa-pause")
           button.button.is-small(v-show="!isGraphPlaying", @click="visualizePlayPause")
-            span.icon
-              em.fas.fa-play
+            span.icon.is-small
+              font-awesome-icon(icon="fas fa-play")
           button.button.is-small(@click="visualizeStepForward")
-            span.icon
-              em.fas.fa-forward
+            span.icon.is-small
+              font-awesome-icon(icon="fas fa-forward")
           button.button.is-small(@click="visualizeEnd")
-            span.icon
-              em.fas.fa-fast-forward
+            span.icon.is-small
+              font-awesome-icon(icon="fas fa-fast-forward")
 
   .tabs.is-centered(v-show="selectedOperationIds.length")
     ul.ml-0
@@ -537,7 +706,6 @@ div
         a Fact Graph
 
   div(v-show="selectedOperationIds.length")
-    //- Stats Tab Content
     div(v-show="activeTab === 'stats'")
       table.table.is-striped
         caption Operation Statistics
@@ -557,7 +725,6 @@ div
               td {{ stat.objective.name }}
               td {{ stat.start }}
 
-    //- Agents Tab Content
     div(v-show="activeTab === 'agents'")
       table.table.is-striped
         caption Operation Agents
@@ -579,7 +746,6 @@ div
               td {{ agent.privilege }}
               td {{ agent.exe_name }}
 
-    //- Steps Tab Content
     div(v-show="activeTab === 'steps'")
       table.table.is-striped
         caption Operation Steps
@@ -602,7 +768,6 @@ div
               td
                 button.button.is-small(@click="showCommand(step.id, step.command, step.ability.name)") Show Command
 
-    //- Tactics & Techniques Tab Content
     div(v-show="activeTab === 'tactics'")
       template(v-for="tactic in tacticsAndTechniques")
         .card.mb-4
@@ -624,7 +789,6 @@ div
                     template(v-for="ability in step.abilities")
                       li {{ ability }}
 
-    //- Facts Tab Content
     div(v-show="activeTab === 'facts'")
       #fact-graph
         svg#debrief-fact-svg.debrief-svg
@@ -632,7 +796,6 @@ div
       article#fact-limit.message.is-info
         #fact-limit-msg.message-body
 
-  //- Graph Settings Modal
   .modal(v-bind:class="{ 'is-active': showGraphSettingsModal }")
     .modal-background(@click="showGraphSettingsModal = false")
     .modal-card
@@ -672,7 +835,6 @@ div
             .level-item
               button.button.is-small(@click="showGraphSettingsModal = false") Close
 
-  //- Command Modal
   .modal(v-bind:class="{ 'is-active': showCommandModal }")
     .modal-background(@click="showCommandModal = false")
     .modal-card
@@ -694,7 +856,6 @@ div
             .level-item
               button.button.is-small(@click="showCommandModal = false") Close
 
-  //- Report Modal
   .modal(v-bind:class="{ 'is-active': showReportModal }")
     .modal-background(@click="showReportModal = false")
     .modal-card
@@ -705,7 +866,7 @@ div
         p.help Select a logo to appear in the top right corner of each page.
         form
           label.checkbox
-            input(type="checkbox", v-model="useCustomLogo", @change="if (!useCustomLogo) logoFilename = ''")
+            input(type="checkbox", v-model="useCustomLogo", @change="useCustomLogoChange")
             | Use custom logo
         .mt-3
         .columns(v-show="useCustomLogo")
@@ -783,46 +944,4 @@ div
           .level-right
             .level-item
               button.button.is-small(@click="showCommandModal = false") Close
-
-  .modal(v-bind:class="{ 'is-active': showGraphSettingsModal }")
-    .modal-background(@click="showGraphSettingsModal = false")
-    .modal-card
-      header.modal-card-head
-        p.modal-card-title Graph Settings
-      section.modal-card-body
-        p
-          strong Display Options
-        form
-          .field
-            .control
-              label.checkbox
-                input(type="checkbox", v-model="graphOptionLabels", v-on:change="toggleLabels")
-                | Show labels
-          .field
-            .control
-              label.checkbox
-                input(type="checkbox", v-model="graphOptionIcons", v-on:change="toggleIcons")
-                | Show icons
-        p
-          strong Data Options
-        form
-          .field
-            .control
-              label.checkbox
-                input(type="checkbox", v-model="graphOptionSteps", v-on:change="toggleSteps")
-                | Show operation steps
-          .field
-            .control
-              label.checkbox
-                input(type="checkbox", v-on:change="toggleTactics")
-                | Show steps as tactics
-
-      footer.modal-card-foot
-        nav.level
-          .level-left
-            .level-item
-              button.button.is-small(@click="showReportModal = false") Close
-          .level-right
-            .level-item
-              button.button.is-small.is-primary(@click="downloadPDF") Download
 </template>

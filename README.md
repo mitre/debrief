@@ -1,6 +1,6 @@
-# CALDERA Debrief
+# MITRE Caldera Plugin: Debrief
 
-A CALDERA plugin: https://github.com/mitre/caldera
+A Caldera plugin: https://github.com/mitre/caldera
 
 Debrief is a plugin for gathering overall campaign information and analytics for a selected set of 
 operations. It provides a centralized view of operation metadata, graphical displays of the operations, 

@@ -57,6 +57,15 @@ class DebriefGui(BaseWorld):
             print(e)
         return dict(operations=operations, header_logos=header_logos, report_sections=self.report_section_names)
 
+    async def report_sections(self, request):
+        try:
+            plugins = await self.data_svc.locate('plugins', match=dict(enabled=True))
+            self._load_report_sections(plugins)
+        except Exception as e:
+            print(e)
+        report_sections = self.report_section_names
+        return web.json_response(dict(report_sections=report_sections))
+
     async def report(self, request):
         data = dict(await request.json())
         operations = [o for o in await self.data_svc.locate('operations', match=await self._get_access(request))

@@ -23,28 +23,28 @@ function global() {
             technique_name: -200
         },
         GRAPH_IMAGE_URLS: {
-            server: 'debrief/img/cloud.svg',
-            operation: 'debrief/img/operation.svg',
-            link: 'debrief/img/link.svg',
-            fact: 'debrief/img/star.svg',
-            darwin: 'debrief/img/darwin.svg',
-            windows: 'debrief/img/windows.svg',
-            linux: 'debrief/img/linux.svg',
-            tactic: 'debrief/img/tactic.svg',
-            technique_name: 'debrief/img/technique.svg',
-            collection: 'debrief/img/collection.svg',
-            'credential-access': 'debrief/img/credaccess.svg',
-            'defense-evasion': 'debrief/img/defevasion.svg',
-            discovery: 'debrief/img/discovery.svg',
-            execution: 'debrief/img/execution.svg',
-            exfiltration: 'debrief/img/exfil.svg',
-            impact: 'debrief/img/impact.svg',
-            'lateral-movement': 'debrief/img/latmove.svg',
-            persistence: 'debrief/img/persistence.svg',
-            'privilege-escalation': 'debrief/img/privesc.svg',
-            'initial-access': 'debrief/img/access.svg',
-            'command-and-control': 'debrief/img/commandcontrol.svg',
-            unknown: 'debrief/img/unknown.svg'
+            server: '/debrief/img/cloud.svg',
+            operation: '/debrief/img/operation.svg',
+            link: '/debrief/img/link.svg',
+            fact: '/debrief/img/star.svg',
+            darwin: '/debrief/img/darwin.svg',
+            windows: '/debrief/img/windows.svg',
+            linux: '/debrief/img/linux.svg',
+            tactic: '/debrief/img/tactic.svg',
+            technique_name: '/debrief/img/technique.svg',
+            collection: '/debrief/img/collection.svg',
+            'credential-access': '/debrief/img/credaccess.svg',
+            'defense-evasion': '/debrief/img/defevasion.svg',
+            discovery: '/debrief/img/discovery.svg',
+            execution: '/debrief/img/execution.svg',
+            exfiltration: '/debrief/img/exfil.svg',
+            impact: '/debrief/img/impact.svg',
+            'lateral-movement': '/debrief/img/latmove.svg',
+            persistence: '/debrief/img/persistence.svg',
+            'privilege-escalation': '/debrief/img/privesc.svg',
+            'initial-access': '/debrief/img/access.svg',
+            'command-and-control': '/debrief/img/commandcontrol.svg',
+            unknown: '/debrief/img/unknown.svg'
         }
     }
 }
@@ -53,6 +53,36 @@ function init() {
     getImages();
 }
 
+function apiV2(requestType, endpoint, body = null, jsonRequest = true) {
+    let requestBody = { method: requestType };
+    if (jsonRequest) {
+        requestBody.headers = { 'Content-Type': 'application/json' };
+        if (body) {
+            requestBody.body = JSON.stringify(body);
+        }
+    } else {
+        if (body) {
+            requestBody.body = body;
+        }
+    }
+
+    return new Promise((resolve, reject) => {
+        fetch(endpoint, requestBody)
+            .then((response) => {
+                if (!response.ok) {
+                    reject(response.statusText);
+                }
+                return response.text();
+            })
+            .then((text) => {
+                try {
+                    resolve(JSON.parse(text));
+                } catch {
+                    resolve(text);
+                }
+            });
+    });
+}
 function getImages() {
     for (let key in global().GRAPH_IMAGE_URLS) {
         fetch(global().GRAPH_IMAGE_URLS[key]).then((data) => {
@@ -156,7 +186,6 @@ function writeGraph(graph) {
 
     let graphContainer = container.append('g')
                         .attr('class', 'graphContainer')
-
     let arrows = graphContainer.append('g')
                 .style('stroke', '#aaa')
                 .style('fill', '#aaa')
@@ -300,6 +329,11 @@ function writeGraph(graph) {
         return ret;
     }
 
+  function sanitize(unsafeMsg) {
+    const parser = new DOMParser();
+    let doc = parser.parseFromString(unsafeMsg, 'text/html');
+    return doc.body.innerText;
+  }
     function getPolylineCoords(x1, y1, x2, y2) {
         let p1 = `${x1} ${y1}`;
         let x = x1 - Math.hypot(x2-x1, y2-y1) + 17;

@@ -156,7 +156,7 @@ class DebriefGui(BaseWorld):
                             module = import_module(module_name)
                             if module:
                                 module_obj = module.DebriefReportSection()
-                                safe_id = re.sub('[^A-Za-z0-9-_:.]', '', re.sub('\s+', '-', module_obj.id))
+                                safe_id = re.sub('[^A-Za-z0-9-_:.]', '', re.sub(r'\s+', '-', module_obj.id))
                                 self.report_section_modules[safe_id] = module_obj
                                 self.report_section_names.append({ 'key': safe_id, 'name': module_obj.display_name})
                             else:

@@ -7,9 +7,9 @@ DEFAULT_URL = os.getenv(
 )
 CACHE_PATH = os.getenv(
     "ATTACK_V18_CACHE",
-    os.path.join(os.path.dirname(__file__), "..", "uploads", "attack18_cache.json")
+    os.path.join(os.path.dirname(__file__), "uploads", "attack18_cache.json")
 )
-
+print(CACHE_PATH, flush=True)
 class Attack18Map:
     def __init__(self, idx: Dict[str, Any]): self._idx = idx or {}
     def get_strategies(self, tid: str) -> List[Dict[str, Any]]:

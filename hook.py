@@ -3,7 +3,7 @@ from plugins.debrief.app.debrief_gui import DebriefGui
 
 # NEW:
 import aiohttp, asyncio, logging
-from plugins.debrief.app.utility.attack18_mapper import load_attack18_map, CACHE_PATH
+from plugins.debrief.attack_mapper import load_attack18_map, CACHE_PATH
 
 name = 'Debrief'
 description = 'some good bones'
@@ -12,7 +12,7 @@ access = BaseWorld.Access.RED
 log = logging.getLogger('debrief')
 
 
-async def _init_attack18_cache(app):
+async def _init_attack18_cache():
     # Background init so UI isn't blocked
     async with aiohttp.ClientSession() as session:
         async def _get(url: str):
@@ -42,4 +42,4 @@ async def enable(services):
     app.router.add_route('POST', '/plugin/debrief/logo', debrief_gui.upload_logo)
 
     # Kick off the ATT&CK v18 cache warmup
-    app.loop.create_task(_init_attack18_cache(app))
+    asyncio.create_task(_init_attack18_cache())

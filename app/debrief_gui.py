@@ -1,8 +1,4 @@
-import base64
-import glob
-import logging
-import os
-import re
+import base64, glob, logging, os, re
 
 from aiohttp import web
 from aiohttp_jinja2 import template
@@ -10,9 +6,10 @@ from datetime import datetime
 from importlib import import_module
 from io import BytesIO
 from reportlab import rl_settings
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import letter, landscape as to_landscape
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import SimpleDocTemplate, Spacer
+from reportlab.platypus import SimpleDocTemplate, Spacer, PageTemplate, Frame, PageBreak, NextPageTemplate
+
 
 from app.service.auth_svc import for_all_public_methods, check_authorization
 from app.utility.base_world import BaseWorld
@@ -61,6 +58,7 @@ class DebriefGui(BaseWorld):
         try:
             plugins = await self.data_svc.locate('plugins', match=dict(enabled=True))
             self._load_report_sections(plugins)
+            print("Debrief report sections loaded successfully: ", self.report_section_names)
         except Exception as e:
             print(e)
         report_sections = self.report_section_names
@@ -83,30 +81,45 @@ class DebriefGui(BaseWorld):
             'technique': self.debrief_svc.build_technique_d3
         }
         try:
-            graph_type = request.rel_url.query['type']
-            operations = request.rel_url.query['operations'].split(',')
-            graph = await graphs[graph_type](operations)
+            graph_type = request.rel_url.query.get('type')
+            if graph_type not in graphs:
+                return web.json_response({'error': f'unknown graph type: {graph_type}'}, status=400)
+
+            operations = request.rel_url.query.get('operations', '')
+            op_ids = [o for o in operations.split(',') if o]
+            graph = await graphs[graph_type](op_ids)
             return web.json_response(graph)
         except Exception as e:
-            self.log.error(repr(e), exc_info=True)
+            self.log.error("graph() failed: %r", e, exc_info=True)
+            return web.json_response({'error': 'internal error'}, status=500)
 
     async def download_pdf(self, request):
         data = dict(await request.json())
         svg_data = data['graphs']
         header_logo_filename = data.get('header-logo')
         self._save_svgs(svg_data)
-        if data['operations']:
-            header_logo_path = None
-            if header_logo_filename:
-                header_logo_path = os.path.relpath(os.path.join(self.uploads_dir, 'header-logos', header_logo_filename))
-            operations = [o for o in await self.data_svc.locate('operations', match=await self._get_access(request))
-                          if str(o.id) in data.get('operations')]
-            filename = 'debrief_' + datetime.today().strftime('%Y-%m-%d_%H-%M-%S')
-            agents = await self.data_svc.locate('agents')
-            pdf_bytes = await self._build_pdf(operations, agents, filename, data['report-sections'], header_logo_path)
-            self._clean_downloads()
-            return web.json_response(dict(filename=filename, pdf_bytes=pdf_bytes))
-        return web.json_response('No operations selected')
+        try:
+            if data['operations']:
+                header_logo_path = None
+                if header_logo_filename:
+                    header_logo_path = os.path.relpath(os.path.join(self.uploads_dir, 'header-logos', header_logo_filename))
+                access = await self._get_access(request)
+                operations = [o for o in await self.data_svc.locate('operations', match=access)
+                      if str(o.id) in data.get('operations', [])]
+                op_name = operations[0].name if operations else 'Operation'
+                safe_op_name = re.sub(r'[^A-Za-z0-9_-]+', '-', op_name)
+                agents = await self.data_svc.locate('agents')
+                date_part = datetime.now().strftime('%Y_%m_%d')
+                filename = f"{safe_op_name}_Debrief_{date_part}.pdf"
+                pdf_bytes = await self._build_pdf(operations, agents, filename, data['report-sections'], header_logo_path)
+                self._clean_downloads()
+                return web.json_response(dict(filename=filename, pdf_bytes=pdf_bytes))
+                
+
+            return web.json_response('No operations selected')
+        except Exception as e:
+            self.log.error("download_pdf() failed: %r", e, exc_info=True)
+            return web.json_response('Error generating PDF report')
 
     async def download_json(self, request):
         data = dict(await request.json())
@@ -151,62 +164,185 @@ class DebriefGui(BaseWorld):
                     report_sections_dir = os.path.relpath(
                         os.path.join('plugins', plugin.name, 'app', 'debrief-sections'))
                     if os.path.isdir(report_sections_dir):
-                        for filepath in glob.iglob('%s/*.py' % report_sections_dir):
+                        for filepath in glob.iglob(f'{report_sections_dir}/*.py'):
                             module_name = filepath.replace('/', '.').replace('\\', '.').replace('.py', '')
-                            module = import_module(module_name)
-                            if module:
+                            try:
+                                module = import_module(module_name)
                                 module_obj = module.DebriefReportSection()
                                 safe_id = re.sub('[^A-Za-z0-9-_:.]', '', re.sub(r'\s+', '-', module_obj.id))
                                 self.report_section_modules[safe_id] = module_obj
-                                self.report_section_names.append({ 'key': safe_id, 'name': module_obj.display_name})
-                            else:
-                                self.log.error("Failed to load debrief report section module %s" % module_name)
+                                self.report_section_names.append({'key': safe_id, 'name': module_obj.display_name})
+                            except Exception as e:
+                                self.log.error("Skipping debrief section %s due to error: %r", module_name, e, exc_info=True)
+                    print("Finished loading debrief report sections.")
+            self.report_section_names.sort(key=lambda s: s['name'].lower())
             self.loaded_report_sections = True
 
+    def _pretty_name(self, trait: str) -> str:
+        # fallback pretty name when no explicit name is present
+        # examples: "server.malicious.url" -> "Server Malicious Url"
+        return ' '.join(p.capitalize() for p in str(trait).replace('_', '.').split('.') if p)
+
+    async def _build_whitecard_metrics(self, operation):
+        """
+        Build a list of {name, trait, value, source_id} derived from facts in the operation's 'source'
+        (the white cards). We only keep numeric facts.
+        """
+        metrics = []
+        if not getattr(operation, 'source', None):
+            return metrics
+
+        source_id = getattr(operation.source, 'id', None) or getattr(operation.source, 'source', None)
+        if not source_id:
+            return metrics
+
+        # Pull all facts from this source (white cards)
+        # NOTE: knowledge_svc is already available in Caldera plugins.
+        facts = await self.knowledge_svc.get_facts(criteria=dict(source=source_id))  # returns c_fact objects
+
+        for f in facts or []:
+            # try to resolve a friendly name if present in metadata; else prettify the trait
+            meta = getattr(f, 'meta', None) or {}
+            friendly = meta.get('display_name') or meta.get('name') or self._pretty_name(getattr(f, 'trait', ''))
+
+            # only include numeric-ish values
+            val = getattr(f, 'value', None)
+            if val is None:
+                continue
+            try:
+                num = int(val)
+            except (ValueError, TypeError):
+                try:
+                    num = float(val)
+                except (ValueError, TypeError):
+                    continue
+
+            metrics.append({
+                'name'     : friendly,
+                'trait'    : getattr(f, 'trait', ''),
+                'value'    : num,
+                'source_id': getattr(f, 'source', ''),
+            })
+        return metrics
+
+    LEFT = RIGHT = 72   
+    TOP  = BOTTOM = 84
     async def _build_pdf(self, operations, agents, filename, sections, header_logo_path):
-        # pdf setup
         pdf_buffer = BytesIO()
-        doc = SimpleDocTemplate(pdf_buffer, pagesize=letter,
-                                rightMargin=72, leftMargin=72,
-                                topMargin=84, bottomMargin=84, title=filename)
+        doc = SimpleDocTemplate(
+            pdf_buffer,
+            pagesize=letter,
+            rightMargin=72, leftMargin=72,
+            topMargin=84, bottomMargin=84,
+            title=filename
+        )
+
         story_obj = Story()
         story_obj.set_header_logo_path(header_logo_path)
+        story_obj.append(Spacer(1, 36))
         styles = getSampleStyleSheet()
 
-        story_obj.append(Spacer(1, 36))
+        # Decide if Detections is the only section (controls first page orientation)
+        sections = list(sections or [])
+        detections_only = (len(sections) == 1 and sections[0] == 'ttps-detections')
 
-        # Add selected module components
-        graph_files = dict()
-        if any(v for v in sections if '-graph' in v):
+        # Always render Detections last if present (unless it's the only section)
+        if 'ttps-detections' in sections and not detections_only:
+            sections = [s for s in sections if s != 'ttps-detections'] + ['ttps-detections']
+
+        # Frames
+        portrait_frame = Frame(
+            doc.leftMargin, doc.bottomMargin,
+            doc.width, doc.height,
+            id="portrait-frame"
+        )
+        lw, lh = to_landscape(letter)
+        landscape_frame = Frame(
+            doc.leftMargin, doc.bottomMargin,
+            lw - doc.leftMargin - doc.rightMargin,
+            lh - doc.topMargin - doc.bottomMargin,
+            id="landscape-frame"
+        )
+
+        # PageTemplates
+        portrait_first_tpl = PageTemplate(id="PortraitFirst", frames=[portrait_frame], pagesize=letter,
+                                  onPage=story_obj.header_footer_first)
+        portrait_tpl       = PageTemplate(id="Portrait",      frames=[portrait_frame], pagesize=letter,
+                                        onPage=story_obj.header_footer_rest)
+        landscape_first_tpl= PageTemplate(id="LandscapeFirst",frames=[landscape_frame], pagesize=to_landscape(letter),
+                                        onPage=story_obj.header_footer_first)
+        landscape_tpl      = PageTemplate(id="Landscape",     frames=[landscape_frame], pagesize=to_landscape(letter),
+                                        onPage=story_obj.header_footer_rest)
+
+
+        if detections_only:
+            # Make LandscapeFirst the default starting template
+            doc.addPageTemplates([
+                landscape_first_tpl,  # first page: landscape + first-page header/footer
+                landscape_tpl,        # subsequent pages in landscape
+                portrait_tpl,
+                portrait_first_tpl,
+            ])
+        else:
+            # Default is portrait; we'll switch to landscape only for the detections block
+            doc.addPageTemplates([
+                portrait_first_tpl,
+                portrait_tpl,
+                landscape_tpl,
+                landscape_first_tpl,
+            ])
+
+        # Collect SVG graphs if any
+        graph_files = {}
+        if any(('-graph' in v) for v in sections):
             for file in glob.glob('./plugins/debrief/downloads/*.svg'):
                 graph_files[os.path.basename(file).split('.')[0]] = file
 
-        # content generation
         try:
-            for section in sections:
-                section_module = self.report_section_modules.get(section, None)
-                if section_module:
-                    flowables = await section_module.generate_section_elements(
-                        styles,
-                        operations=operations,
-                        agents=agents,
-                        graph_files=graph_files,
-                    )
-                    for flowable in flowables:
-                        story_obj.append(flowable)
-                else:
-                    self.log.error("Requested debrief section module %s not found." % section)
+            # ---- COVER: ----
+            cover_added = False
+            cover_module = self.report_section_modules.get('main-summary')
+            if cover_module:
+                cover_flowables = await cover_module.generate_section_elements(
+                    styles,
+                    operations=operations,
+                    agents=agents,
+                    graph_files=graph_files,
+                    selected_sections=sections
+                )
+                if cover_flowables:
+                    for f in cover_flowables:
+                        story_obj.append(f)
+                    cover_added = True
 
-            # pdf teardown
-            doc.build(story_obj.story_arr,
-                      onFirstPage=story_obj.header_footer_first,
-                      onLaterPages=story_obj.header_footer_rest)
+            # ---- SECTIONS: append each section’s flowables ----
+            for section in sections:
+                section_module = self.report_section_modules.get(section)
+                if not section_module:
+                    self.log.error("Requested debrief section module %s not found.", section)
+                    continue
+
+                flowables = await section_module.generate_section_elements(
+                    styles,
+                    operations=operations,
+                    agents=agents,
+                    graph_files=graph_files,
+                    selected_sections=sections
+                )
+                for f in flowables:
+                    story_obj.append(f)
+
+            # Build PDF
+            doc.build(story_obj.story_arr)
+
         except Exception as e:
             self.log.error(e)
+
         pdf_value = pdf_buffer.getvalue()
         pdf_buffer.close()
-        return pdf_value.decode('utf-8', errors='ignore')
+        return pdf_value.decode('utf-8', errors='ignore') 
 
+    
     @staticmethod
     def _sanitize_filename(filename):
         _, split_name = os.path.split(filename)

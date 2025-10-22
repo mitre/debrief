@@ -40,6 +40,8 @@ async def enable(services):
     app.router.add_route('GET', '/plugin/debrief/logos', debrief_gui.all_logos)
     app.router.add_route('GET', '/plugin/debrief/sections', debrief_gui.report_sections)
     app.router.add_route('POST', '/plugin/debrief/logo', debrief_gui.upload_logo)
+   
+
 
     # Kick off the ATT&CK v18 cache warmup
     asyncio.create_task(_init_attack18_cache())

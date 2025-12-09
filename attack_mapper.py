@@ -1,4 +1,7 @@
-import os, json, re, asyncio
+import json
+import os
+import re
+
 from typing import Dict, List, Any, Optional, Tuple
 
 # ----------------------------------------------------------------------------
@@ -13,14 +16,13 @@ CACHE_PATH = os.getenv(
     os.path.join(os.path.dirname(__file__), "uploads", "attack18_cache.json"),
 )
 
-print(CACHE_PATH, flush=True)
-
 _TID_RX = re.compile(r'(T\d{4}(?:\.\d{3})?)', re.IGNORECASE)
+
 
 def _extract_tids_from_analytic(a):
     """
     Return a set of ATT&CK technique IDs (T#### or T####.###) discoverable from an analytic.
-    We look in: external_references.external_id, id, name, and (as a last resort) description.
+    Searches in: external_references.external_id, id, name, and (as a last resort) description.
     """
     out = set()
 
@@ -37,6 +39,7 @@ def _extract_tids_from_analytic(a):
             out.add(m.upper())
 
     return out
+
 
 # ----------------------------------------------------------------------------
 # Public Map API (back-compat name kept as Attack18Map)
@@ -75,9 +78,10 @@ class Attack18Map:
         )
         if platform:
             p = platform.lower()
+
             def _match(row):
                 plats = (row.get("platforms") or [])
-                prim  = (row.get("platform") or "")
+                prim = (row.get("platform") or "")
                 return (p in plats) or (prim in ("", None, p))
             return [a for a in all_an if _match(a)]
         return all_an
@@ -101,16 +105,12 @@ class Attack18Map:
 # ----------------------------------------------------------------------------
 async def fetch_and_cache(session_get) -> Dict[str, Any]:
     os.makedirs(os.path.dirname(CACHE_PATH), exist_ok=True)
-    # Try live
-    # try:
-    #     status, text = await session_get(DEFAULT_URL)
-    #     if status == 200 and text:
-    #         with open(CACHE_PATH, "w", encoding="utf-8") as f:
-    #             f.write(text)
-    #         return json.loads(text)
-    # except Exception:
-    #     pass
-    # Fallback cache
+    if not os.path.exists(CACHE_PATH):
+        status, text = await session_get(DEFAULT_URL)
+        if status == 200 and text:
+            with open(CACHE_PATH, "w", encoding="utf-8") as f:
+                f.write(text)
+            return json.loads(text)
     if os.path.exists(CACHE_PATH):
         with open(CACHE_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -135,9 +135,6 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
     analytics_by_tid: Dict[str, List[Dict[str, Any]]] = {}
     data_components_by_id: Dict[str, Dict[str, Any]] = {}
     log_sources_by_id: Dict[str, Dict[str, Any]] = {}
-
-    # v17.1 helpers
-    data_components_by_tid_v17: Dict[str, List[Dict[str, Any]]] = {}
 
     # Pass 1: collect objects & relationships
     for o in objs:
@@ -322,7 +319,7 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
             seen.add(aid)
             dedup.append(a)
         analytics_by_tid[tid] = dedup
-    
+
     # === DEDUPE Again: strategies_by_tid (by id + det_id) ===
     for tid, items in list(strategies_by_tid.items()):
         seen = set()
@@ -333,6 +330,7 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
                 continue
             seen.add(key)
             out.append(s)
+        strategies_by_tid[tid] = out
 
     return {
         "has_v18": has_v18,
@@ -370,11 +368,13 @@ async def load_attack18_map(session_get) -> Attack18Map:
 def _parent_tid(tid: str) -> str:
     return (tid or "").split(".")[0].upper() if tid else ""
 
+
 def _extract_tid(o: Dict[str, Any]) -> Optional[str]:
     for ref in o.get("external_references", []) or []:
         if ref.get("source_name") == "mitre-attack" and str(ref.get("external_id", "")).startswith("T"):
             return ref.get("external_id")
     return None
+
 
 def _tid_from_attack_pattern_id(ap_id: Optional[str], techniques_by_id: Dict[str, Dict[str, Any]]) -> Optional[str]:
     if not ap_id:
@@ -384,6 +384,7 @@ def _tid_from_attack_pattern_id(ap_id: Optional[str], techniques_by_id: Dict[str
         if t.get("id") == ap_id:
             return tid
     return None
+
 
 def _rel_tids(x: Dict[str, Any]) -> List[str]:
     out = set()
@@ -404,58 +405,57 @@ def _rel_tids(x: Dict[str, Any]) -> List[str]:
         out.add(m.upper())
     return list(out)
 
+
 def _normalize_analytic(
     a: Dict[str, Any],
     data_components_by_id: Dict[str, Dict[str, Any]]
-    ) -> Tuple[Dict[str, Any], List[str], List[Dict[str, Any]]]:
-        # keep both primary and full list for better per-OS filtering downstream
-        plats = a.get("x_mitre_platforms") or a.get("platform") or []
-        if isinstance(plats, str):
-            plats = [plats]
-        plats_norm = [str(p).lower() for p in plats if p]
-        plat_primary = (plats_norm[0] if plats_norm else "")
+) -> Tuple[Dict[str, Any], List[str], List[Dict[str, Any]]]:
+    # keep both primary and full list for better per-OS filtering downstream
+    plats = a.get("x_mitre_platforms") or a.get("platform") or []
+    if isinstance(plats, str):
+        plats = [plats]
+    plats_norm = [str(p).lower() for p in plats if p]
+    plat_primary = (plats_norm[0] if plats_norm else "")
 
-        row = {
-            "id": a.get("id"),
-            "name": a.get("name", ""),
-            "platform": plat_primary,          # for existing callers
-            "platforms": plats_norm,           # for improved filtering
-            "statement": a.get("description", ""),
-            "tunables": a.get("x_mitre_mutable_elements")
-                        or a.get("x_mitre_tunable_parameters")
-                        or a.get("tunables") or [],
-        }
+    row = {
+        "id": a.get("id"),
+        "name": a.get("name", ""),
+        "platform": plat_primary,          # for existing callers
+        "platforms": plats_norm,           # for improved filtering
+        "statement": a.get("description", ""),
+        "tunables": a.get("x_mitre_mutable_elements") or a.get("x_mitre_tunable_parameters") or a.get("tunables") or [],
+    }
 
-        # derive a clean AN-#### for display if present in external refs or name
-        an_id = None
-        for er in (a.get("external_references") or []):
-            ext = er.get("external_id", "")
-            if isinstance(ext, str) and ext.startswith("AN-"):
-                an_id = ext
-                break
-        if not an_id:
-            m = re.search(r'(AN-\d{4})', a.get("name", "") or "")
-            if m:
-                an_id = m.group(1)
-        row["an_id"] = an_id
+    # derive a clean AN-#### for display if present in external refs or name
+    an_id = None
+    for er in (a.get("external_references") or []):
+        ext = er.get("external_id", "")
+        if isinstance(ext, str) and ext.startswith("AN-"):
+            an_id = ext
+            break
+    if not an_id:
+        m = re.search(r'(AN-\d{4})', a.get("name", "") or "")
+        if m:
+            an_id = m.group(1)
+    row["an_id"] = an_id
 
-        # extract linked data components & their log source ids
-        ls_ids: List[str] = []
-        dc_elements: List[Dict[str, Any]] = []
-        for ref in (a.get("x_mitre_log_source_references") or []):
-            dc_ref = ref.get("x_mitre_data_component_ref")
-            dc_refs = [dc_ref] if dc_ref else (ref.get("x_mitre_data_component_refs") or [])
-            for dc_id in dc_refs:
-                dc = data_components_by_id.get(dc_id)
-                if not dc:
-                    continue
-                dc_elements.append({
-                    "name": dc.get("name", ""),                          # e.g., "wineventlog:security" comes from ref['name'] if you use it elsewhere
-                    "channel": (ref.get("channel") or ""),               # channel only exists on the ref
-                    "data_component": dc.get("name", ""),                # <-- FIX: DC display (e.g., "Process Creation")
-                })
-                # keep any existing log-source indexing you rely on
-                for i, _ in enumerate(dc.get("x_mitre_log_sources", []) or []):
-                    ls_ids.append(f"{dc_id}#ls{i}")
+    # extract linked data components & their log source ids
+    ls_ids: List[str] = []
+    dc_elements: List[Dict[str, Any]] = []
+    for ref in (a.get("x_mitre_log_source_references") or []):
+        dc_ref = ref.get("x_mitre_data_component_ref")
+        dc_refs = [dc_ref] if dc_ref else (ref.get("x_mitre_data_component_refs") or [])
+        for dc_id in dc_refs:
+            dc = data_components_by_id.get(dc_id)
+            if not dc:
+                continue
+            dc_elements.append({
+                "name": dc.get("name", ""),                          # e.g., "wineventlog:security" comes from ref['name'] if you use it elsewhere
+                "channel": (ref.get("channel") or ""),               # channel only exists on the ref
+                "data_component": dc.get("name", ""),                # <-- FIX: DC display (e.g., "Process Creation")
+            })
+            # keep any existing log-source indexing you rely on
+            for i, _ in enumerate(dc.get("x_mitre_log_sources", []) or []):
+                ls_ids.append(f"{dc_id}#ls{i}")
 
-        return row, ls_ids, dc_elements
+    return row, ls_ids, dc_elements

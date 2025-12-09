@@ -1,4 +1,8 @@
-import base64, glob, logging, os, re
+import base64
+import glob
+import logging
+import os
+import re
 
 from aiohttp import web
 from aiohttp_jinja2 import template
@@ -8,13 +12,17 @@ from io import BytesIO
 from reportlab import rl_settings
 from reportlab.lib.pagesizes import letter, landscape as to_landscape
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import SimpleDocTemplate, Spacer, PageTemplate, Frame, PageBreak, NextPageTemplate
+from reportlab.platypus import SimpleDocTemplate, Spacer, PageTemplate, Frame
 
 
 from app.service.auth_svc import for_all_public_methods, check_authorization
 from app.utility.base_world import BaseWorld
 from plugins.debrief.app.debrief_svc import DebriefService
 from plugins.debrief.app.objects.c_story import Story
+
+
+LEFT_MARGIN = RIGHT_MARGIN = 72
+TOP_MARGIN = BOTTOM_MARGIN = 84
 
 
 @for_all_public_methods(check_authorization)
@@ -25,6 +33,7 @@ class DebriefGui(BaseWorld):
         self.auth_svc = services.get('auth_svc')
         self.data_svc = services.get('data_svc')
         self.file_svc = services.get('file_svc')
+        self.knowledge_svc = services.get('knowledge_svc')
         self.log = logging.getLogger('debrief_gui')
         self.uploads_dir = os.path.relpath(os.path.join('plugins', 'debrief', 'uploads'))
 
@@ -51,16 +60,16 @@ class DebriefGui(BaseWorld):
             plugins = await self.data_svc.locate('plugins', match=dict(enabled=True))
             self._load_report_sections(plugins)
         except Exception as e:
-            print(e)
+            self.log.error(e)
         return dict(operations=operations, header_logos=header_logos, report_sections=self.report_section_names)
 
     async def report_sections(self, request):
         try:
             plugins = await self.data_svc.locate('plugins', match=dict(enabled=True))
             self._load_report_sections(plugins)
-            print("Debrief report sections loaded successfully: ", self.report_section_names)
+            self.log.debug("Debrief report sections loaded successfully: ", self.report_section_names)
         except Exception as e:
-            print(e)
+            self.log.error(e)
         report_sections = self.report_section_names
         return web.json_response(dict(report_sections=report_sections))
 
@@ -105,7 +114,7 @@ class DebriefGui(BaseWorld):
                     header_logo_path = os.path.relpath(os.path.join(self.uploads_dir, 'header-logos', header_logo_filename))
                 access = await self._get_access(request)
                 operations = [o for o in await self.data_svc.locate('operations', match=access)
-                      if str(o.id) in data.get('operations', [])]
+                              if str(o.id) in data.get('operations', [])]
                 op_name = operations[0].name if operations else 'Operation'
                 safe_op_name = re.sub(r'[^A-Za-z0-9_-]+', '-', op_name)
                 agents = await self.data_svc.locate('agents')
@@ -114,12 +123,10 @@ class DebriefGui(BaseWorld):
                 pdf_bytes = await self._build_pdf(operations, agents, filename, data['report-sections'], header_logo_path)
                 self._clean_downloads()
                 return web.json_response(dict(filename=filename, pdf_bytes=pdf_bytes))
-                
-
-            return web.json_response('No operations selected')
+            return web.json_response({'error': 'No operations selected'}, status=400)
         except Exception as e:
             self.log.error("download_pdf() failed: %r", e, exc_info=True)
-            return web.json_response('Error generating PDF report')
+            return web.json_response({'error': 'Error generating PDF report'}, status=500)
 
     async def download_json(self, request):
         data = dict(await request.json())
@@ -174,7 +181,7 @@ class DebriefGui(BaseWorld):
                                 self.report_section_names.append({'key': safe_id, 'name': module_obj.display_name})
                             except Exception as e:
                                 self.log.error("Skipping debrief section %s due to error: %r", module_name, e, exc_info=True)
-                    print("Finished loading debrief report sections.")
+                    self.log.debug("Finished loading debrief report sections.")
             self.report_section_names.sort(key=lambda s: s['name'].lower())
             self.loaded_report_sections = True
 
@@ -218,22 +225,22 @@ class DebriefGui(BaseWorld):
                     continue
 
             metrics.append({
-                'name'     : friendly,
-                'trait'    : getattr(f, 'trait', ''),
-                'value'    : num,
+                'name': friendly,
+                'trait': getattr(f, 'trait', ''),
+                'value': num,
                 'source_id': getattr(f, 'source', ''),
             })
         return metrics
 
-    LEFT = RIGHT = 72   
-    TOP  = BOTTOM = 84
     async def _build_pdf(self, operations, agents, filename, sections, header_logo_path):
         pdf_buffer = BytesIO()
         doc = SimpleDocTemplate(
             pdf_buffer,
             pagesize=letter,
-            rightMargin=72, leftMargin=72,
-            topMargin=84, bottomMargin=84,
+            rightMargin=RIGHT_MARGIN,
+            leftMargin=LEFT_MARGIN,
+            topMargin=TOP_MARGIN,
+            bottomMargin=BOTTOM_MARGIN,
             title=filename
         )
 
@@ -266,14 +273,13 @@ class DebriefGui(BaseWorld):
 
         # PageTemplates
         portrait_first_tpl = PageTemplate(id="PortraitFirst", frames=[portrait_frame], pagesize=letter,
-                                  onPage=story_obj.header_footer_first)
-        portrait_tpl       = PageTemplate(id="Portrait",      frames=[portrait_frame], pagesize=letter,
-                                        onPage=story_obj.header_footer_rest)
-        landscape_first_tpl= PageTemplate(id="LandscapeFirst",frames=[landscape_frame], pagesize=to_landscape(letter),
-                                        onPage=story_obj.header_footer_first)
-        landscape_tpl      = PageTemplate(id="Landscape",     frames=[landscape_frame], pagesize=to_landscape(letter),
-                                        onPage=story_obj.header_footer_rest)
-
+                                          onPage=story_obj.header_footer_first)
+        portrait_tpl = PageTemplate(id="Portrait", frames=[portrait_frame], pagesize=letter,
+                                    onPage=story_obj.header_footer_rest)
+        landscape_first_tpl = PageTemplate(id="LandscapeFirst", frames=[landscape_frame], pagesize=to_landscape(letter),
+                                           onPage=story_obj.header_footer_first)
+        landscape_tpl = PageTemplate(id="Landscape", frames=[landscape_frame], pagesize=to_landscape(letter),
+                                     onPage=story_obj.header_footer_rest)
 
         if detections_only:
             # Make LandscapeFirst the default starting template
@@ -300,7 +306,6 @@ class DebriefGui(BaseWorld):
 
         try:
             # ---- COVER: ----
-            cover_added = False
             cover_module = self.report_section_modules.get('main-summary')
             if cover_module:
                 cover_flowables = await cover_module.generate_section_elements(
@@ -313,7 +318,6 @@ class DebriefGui(BaseWorld):
                 if cover_flowables:
                     for f in cover_flowables:
                         story_obj.append(f)
-                    cover_added = True
 
             # ---- SECTIONS: append each section’s flowables ----
             for section in sections:
@@ -340,9 +344,8 @@ class DebriefGui(BaseWorld):
 
         pdf_value = pdf_buffer.getvalue()
         pdf_buffer.close()
-        return pdf_value.decode('utf-8', errors='ignore') 
+        return pdf_value.decode('utf-8', errors='ignore')
 
-    
     @staticmethod
     def _sanitize_filename(filename):
         _, split_name = os.path.split(filename)

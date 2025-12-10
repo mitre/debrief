@@ -67,9 +67,9 @@ class DebriefGui(BaseWorld):
         try:
             plugins = await self.data_svc.locate('plugins', match=dict(enabled=True))
             self._load_report_sections(plugins)
-            self.log.debug("Debrief report sections loaded successfully: ", self.report_section_names)
+            self.log.debug("Debrief report sections loaded successfully: %s", self.report_section_names)
         except Exception as e:
-            self.log.error(e)
+            self.log.error(e, stack_info=True, exc_info=True)
         report_sections = self.report_section_names
         return web.json_response(dict(report_sections=report_sections))
 

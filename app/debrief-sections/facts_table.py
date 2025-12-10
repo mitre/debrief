@@ -33,8 +33,7 @@ class DebriefReportSection(BaseReportSection):
                         Paragraph(self.description, styles['Normal'])
                     ])
                 )
-                if 'selected_sections' in kwargs:
-                    selected_sections = kwargs.get('selected_sections', [])
+                selected_sections = kwargs.get('selected_sections', [])
                 flowable_list.append(await self._generate_facts_table(o, selected_sections))
         return flowable_list
 
@@ -64,7 +63,6 @@ class DebriefReportSection(BaseReportSection):
             # --- fields ---
             trait = (getattr(f, 'trait', '') or '').replace('\n', '').replace('\r', '')
             raw_value = getattr(f, 'value', '')
-            value = str(raw_value) if raw_value is not None else ''
             score = getattr(f, 'score', 0)
 
             origin = (self._origin_name(f) or '').upper()
@@ -75,7 +73,7 @@ class DebriefReportSection(BaseReportSection):
             is_whitecard = (
                 origin == 'IMPORTED' and
                 fact_source_id == op_source_id and
-                (not white_traits or trait in white_traits)  
+                (not white_traits or trait in white_traits)
             )
 
             if is_whitecard:
@@ -87,9 +85,9 @@ class DebriefReportSection(BaseReportSection):
                 paws = set(getattr(f, 'collected_by', []) or [])
                 if not paws:
                     for lid in (getattr(f, 'links', []) or []):
-                        l = link_by_id.get(lid)
-                        if l and getattr(l, 'paw', None):
-                            paws.add(l.paw)
+                        lnk = link_by_id.get(lid)
+                        if lnk and getattr(lnk, 'paw', None):
+                            paws.add(lnk.paw)
                 if paws:
                     paws = sorted(paws)
                     if include_agent_links:
@@ -103,12 +101,12 @@ class DebriefReportSection(BaseReportSection):
             # --- commands ---
             commands = set()
             for lid in (getattr(f, 'links', []) or []):
-                l = link_by_id.get(lid)
-                if l and getattr(l, 'command', None):
+                lnk = link_by_id.get(lid)
+                if lnk and getattr(lnk, 'command', None):
                     try:
-                        commands.add(l.decode_bytes(l.command))
+                        commands.add(lnk.decode_bytes(lnk.command))
                     except Exception:
-                        commands.add(str(l.command))
+                        commands.add(str(lnk.command))
             command_value = '<br />'.join(sorted(c for c in commands if c)) if commands else f'No Command ({origin or "UNKNOWN"})'
 
             # --- value truncation for layout ---

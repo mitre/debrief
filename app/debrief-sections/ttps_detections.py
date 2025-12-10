@@ -1,14 +1,14 @@
-import json, os, re
+import re
 
 from collections import OrderedDict, defaultdict
 from reportlab.lib import colors
 
 from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph, NextPageTemplate, PageBreak, Table, TableStyle
-from reportlab.platypus.flowables import KeepTogetherSplitAtTop
 
 from plugins.debrief.app.utility.base_report_section import BaseReportSection
-from plugins.debrief.attack_mapper import Attack18Map, index_bundle, CACHE_PATH
+from plugins.debrief.attack_mapper import Attack18Map
+
 
 class DebriefReportSection(BaseReportSection):
     def __init__(self):
@@ -17,23 +17,10 @@ class DebriefReportSection(BaseReportSection):
         self.display_name = 'TTPs & V18 Detections'
         self.section_title = 'TTPs and V18 Detections for <font name=Courier-Bold size=17>%s</font>'
         self.description = 'Ordered steps (TTPs) from the operation with their associated ATT&CK v18 Detections.'
-        self._a18 = None
         self.DATA_COL_WIDTHS = [
             0.9*inch, 0.8*inch, 0.9*inch, 1.9*inch, 1.1*inch, 1.0*inch, 1.3*inch, 1.1*inch, 1.6*inch
         ]
         self.DATA_FULL_WIDTH = sum(self.DATA_COL_WIDTHS)
-
-    def _load_attack18(self):
-        """Load ATT&CK v18 index, preferring the local cache so report gen works offline."""
-        if self._a18 is None:
-            cache_path = CACHE_PATH
-            if not os.path.exists(cache_path):
-                cache_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'attack18_cache.json')
-                cache_path = os.path.abspath(cache_path)
-            with open(cache_path, 'r', encoding='utf-8') as f:
-                bundle = json.load(f)
-            self._a18 = Attack18Map(index_bundle(bundle))
-        return self._a18
 
     async def generate_section_elements(self, styles, **kwargs):
         """
@@ -51,7 +38,7 @@ class DebriefReportSection(BaseReportSection):
         flows.append(NextPageTemplate('LandscapeFirst'))
         flows.append(PageBreak())  # start section on a new landscape page
 
-        a18 = self._load_attack18()
+        a18 = BaseReportSection.load_attack18()
         agents = kwargs.get('agents', []) or []
         paw_to_platform = {getattr(a, 'paw', None): getattr(a, 'platform', None) for a in agents}
 
@@ -112,7 +99,7 @@ class DebriefReportSection(BaseReportSection):
         # 3) Render one appendix block per DET (not per technique)
         for det_id, info in det_map.items():
             det_anchor = info['anchor']
-            det_name   = info['name']
+            det_name = info['name']
 
             # Anchor + styled header block
             flows.append(Paragraph(f'<a name="{det_anchor}"/>', styles['Normal']))
@@ -123,15 +110,15 @@ class DebriefReportSection(BaseReportSection):
             # Build data table header with grouped spans like the screenshot
             rows = []
 
-            # Level-1 header row 
+            # Level-1 header row
             rows.append(['ID', 'AN', 'Platform', 'Detection Statement',
-                        'Data Component (DC) Elements', '', '',
-                        'Mutable Elements', ''])
+                         'Data Component (DC) Elements', '', '',
+                         'Mutable Elements', ''])
 
             # Level-2 header row (subheaders)
             rows.append(['',  '',  '',  '',
-                        'Name', 'Channel', 'Data Component (DC)',
-                        'Field', 'Description'])
+                         'Name', 'Channel', 'Data Component (DC)',
+                         'Field', 'Description'])
 
             # 3a) Gather analytics linked to ANY technique used in this op,
             #     but keep only analytics stamped with this det_id (attack_mapper sets arow['det_id'])
@@ -147,15 +134,15 @@ class DebriefReportSection(BaseReportSection):
 
                     # IDs
                     det = det_id
-                    an  = arow.get('an_id') or (arow.get('id', '')[-8:] or '')
+                    an = arow.get('an_id') or (arow.get('id', '')[-8:] or '')
                     _an_ids.add(an)
                     plat_disp = (plat or arow.get('platform', '') or '').capitalize()
                     stmt = arow.get('statement', '') or ''
-                    dcs  = arow.get('dc_elements') or [{}]
+                    dcs = arow.get('dc_elements') or [{}]
                     tuns = arow.get('tunables') or [{}]
 
                     # Expand DC × Tunables
-                    for d in (dcs or [{}]):
+                    for d in dcs:
                         dc_name = d.get('name', '')
                         dc_chan = d.get('channel', '')
                         dc_comp = d.get('data_component', '')
@@ -169,13 +156,13 @@ class DebriefReportSection(BaseReportSection):
                         else:
                             for t in tuns:
                                 field = (t.get('field') if isinstance(t, dict) else str(t)) or ''
-                                desc  = (t.get('description') if isinstance(t, dict) else '') or ''
+                                desc = (t.get('description') if isinstance(t, dict) else '') or ''
                                 key = (an, plat_disp, dc_name, field, dc_chan)
                                 if key in seen_rows:
                                     continue
                                 seen_rows.add(key)
                                 rows.append([det, an, plat_disp, stmt, dc_name, dc_chan, dc_comp, field, desc])
-                                
+
             flows.extend(self._build_det_header_block(det_id, det_name, sorted(_an_ids)))
             # Build the table with your existing column widths
             tbl = Table(
@@ -183,42 +170,40 @@ class DebriefReportSection(BaseReportSection):
                 colWidths=self.DATA_COL_WIDTHS
             )
 
-            # TableStyle 
+            # TableStyle
             header_bg = colors.Color(0.95, 0.45, 0.30)  # orange/red row background (tweak)
             tbl_style = TableStyle([
                 # Header backgrounds
-                ('BACKGROUND', (0,0), (-1,0), header_bg),
-                ('TEXTCOLOR',  (0,0), (-1,0), colors.whitesmoke),
-                ('ALIGN',      (0,0), (-1,0), 'CENTER'),
+                ('BACKGROUND', (0, 0), (-1, 0), header_bg),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
 
-                ('BACKGROUND', (0,1), (-1,1), header_bg),
-                ('TEXTCOLOR',  (0,1), (-1,1), colors.whitesmoke),
-                ('ALIGN',      (0,1), (-1,1), 'CENTER'),
+                ('BACKGROUND', (0, 1), (-1, 1), header_bg),
+                ('TEXTCOLOR', (0, 1), (-1, 1), colors.whitesmoke),
+                ('ALIGN', (0, 1), (-1, 1), 'CENTER'),
 
                 # Spans
-                ('SPAN', (0,0), (0,1)),  # ID
-                ('SPAN', (1,0), (1,1)),  # AN
-                ('SPAN', (2,0), (2,1)),  # Platform
-                ('SPAN', (3,0), (3,1)),  # Detection Statement
-                ('SPAN', (4,0), (6,0)),  # Data Component (DC) Elements (3 cols)
-                ('SPAN', (7,0), (8,0)),  # Mutable Elements (2 cols)
+                ('SPAN', (0, 0), (0, 1)),  # ID
+                ('SPAN', (1, 0), (1, 1)),  # AN
+                ('SPAN', (2, 0), (2, 1)),  # Platform
+                ('SPAN', (3, 0), (3, 1)),  # Detection Statement
+                ('SPAN', (4, 0), (6, 0)),  # Data Component (DC) Elements (3 cols)
+                ('SPAN', (7, 0), (8, 0)),  # Mutable Elements (2 cols)
 
                 # Grid/padding
-                ('BOX',       (0,0), (-1,-1), 0.5, colors.black),
-                ('INNERGRID', (0,0), (-1,-1), 0.25, colors.black),
-                ('LEFTPADDING',  (0,0), (-1,-1), 4),
-                ('RIGHTPADDING', (0,0), (-1,-1), 4),
-                ('TOPPADDING',   (0,0), (-1,-1), 2),
-                ('BOTTOMPADDING',(0,0), (-1,-1), 2),
+                ('BOX',           (0, 0), (-1, -1), 0.5, colors.black),
+                ('INNERGRID',     (0, 0), (-1, -1), 0.25, colors.black),
+                ('LEFTPADDING',   (0, 0), (-1, -1), 4),
+                ('RIGHTPADDING',  (0, 0), (-1, -1), 4),
+                ('TOPPADDING',    (0, 0), (-1, -1), 2),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
             ])
 
-
             tbl.setStyle(tbl_style)
-            header_block = []
-            header_block.extend(self._build_det_header_block(det_id, det_name, sorted(_an_ids)))
-            header_block.append(tbl)
+            flows.append(tbl)
 
         return flows
+
     def _generate_op_detections_table(self, operation, a18: Attack18Map, paw_to_platform):
         data = [['Technique', 'Ability', 'Detections (ATT&CK v18)']]
 
@@ -272,11 +257,12 @@ class DebriefReportSection(BaseReportSection):
         for s in strategies:
             det_id = s.get('id') or ''
             # Prefer human-friendly external IDs if present
-            ext = next((er.get('external_id') for er in s.get('external_references', []) or [] 
-                        if er.get('external_id','').startswith('DET-')), None)
-            if ext: det_id = ext
+            ext = next((er.get('external_id') for er in s.get('external_references', []) or []
+                        if er.get('external_id', '').startswith('DET-')), None)
+            if ext:
+                det_id = ext
             # anchor-safe id
-            det_anchor = (det_id or (s.get('id','')[-8:]) or f"DET-{ptid}").replace(':','-')
+            det_anchor = (det_id or (s.get('id', '')[-8:]) or f"DET-{ptid}").replace(':', '-')
             out.append((det_anchor, s.get('name') or det_id))
         return out
 
@@ -299,13 +285,13 @@ class DebriefReportSection(BaseReportSection):
 
         # 1) Black title bar: "Detection Strategy Elements"
         black = Table([[Paragraph('<b><font color="white">Detection Strategy Elements</font></b>', self.styles['Heading3'])]],
-                    colWidths=[self.DATA_FULL_WIDTH]  
+                      colWidths=[self.DATA_FULL_WIDTH])
         black.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.black),
-            ('LEFTPADDING', (0,0), (-1,-1), 6),
-            ('RIGHTPADDING', (0,0), (-1,-1), 6),
-            ('TOPPADDING', (0,0), (-1,-1), 4),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+            ('BACKGROUND', (0, 0), (-1, -1), colors.black),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
         ]))
         flows.append(black)
 
@@ -314,17 +300,17 @@ class DebriefReportSection(BaseReportSection):
             [Paragraph(f'Detection Strategy ID ({det_id})', self.styles['Normal'])],
             [Paragraph(f'Detection Strategy Name ( {det_name} )', self.styles['Normal'])],
             [Paragraph(self._format_an_range(list(an_ids or [])), self.styles['Normal'])]
-        ], colWidths=[self.DATA_FULL_WIDTH]) 
+        ], colWidths=[self.DATA_FULL_WIDTH])
 
         gray = colors.Color(0.35, 0.35, 0.35)
         meta.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), gray),
-            ('TEXTCOLOR', (0,0), (-1,-1), colors.whitesmoke),
-            ('LEFTPADDING', (0,0), (-1,-1), 6),
-            ('RIGHTPADDING', (0,0), (-1,-1), 6),
-            ('TOPPADDING', (0,0), (-1,-1), 3),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-            ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+            ('BACKGROUND', (0, 0), (-1, -1), gray),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.whitesmoke),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ]))
         flows.append(meta)
 
@@ -335,12 +321,12 @@ class DebriefReportSection(BaseReportSection):
         )
         red = colors.Color(0.85, 0.25, 0.20)  # tweak to taste
         redband.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), red),
-            ('TEXTCOLOR', (0,0), (-1,-1), colors.whitesmoke),
-            ('LEFTPADDING', (0,0), (-1,-1), 6),
-            ('RIGHTPADDING', (0,0), (-1,-1), 6),
-            ('TOPPADDING', (0,0), (-1,-1), 4),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+            ('BACKGROUND', (0, 0), (-1, -1), red),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.whitesmoke),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
         ]))
         flows.append(redband)
 

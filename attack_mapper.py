@@ -143,9 +143,8 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
             tid = _extract_tid(o)
             if not tid:
                 continue
-            parent = _parent_tid(tid)
-            techniques_by_id[parent] = {
-                "technique_id": parent,
+            techniques_by_id[tid] = {
+                "technique_id": tid,
                 "name": o.get("name", ""),
                 "x_mitre_detection": o.get("x_mitre_detection"),
                 "id": o.get("id"),

@@ -163,8 +163,8 @@ def example_analytic():
 @pytest.fixture
 def example_techniques_by_id():
     return {
-        'T1053': {
-            'technique_id': 'T1053',
+        'T1053.005': {
+            'technique_id': 'T1053.005',
             'name': 'Scheduled Task',
             'x_mitre_detection': '',
             'id': 'attack-pattern--005a06c6-14bf-4118-afa0-ebcd8aebb0c9'
@@ -180,7 +180,7 @@ def example_techniques_by_id():
 @pytest.fixture
 def example_strategies_by_tid():
     return {
-        'T1053': [{
+        'T1053.005': [{
             'id': 'x-mitre-detection-strategy--c7bdd7d7-19dc-4042-8565-5e0cf4656102',
             'name': 'Detection of Suspicious Scheduled Task Creation and Execution on Windows',
             'summary': '',
@@ -1407,7 +1407,7 @@ class TestAttackMapper:
     def test_tid_from_attack_pattern_id(self, example_techniques_by_id):
         assert attack_mapper._tid_from_attack_pattern_id(None, example_techniques_by_id) is None
         assert attack_mapper._tid_from_attack_pattern_id('', example_techniques_by_id) is None
-        assert attack_mapper._tid_from_attack_pattern_id('attack-pattern--005a06c6-14bf-4118-afa0-ebcd8aebb0c9', example_techniques_by_id) == 'T1053'
+        assert attack_mapper._tid_from_attack_pattern_id('attack-pattern--005a06c6-14bf-4118-afa0-ebcd8aebb0c9', example_techniques_by_id) == 'T1053.005'
         assert attack_mapper._tid_from_attack_pattern_id('attack-pattern--7bc57495-ea59-4380-be31-a64af124ef18', example_techniques_by_id) == 'T1083'
         assert attack_mapper._tid_from_attack_pattern_id('attack-pattern--DNE', example_techniques_by_id) is None
 

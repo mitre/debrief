@@ -122,7 +122,7 @@ async def fetch_and_cache(session_get) -> Dict[str, Any]:
 # ----------------------------------------------------------------------------
 
 def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
-    objs: List[Dict[str, Any]] = bundle.get("objects") or []
+    objs: List[Dict[str, Any]] = [o for bundle_obj in bundle.get("objects", []) if not o.get("revoked", False)]
 
     # Base indices
     techniques_by_id: Dict[str, Dict[str, Any]] = {}
@@ -178,7 +178,7 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
                     ext = er.get("external_id", "") or ""
                     m = re.match(r'^DET-?(\d{4})$', str(ext).strip(), flags=re.IGNORECASE)
                     if m:
-                        det_id = f"DET-{m.group(1)}"  # normalize to DET-0001
+                        det_id = f"DET{m.group(1)}"  # normalize to DET0001
                         break
 
                 strategies_by_id[o.get("id")] = {
@@ -204,8 +204,10 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
                 t_tid = _tid_from_attack_pattern_id(tgt, techniques_by_id)
                 if not t_tid:
                     continue
-                for key in (t_tid, _parent_tid(t_tid)):
-                    strategies_by_tid.setdefault(key, []).append(s_row)
+                p_tid = _parent_tid(t_tid)
+                strategies_by_tid.setdefault(t_tid, []).append(s_row)
+                if t_tid != p_tid:
+                    strategies_by_tid.setdefault(p_tid, []).append(s_row)
 
         # c) Regardless of relationships, also bind strategies/analytics to techniques by
         #    extracting TIDs from each referenced analytic's id/name/refs.
@@ -426,17 +428,20 @@ def _normalize_analytic(
         "tunables": a.get("x_mitre_mutable_elements") or a.get("x_mitre_tunable_parameters") or a.get("tunables") or [],
     }
 
-    # derive a clean AN-#### for display if present in external refs or name
+    # derive a clean AN#### for display if present in external refs or name
     an_id = None
     for er in (a.get("external_references") or []):
         ext = er.get("external_id", "")
-        if isinstance(ext, str) and ext.startswith("AN-"):
-            an_id = ext
-            break
-    if not an_id:
-        m = re.search(r'(AN-\d{4})', a.get("name", "") or "")
+        m = re.match(r'^AN-?(\d{4})$', str(ext).strip(), flags=re.IGNORECASE)
         if m:
-            an_id = m.group(1)
+            an_id = f'AN{m.group(1)}'  # normalize to AN0001
+            break
+        an_id = ext
+        break
+    if not an_id:
+        m = re.search(r'Analytic (\d{4})', a.get("name", "") or "")
+        if m:
+            an_id = f'AN{m.group(1)}'  # normalize to AN0001
     row["an_id"] = an_id
 
     # extract linked data components & their log source ids
@@ -450,7 +455,7 @@ def _normalize_analytic(
             if not dc:
                 continue
             dc_elements.append({
-                "name": dc.get("name", ""),                          # e.g., "wineventlog:security" comes from ref['name'] if you use it elsewhere
+                "name": ref.get("name", ""),                          # e.g., "wineventlog:security" comes from ref['name'] if you use it elsewhere
                 "channel": (ref.get("channel") or ""),               # channel only exists on the ref
                 "data_component": dc.get("name", ""),                # <-- FIX: DC display (e.g., "Process Creation")
             })
@@ -459,3 +464,4 @@ def _normalize_analytic(
                 ls_ids.append(f"{dc_id}#ls{i}")
 
     return row, ls_ids, dc_elements
+

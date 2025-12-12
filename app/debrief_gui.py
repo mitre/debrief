@@ -8,7 +8,7 @@ from io import BytesIO
 from reportlab import rl_settings
 from reportlab.lib.pagesizes import letter, landscape as to_landscape
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import SimpleDocTemplate, Spacer, PageTemplate, Frame, PageBreak, NextPageTemplate
+from reportlab.platypus import SimpleDocTemplate, Spacer, PageTemplate, Frame, PageBreak, Flowable
 
 
 from app.service.auth_svc import for_all_public_methods, check_authorization
@@ -35,7 +35,7 @@ class DebriefGui(BaseWorld):
         self.loaded_report_sections = False
 
         rl_settings.trustedHosts = BaseWorld.get_config(prop='reportlab_trusted_hosts', name='debrief') or None
-
+    
     async def _get_access(self, request):
         return dict(access=tuple(await self.auth_svc.get_permissions(request)))
 
@@ -108,7 +108,13 @@ class DebriefGui(BaseWorld):
                       if str(o.id) in data.get('operations', [])]
                 op_name = operations[0].name if operations else 'Operation'
                 safe_op_name = re.sub(r'[^A-Za-z0-9_-]+', '-', op_name)
-                agents = await self.data_svc.locate('agents')
+                runtime_paws = set()
+                    for op in operations or []:
+                        for ln in getattr(op, 'chain', []) or []:
+                            paw = getattr(ln, 'paw', None)
+                            if paw:
+                                runtime_paws.add(paw)
+
                 date_part = datetime.now().strftime('%Y_%m_%d')
                 filename = f"{safe_op_name}_Debrief_{date_part}.pdf"
                 pdf_bytes = await self._build_pdf(operations, agents, filename, data['report-sections'], header_logo_path)
@@ -228,8 +234,9 @@ class DebriefGui(BaseWorld):
     LEFT = RIGHT = 72   
     TOP  = BOTTOM = 84
     async def _build_pdf(self, operations, agents, filename, sections, header_logo_path):
+        self._landscape_locked = False 
         pdf_buffer = BytesIO()
-        doc = SimpleDocTemplate(
+        doc = TemplateSwitchDoc(
             pdf_buffer,
             pagesize=letter,
             rightMargin=72, leftMargin=72,
@@ -256,11 +263,12 @@ class DebriefGui(BaseWorld):
             doc.width, doc.height,
             id="portrait-frame"
         )
+        lm = bm = rm = tm = 18
         lw, lh = to_landscape(letter)
         landscape_frame = Frame(
-            doc.leftMargin, doc.bottomMargin,
-            lw - doc.leftMargin - doc.rightMargin,
-            lh - doc.topMargin - doc.bottomMargin,
+            lm, bm,
+            lw - (lm + rm),
+            lh - (tm + bm),
             id="landscape-frame"
         )
 
@@ -283,6 +291,7 @@ class DebriefGui(BaseWorld):
                 portrait_tpl,
                 portrait_first_tpl,
             ])
+            story_obj.append(LockTemplateMarker('Landscape')) 
         else:
             # Default is portrait; we'll switch to landscape only for the detections block
             doc.addPageTemplates([
@@ -329,6 +338,14 @@ class DebriefGui(BaseWorld):
                     graph_files=graph_files,
                     selected_sections=sections
                 )
+                if (section == 'ttps-detections'
+                    and not getattr(self, '_landscape_locked', False)
+                    and not detections_only):
+                    story_obj.append(UseTemplateMarker('LandscapeFirst'))
+                    story_obj.append(PageBreak())
+                    # lock landscape for the remainder of the doc
+                    story_obj.append(LockTemplateMarker('Landscape'))
+                    self._landscape_locked = True
                 for f in flowables:
                     story_obj.append(f)
 
@@ -368,3 +385,48 @@ class DebriefGui(BaseWorld):
     def _suppress_logs(library):
         lib = logging.getLogger(library)
         lib.setLevel(logging.INFO)
+
+
+# --- Template switch primitives that work on all ReportLab versions ---
+
+class UseTemplateMarker(Flowable):
+    """A zero-size flowable that signals a page-template switch."""
+    def __init__(self, name: str):
+        super().__init__()
+        self.name = name
+    def wrap(self, *args, **kwargs):
+        return (0, 0)
+    def draw(self):
+        pass
+
+class LockTemplateMarker(Flowable):
+    """Locks the page template for all subsequent pages."""
+    def __init__(self, name: str):
+        super().__init__()
+        self.name = name
+    def wrap(self, *args, **kwargs):
+        return (0, 0)
+    def draw(self):
+        pass
+
+class TemplateSwitchDoc(SimpleDocTemplate):
+    """SimpleDocTemplate that reacts to UseTemplateMarker/LockTemplateMarker."""
+    def afterFlowable(self, flowable):
+        try:
+            if isinstance(flowable, UseTemplateMarker):
+                # Force the very next page
+                self.handle_nextPageTemplate(flowable.name)
+
+            if isinstance(flowable, LockTemplateMarker):
+                # Persistently force all subsequent pages
+                self._locked_template = flowable.name
+                self.handle_nextPageTemplate(self._locked_template)
+            
+            if isinstance(flowable, PageBreak) and getattr(self, '_locked_template', None):
+                self.handle_nextPageTemplate(self._locked_template)
+
+            # If locked, keep reasserting the template after each flowable
+            if getattr(self, '_locked_template', None):
+                self.handle_nextPageTemplate(self._locked_template)
+        except Exception:
+            pass

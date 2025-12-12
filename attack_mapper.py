@@ -228,30 +228,56 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
                 or s_obj.get("x_mitre_analytics")
                 or []
             )
+
+            # 1) collect technique ids this strategy detects (from relationships_by_src)
+            detected_tids = []
+            for rel in relationships_by_src.get(s_id, []):
+                if (rel.get("relationship_type") or "").lower() == "detects":
+                    t_tid = _tid_from_attack_pattern_id(rel.get("target_ref"), techniques_by_id)
+                    if t_tid:
+                        detected_tids.extend([t_tid, _parent_tid(t_tid)])
+
             for a_ref in analytic_refs:
                 a_obj = analytics_by_id.get(a_ref)
                 if not a_obj:
                     continue
 
-                # Normalize analytic (adds an_id, platforms, dc_elements, etc.)
                 a_row, ls_ids, dc_elems = _normalize_analytic(a_obj, data_components_by_id)
                 a_row["log_source_ids"] = ls_ids
                 a_row["dc_elements"] = dc_elems
                 a_row["det_id"] = det_id  # stamp parent DET on each analytic row
 
+                # 2) try analytic-derived TIDs first
                 tids = _extract_tids_from_analytic(a_obj)
-                if not tids:
-                    continue
-                for tid in tids:
-                    parent = _parent_tid(tid)
-                    # index under both exact and parent to help callers
-                    for key in (tid, parent):
-                        analytics_by_tid.setdefault(key, []).append(a_row)
-                        strategies_by_tid.setdefault(key, []).append(s_row)
+
+                # 3) if none, fall back to the strategy's detected technique ids
+                target_keys = []
+                if tids:
+                    for tid in tids:
+                        parent = _parent_tid(tid)
+                        target_keys.extend([tid, parent])
+                else:
+                    target_keys.extend(detected_tids)
+
+                # 4) index the analytic under each target technique (and keep per-technique copy of technique_id)
+                for key in target_keys:
+                    if not key:
+                        continue
+                    a_row_for_key = dict(a_row)
+                    a_row_for_key["technique_id"] = key  # useful for exact vs parent filtering later
+                    analytics_by_tid.setdefault(key, []).append(a_row_for_key)
+
+                # 5) also register the strategy under those keys (so TTT can list DET ids)
+                for key in (tids or detected_tids):
+                    if not key:
+                        continue
+                    strategies_by_tid.setdefault(_parent_tid(key), []).append(s_row)
+                    strategies_by_tid.setdefault(key, []).append(s_row)
+
 
         # d) Also include any analytics that declare technique refs directly (outside strategies)
         for a_obj in analytics_by_id.values():
-            tids = _rel_tids(a_obj)
+            tids = _extract_tids_from_analytic(a_obj)
             if not tids:
                 continue
             a_row, ls_ids, dc_elems = _normalize_analytic(a_obj, data_components_by_id)
@@ -316,13 +342,13 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
         seen: set = set()
         dedup: List[Dict[str, Any]] = []
         for a in items:
-            aid = a.get("id")
-            if aid in seen:
+            key = (a.get("id"), a.get("det_id"))  # preserve per-strategy stamping
+            if key in seen:
                 continue
-            seen.add(aid)
+            seen.add(key)
             dedup.append(a)
         analytics_by_tid[tid] = dedup
-    
+
     # === DEDUPE Again: strategies_by_tid (by id + det_id) ===
     for tid, items in list(strategies_by_tid.items()):
         seen = set()
@@ -333,16 +359,16 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
                 continue
             seen.add(key)
             out.append(s)
+        strategies_by_tid[tid] = out
 
     return {
-        "has_v18": has_v18,
-        "techniques_by_id": techniques_by_id,
-        "strategies_by_tid": strategies_by_tid,
-        "analytics_by_tid": analytics_by_tid,
-        "log_sources_by_id": log_sources_by_id,
-    }
-
-
+       "has_v18": has_v18,
+       "techniques_by_id": techniques_by_id,
+       "strategies_by_tid": strategies_by_tid,
+       "analytics_by_tid": analytics_by_tid,
+       "log_sources_by_id": log_sources_by_id,
+   }
+    
 # ----------------------------------------------------------------------------
 # Loader
 # ----------------------------------------------------------------------------
@@ -409,53 +435,53 @@ def _normalize_analytic(
     data_components_by_id: Dict[str, Dict[str, Any]]
     ) -> Tuple[Dict[str, Any], List[str], List[Dict[str, Any]]]:
         # keep both primary and full list for better per-OS filtering downstream
-        plats = a.get("x_mitre_platforms") or a.get("platform") or []
-        if isinstance(plats, str):
-            plats = [plats]
-        plats_norm = [str(p).lower() for p in plats if p]
-        plat_primary = (plats_norm[0] if plats_norm else "")
+    plats = a.get("x_mitre_platforms") or a.get("platform") or []
+    if isinstance(plats, str):
+        plats = [plats]
+    plats_norm = [str(p).lower() for p in plats if p]
+    plat_primary = (plats_norm[0] if plats_norm else "")
 
-        row = {
-            "id": a.get("id"),
-            "name": a.get("name", ""),
-            "platform": plat_primary,          # for existing callers
-            "platforms": plats_norm,           # for improved filtering
-            "statement": a.get("description", ""),
-            "tunables": a.get("x_mitre_mutable_elements")
-                        or a.get("x_mitre_tunable_parameters")
-                        or a.get("tunables") or [],
-        }
+    row = {
+        "id": a.get("id"),
+        "name": a.get("name", ""),
+        "platform": plat_primary,          # for existing callers
+        "platforms": plats_norm,           # for improved filtering
+        "statement": a.get("description", ""),
+        "tunables": a.get("x_mitre_mutable_elements")
+                    or a.get("x_mitre_tunable_parameters")
+                    or a.get("tunables") or [],
+    }
 
-        # derive a clean AN-#### for display if present in external refs or name
-        an_id = None
-        for er in (a.get("external_references") or []):
-            ext = er.get("external_id", "")
-            if isinstance(ext, str) and ext.startswith("AN-"):
-                an_id = ext
-                break
-        if not an_id:
-            m = re.search(r'(AN-\d{4})', a.get("name", "") or "")
-            if m:
-                an_id = m.group(1)
-        row["an_id"] = an_id
+    # derive a clean AN-#### for display if present in external refs or name
+    an_id = None
+    for er in (a.get("external_references") or []):
+        ext = er.get("external_id", "")
+        if isinstance(ext, str) and ext.startswith("AN-"):
+            an_id = ext
+            break
+    if not an_id:
+        m = re.search(r'(AN-\d{4})', a.get("name", "") or "")
+        if m:
+            an_id = m.group(1)
+    row["an_id"] = an_id
 
-        # extract linked data components & their log source ids
-        ls_ids: List[str] = []
-        dc_elements: List[Dict[str, Any]] = []
-        for ref in (a.get("x_mitre_log_source_references") or []):
-            dc_ref = ref.get("x_mitre_data_component_ref")
-            dc_refs = [dc_ref] if dc_ref else (ref.get("x_mitre_data_component_refs") or [])
-            for dc_id in dc_refs:
-                dc = data_components_by_id.get(dc_id)
-                if not dc:
-                    continue
-                dc_elements.append({
-                    "name": dc.get("name", ""),                          # e.g., "wineventlog:security" comes from ref['name'] if you use it elsewhere
-                    "channel": (ref.get("channel") or ""),               # channel only exists on the ref
-                    "data_component": dc.get("name", ""),                # <-- FIX: DC display (e.g., "Process Creation")
-                })
-                # keep any existing log-source indexing you rely on
-                for i, _ in enumerate(dc.get("x_mitre_log_sources", []) or []):
-                    ls_ids.append(f"{dc_id}#ls{i}")
+    # extract linked data components & their log source ids
+    ls_ids: List[str] = []
+    dc_elements: List[Dict[str, Any]] = []
+    for ref in (a.get("x_mitre_log_source_references") or []):
+        dc_ref = ref.get("x_mitre_data_component_ref")
+        dc_refs = [dc_ref] if dc_ref else (ref.get("x_mitre_data_component_refs") or [])
+        for dc_id in dc_refs:
+            dc = data_components_by_id.get(dc_id)
+            if not dc:
+                continue
+            dc_elements.append({
+                "name": dc.get("name", ""),
+                "channel": (ref.get("channel") or ""), # channel only exists on the ref
+                "data_component": dc.get("name", ""),
+            })
+            # keep any existing log-source indexing you rely on
+            for i, _ in enumerate(dc.get("x_mitre_log_sources", []) or []):
+                ls_ids.append(f"{dc_id}#ls{i}")
 
-        return row, ls_ids, dc_elements
+    return row, ls_ids, dc_elements

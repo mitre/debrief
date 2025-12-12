@@ -44,6 +44,14 @@ class DebriefReportSection(BaseReportSection):
 
     async def _generate_facts_table(self, operation, selected_sections, whitecard_metrics=None):
         include_agent_links = ('agents' in (selected_sections or []))
+        print(f"[FACTS] include_agent_links={include_agent_links} selected_sections={list(selected_sections or [])}")
+
+        # Build the set of agent Paws that will actually have anchors in the Agents section
+        valid_agent_paws = {
+            getattr(a, 'paw') for a in (getattr(operation, 'agents', []) or [])
+            if getattr(a, 'paw', None)
+        }
+        print(f"[FACTS] valid_agent_paws (from operation.agents)={sorted(valid_agent_paws)}")
 
         # Header
         fact_data = [['Trait', 'Value', 'Score', 'Source', 'Command Run']]
@@ -77,11 +85,14 @@ class DebriefReportSection(BaseReportSection):
                 fact_source_id == op_source_id and
                 (not white_traits or trait in white_traits)  
             )
+            
 
             if is_whitecard:
                 source_cell = 'White Card'
+                print(f"[FACTS] trait={trait!r} origin={origin} is_whitecard={is_whitecard} fact_source_id={fact_source_id}")
             elif origin == 'IMPORTED':
                 source_cell = 'Imported'
+    
             else:
                 # Runtime -> show PAWs that collected the fact
                 paws = set(getattr(f, 'collected_by', []) or [])
@@ -92,11 +103,22 @@ class DebriefReportSection(BaseReportSection):
                             paws.add(l.paw)
                 if paws:
                     paws = sorted(paws)
+                    print(f"[FACTS] runtime paws for trait {trait!r}: {paws}")
+
                     if include_agent_links:
-                        source_cell = ', '.join(f'<link href="#agent-{escape(p)}" color="blue">{escape(p)}</link>' for p in paws)
+                        # Define the destination anchor inline (safe even if Agents renders later)
+                        source_cell = ', '.join(
+                            f'<a name="agent-{escape(p)}"></a>'
+                            f'<link href="#agent-{escape(p)}" color="blue">{escape(p)}</link>'
+                            for p in paws
+                        )
+                        print(f"[FACTS] source_cell with links: {source_cell}")
                     else:
                         source_cell = ', '.join(escape(p) for p in paws)
+                        print(f"[FACTS] source_cell without links: {source_cell}")
+
             if not source_cell:
+                print(f"[FACTS] no paws/whitecard/imported match; fallback to source id {fact_source_id}")
                 src = fact_source_id
                 source_cell = (f'{src[:3]}..{src[-3:]}' if len(src) >= 6 else (src or '—'))
 

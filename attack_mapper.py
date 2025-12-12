@@ -1,4 +1,7 @@
-import os, json, re, asyncio
+import json
+import os
+import re
+
 from typing import Dict, List, Any, Optional, Tuple
 
 # ----------------------------------------------------------------------------
@@ -13,14 +16,13 @@ CACHE_PATH = os.getenv(
     os.path.join(os.path.dirname(__file__), "uploads", "attack18_cache.json"),
 )
 
-print(CACHE_PATH, flush=True)
-
 _TID_RX = re.compile(r'(T\d{4}(?:\.\d{3})?)', re.IGNORECASE)
+
 
 def _extract_tids_from_analytic(a):
     """
     Return a set of ATT&CK technique IDs (T#### or T####.###) discoverable from an analytic.
-    We look in: external_references.external_id, id, name, and (as a last resort) description.
+    Searches in: external_references.external_id, id, name, and (as a last resort) description.
     """
     out = set()
 
@@ -37,6 +39,7 @@ def _extract_tids_from_analytic(a):
             out.add(m.upper())
 
     return out
+
 
 # ----------------------------------------------------------------------------
 # Public Map API (back-compat name kept as Attack18Map)
@@ -75,9 +78,10 @@ class Attack18Map:
         )
         if platform:
             p = platform.lower()
+
             def _match(row):
                 plats = (row.get("platforms") or [])
-                prim  = (row.get("platform") or "")
+                prim = (row.get("platform") or "")
                 return (p in plats) or (prim in ("", None, p))
             return [a for a in all_an if _match(a)]
         return all_an
@@ -101,16 +105,12 @@ class Attack18Map:
 # ----------------------------------------------------------------------------
 async def fetch_and_cache(session_get) -> Dict[str, Any]:
     os.makedirs(os.path.dirname(CACHE_PATH), exist_ok=True)
-    # Try live
-    # try:
-    #     status, text = await session_get(DEFAULT_URL)
-    #     if status == 200 and text:
-    #         with open(CACHE_PATH, "w", encoding="utf-8") as f:
-    #             f.write(text)
-    #         return json.loads(text)
-    # except Exception:
-    #     pass
-    # Fallback cache
+    if not os.path.exists(CACHE_PATH):
+        status, text = await session_get(DEFAULT_URL)
+        if status == 200 and text:
+            with open(CACHE_PATH, "w", encoding="utf-8") as f:
+                f.write(text)
+            return json.loads(text)
     if os.path.exists(CACHE_PATH):
         with open(CACHE_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -122,7 +122,7 @@ async def fetch_and_cache(session_get) -> Dict[str, Any]:
 # ----------------------------------------------------------------------------
 
 def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
-    objs: List[Dict[str, Any]] = bundle.get("objects") or []
+    objs: List[Dict[str, Any]] = [o for bundle_obj in bundle.get("objects", []) if not o.get("revoked", False)]
 
     # Base indices
     techniques_by_id: Dict[str, Dict[str, Any]] = {}
@@ -136,9 +136,6 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
     data_components_by_id: Dict[str, Dict[str, Any]] = {}
     log_sources_by_id: Dict[str, Dict[str, Any]] = {}
 
-    # v17.1 helpers
-    data_components_by_tid_v17: Dict[str, List[Dict[str, Any]]] = {}
-
     # Pass 1: collect objects & relationships
     for o in objs:
         typ = (o.get("type") or "").lower()
@@ -146,9 +143,8 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
             tid = _extract_tid(o)
             if not tid:
                 continue
-            parent = _parent_tid(tid)
-            techniques_by_id[parent] = {
-                "technique_id": parent,
+            techniques_by_id[tid] = {
+                "technique_id": tid,
                 "name": o.get("name", ""),
                 "x_mitre_detection": o.get("x_mitre_detection"),
                 "id": o.get("id"),
@@ -181,7 +177,7 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
                     ext = er.get("external_id", "") or ""
                     m = re.match(r'^DET-?(\d{4})$', str(ext).strip(), flags=re.IGNORECASE)
                     if m:
-                        det_id = f"DET-{m.group(1)}"  # normalize to DET-0001
+                        det_id = f"DET{m.group(1)}"  # normalize to DET0001
                         break
 
                 strategies_by_id[o.get("id")] = {
@@ -207,8 +203,10 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
                 t_tid = _tid_from_attack_pattern_id(tgt, techniques_by_id)
                 if not t_tid:
                     continue
-                for key in (t_tid, _parent_tid(t_tid)):
-                    strategies_by_tid.setdefault(key, []).append(s_row)
+                p_tid = _parent_tid(t_tid)
+                strategies_by_tid.setdefault(t_tid, []).append(s_row)
+                if t_tid != p_tid:
+                    strategies_by_tid.setdefault(p_tid, []).append(s_row)
 
         # c) Regardless of relationships, also bind strategies/analytics to techniques by
         #    extracting TIDs from each referenced analytic's id/name/refs.
@@ -396,11 +394,13 @@ async def load_attack18_map(session_get) -> Attack18Map:
 def _parent_tid(tid: str) -> str:
     return (tid or "").split(".")[0].upper() if tid else ""
 
+
 def _extract_tid(o: Dict[str, Any]) -> Optional[str]:
     for ref in o.get("external_references", []) or []:
         if ref.get("source_name") == "mitre-attack" and str(ref.get("external_id", "")).startswith("T"):
             return ref.get("external_id")
     return None
+
 
 def _tid_from_attack_pattern_id(ap_id: Optional[str], techniques_by_id: Dict[str, Dict[str, Any]]) -> Optional[str]:
     if not ap_id:
@@ -410,6 +410,7 @@ def _tid_from_attack_pattern_id(ap_id: Optional[str], techniques_by_id: Dict[str
         if t.get("id") == ap_id:
             return tid
     return None
+
 
 def _rel_tids(x: Dict[str, Any]) -> List[str]:
     out = set()
@@ -429,6 +430,7 @@ def _rel_tids(x: Dict[str, Any]) -> List[str]:
     for m in re.findall(r'(T\d{4}(?:\.\d{3})?)', sid + " " + sname, flags=re.IGNORECASE):
         out.add(m.upper())
     return list(out)
+
 
 def _normalize_analytic(
     a: Dict[str, Any],

@@ -202,9 +202,9 @@ class DebriefReportSection(BaseReportSection):
                 if getattr(link, 'cleanup', False):
                     continue
                 tactic_name = getattr(link.ability, 'tactic', None)
-                tech_name   = getattr(link.ability, 'technique_name', None)
-                tech_id     = getattr(link.ability, 'technique_id', None)
-                step_name   = getattr(link.ability, 'name', None)
+                tech_name = getattr(link.ability, 'technique_name', None)
+                tech_id = getattr(link.ability, 'technique_id', None)
+                step_name = getattr(link.ability, 'name', None)
 
                 if not tactic_name:
                     continue

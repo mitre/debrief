@@ -1,4 +1,4 @@
-import json, os, re
+import re
 
 from collections import OrderedDict, defaultdict
 from reportlab.lib import colors
@@ -10,7 +10,8 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
 
 from plugins.debrief.app.utility.base_report_section import BaseReportSection
-from plugins.debrief.attack_mapper import Attack18Map, index_bundle, CACHE_PATH
+from plugins.debrief.attack_mapper import Attack18Map
+
 
 class DebriefReportSection(BaseReportSection):
     def __init__(self):
@@ -226,7 +227,7 @@ class DebriefReportSection(BaseReportSection):
             self._section_band_added = True
 
 
-        a18 = self._load_attack18()
+        a18 = BaseReportSection.load_attack18()
         agents = kwargs.get('agents', []) or []
         paw_to_platform = {getattr(a, 'paw', None): getattr(a, 'platform', None) for a in agents}
         run_platforms = sorted({
@@ -302,11 +303,18 @@ class DebriefReportSection(BaseReportSection):
             if not strategies:
                 continue
 
+<<<<<<< HEAD
             # Dedup strategies by DET id
             # Build unique, platform-relevant refs once (dedup + canonical ids)
             refs = self._build_detection_refs(ptid, a18, list(plats_iter), tid=chosen_tid)
             if not refs:
                 continue
+=======
+        # 3) Render one appendix block per DET (not per technique)
+        for det_id, info in det_map.items():
+            det_anchor = info['anchor']
+            det_name = info['name']
+>>>>>>> d18a1775d1bb0dca6ea0448f17e94dc983de21a0
 
             for ref in refs:
                 s         = ref['strategy']
@@ -523,6 +531,7 @@ class DebriefReportSection(BaseReportSection):
         strategies = self._relevant_strategies_for_ptid(a18, ptid, platforms, tid=tid) or []
         out, seen = [], set()
         for s in strategies:
+<<<<<<< HEAD
             det_id, det_name, det_anchor = self._resolve_det_meta(s, ptid)
             if det_id in seen:
                 continue
@@ -535,6 +544,17 @@ class DebriefReportSection(BaseReportSection):
                 'det_name': det_name,
                 'det_anchor': det_anchor,
             })
+=======
+            det_id = s.get('id') or ''
+            # Prefer human-friendly external IDs if present
+            ext = next((er.get('external_id') for er in s.get('external_references', []) or []
+                        if er.get('external_id', '').startswith('DET-')), None)
+            if ext:
+                det_id = ext
+            # anchor-safe id
+            det_anchor = (det_id or (s.get('id', '')[-8:]) or f"DET-{ptid}").replace(':', '-')
+            out.append((det_anchor, s.get('name') or det_id))
+>>>>>>> d18a1775d1bb0dca6ea0448f17e94dc983de21a0
         return out
 
     def _format_an_range(self, an_ids: list[str]) -> str:

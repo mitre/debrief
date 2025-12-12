@@ -10,7 +10,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
 
 from plugins.debrief.app.utility.base_report_section import BaseReportSection
-from plugins.debrief.attack_mapper import Attack18Map
+from plugins.debrief.attack_mapper import get_attack18
 
 
 class DebriefReportSection(BaseReportSection):
@@ -20,7 +20,7 @@ class DebriefReportSection(BaseReportSection):
         self.display_name = 'TTPs & V18 Detections'
         self.section_title = 'TTPs and V18 Detections for <font name=Courier-Bold size=17>%s</font>'
         self.description = 'Ordered steps (TTPs) from the operation with their associated ATT&CK v18 Detections.'
-        self._a18 = None
+        self._a18 = get_attack18()
         self._emitted_anchors = set() 
         if not hasattr(self, "styles") or self.styles is None:
             self.styles = getSampleStyleSheet()
@@ -140,57 +140,6 @@ class DebriefReportSection(BaseReportSection):
 
         self._styles_init = True
 
-    def _load_attack18(self):
-        """Load ATT&CK v18 index, preferring the local cache so report gen works offline."""
-        if self._a18 is None:
-            cache_path = CACHE_PATH
-            if not os.path.exists(cache_path):
-                cache_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'attack18_cache.json')
-                cache_path = os.path.abspath(cache_path)
-            with open(cache_path, 'r', encoding='utf-8') as f:
-                bundle = json.load(f)
-                # (1) STIX-analytic-id  -> AN-#### (normalize to AN-0000)
-                self._an_external_by_stix = {}
-                # (2) (DET-####, platform_lower) -> AN-####  (parsed from the analytic's URL)
-                self._an_by_det_and_platform = {}
-
-                for obj in (bundle.get('objects') or []):
-                    if obj.get('type') != 'x-mitre-analytic':
-                        continue
-
-                    stix_id = (obj.get('id', '') or '').strip().lower()
-                    plats = [str(p).strip().lower() for p in (obj.get('x_mitre_platforms') or []) if p]
-
-                    an_ext = None
-                    det_ext = None
-
-                    for er in (obj.get('external_references') or []):
-                        eid = (er.get('external_id') or '').strip()
-                        url = (er.get('url') or '').strip()
-
-                        # AN external id
-                        if re.match(r'^AN-?\d{4}$', eid, flags=re.IGNORECASE):
-                            an_ext = f"AN-{int(re.sub(r'[^0-9]', '', eid)):04d}"
-
-                        # Pull DET and AN from URL like .../detectionstrategies/DET0014#AN0041
-                        m = re.search(r'/detectionstrategies/(DET-?\d{4})(?:#(AN-?\d{4}))?', url, flags=re.IGNORECASE)
-                        if m:
-                            det_ext = f"DET-{int(re.sub(r'[^0-9]', '', m.group(1))):04d}"
-                            if not an_ext and m.group(2):
-                                an_ext = f"AN-{int(re.sub(r'[^0-9]', '', m.group(2))):04d}"
-
-                    # Fill maps
-                    if stix_id and an_ext:
-                        self._an_external_by_stix[stix_id] = an_ext
-
-                    if det_ext and an_ext:
-                        if not plats:
-                            plats = [None]  # allow platform-agnostic mapping as a fallback
-                        for p in plats:
-                            self._an_by_det_and_platform[(det_ext, p)] = an_ext
-            self._a18 = Attack18Map(index_bundle(bundle))
-        return self._a18
-
     async def generate_section_elements(self, styles, **kwargs):
         """
         Build the Detections section pages. This method is required by the GUI to
@@ -226,8 +175,6 @@ class DebriefReportSection(BaseReportSection):
 
             self._section_band_added = True
 
-
-        a18 = BaseReportSection.load_attack18()
         agents = kwargs.get('agents', []) or []
         paw_to_platform = {getattr(a, 'paw', None): getattr(a, 'platform', None) for a in agents}
         run_platforms = sorted({
@@ -238,11 +185,11 @@ class DebriefReportSection(BaseReportSection):
         for i, op in enumerate(operations):
             if i > 0:
                 flows.append(PageBreak())
-            flows.extend(self._generate_detection_appendix(op, a18, paw_to_platform, run_platforms=run_platforms))
+            flows.extend(self._generate_detection_appendix(op, self._a18, paw_to_platform, run_platforms=run_platforms))
 
         return flows
 
-    def _generate_detection_appendix(self, operation, a18: Attack18Map, paw_to_platform, run_platforms=None):
+    def _generate_detection_appendix(self, operation, a18, paw_to_platform, run_platforms=None):
         styles = self.styles
         flows = []
         self._ensure_styles()
@@ -270,11 +217,11 @@ class DebriefReportSection(BaseReportSection):
         for ptid, _plats in tech_plats.items():
             print(f"[DET] PTID={ptid} plats={list(_plats.keys())} exact_tids={sorted(ptid_to_tids.get(ptid, []))}", flush=True)
             if run_platforms:
-                observed_plats = run_platforms[:]          # e.g., ['linux']
+                observed_plats = run_platforms[:] # ['linux']
             else:
                 # No agents info? fall back to analytics-derived platforms
                 cache_plats = set()
-                for r in (a18.get_analytics(ptid, platform=None) or []):
+                for r in (self._a18.get_analytics(ptid, platform=None) or []):
                     cache_plats.update(
                         str(p).strip().lower()
                         for p in (r.get('platforms') or [])
@@ -292,29 +239,22 @@ class DebriefReportSection(BaseReportSection):
             # Try each exact sub-technique first; fall back to parent if none hit
             tids = list(ptid_to_tids.get(ptid, [])) or [ptid]
             strategies = []
-            s = a18.get_strategies(ptid) or []
+            s = self._a18.get_strategies(ptid) or []
             print(f"[DET] get_strategies({ptid}) -> {len(s)}")
             chosen_tid = None
             for exact_tid in tids + [ptid]:
-                strategies = self._relevant_strategies_for_ptid(a18, ptid, plats_filter, tid=exact_tid)
+                strategies = self._relevant_strategies_for_ptid(self._a18, ptid, plats_filter, tid=exact_tid)
                 if strategies:
                     chosen_tid = exact_tid
                     break
             if not strategies:
                 continue
 
-<<<<<<< HEAD
             # Dedup strategies by DET id
             # Build unique, platform-relevant refs once (dedup + canonical ids)
             refs = self._build_detection_refs(ptid, a18, list(plats_iter), tid=chosen_tid)
-            if not refs:
-                continue
-=======
-        # 3) Render one appendix block per DET (not per technique)
-        for det_id, info in det_map.items():
-            det_anchor = info['anchor']
-            det_name = info['name']
->>>>>>> d18a1775d1bb0dca6ea0448f17e94dc983de21a0
+            print(f"[DET] Built {len(refs)} unique detection refs for ptid={ptid} (chosen_tid={chosen_tid})")
+            
 
             for ref in refs:
                 s         = ref['strategy']
@@ -336,7 +276,7 @@ class DebriefReportSection(BaseReportSection):
                 seen_rows    = set()
                 anchored_ans = set()
                 analytics_by_plat = {
-                    plat: (a18.get_analytics(ptid, platform=plat) or [])
+                    plat: (self._a18.get_analytics(ptid, platform=plat) or [])
                     for plat in plats_iter
                 }
                 for plat, analytics in analytics_by_plat.items():
@@ -418,7 +358,12 @@ class DebriefReportSection(BaseReportSection):
                                 ])
 
                 print(f"  [ANs] for {det_id}: {sorted(an_ids)}")
-
+                # ---------------------------------------------------------
+                # PREDECLARE DET ANCHOR (fix for missing PDF destination)
+                # ---------------------------------------------------------
+                det_anchor = self._anchor_for_det(det_id)
+                flows.append(Paragraph(f'<a name="{det_anchor}"></a>', self.styles["Normal"]))
+                print(f"[DET-PREDECL] created anchor for {det_id} -> {det_anchor}")
                 # ---- Build header block ----
                 hdr_block = self._build_det_header_block(det_id, det_name, sorted(an_ids))
                 if len(rows) <= 2:
@@ -518,7 +463,7 @@ class DebriefReportSection(BaseReportSection):
         tbl.spaceAfter  = 0
         return tbl
 
-    def _build_detection_refs(self, ptid: str, a18: Attack18Map, platforms: list[str], tid: str | None = None) -> list[dict]:
+    def _build_detection_refs(self, ptid: str, a18, platforms: list[str], tid: str | None = None) -> list[dict]:
         """
         Return a list of dicts for unique detection strategies relevant to `ptid`
         after platform filtering. Each item has:
@@ -531,7 +476,6 @@ class DebriefReportSection(BaseReportSection):
         strategies = self._relevant_strategies_for_ptid(a18, ptid, platforms, tid=tid) or []
         out, seen = [], set()
         for s in strategies:
-<<<<<<< HEAD
             det_id, det_name, det_anchor = self._resolve_det_meta(s, ptid)
             if det_id in seen:
                 continue
@@ -544,31 +488,20 @@ class DebriefReportSection(BaseReportSection):
                 'det_name': det_name,
                 'det_anchor': det_anchor,
             })
-=======
-            det_id = s.get('id') or ''
-            # Prefer human-friendly external IDs if present
-            ext = next((er.get('external_id') for er in s.get('external_references', []) or []
-                        if er.get('external_id', '').startswith('DET-')), None)
-            if ext:
-                det_id = ext
-            # anchor-safe id
-            det_anchor = (det_id or (s.get('id', '')[-8:]) or f"DET-{ptid}").replace(':', '-')
-            out.append((det_anchor, s.get('name') or det_id))
->>>>>>> d18a1775d1bb0dca6ea0448f17e94dc983de21a0
         return out
 
     def _format_an_range(self, an_ids: list[str]) -> str:
-        """Format 'Analytic ( AN-0001 to AN-0005 )' from a list like ['AN-0001','AN-0003',...]."""
+        """Format 'Analytic ."""
         nums = []
         for x in an_ids:
-            m = re.match(r'AN-?(\d{4})$', str(x).strip(), flags=re.IGNORECASE)
+            m = re.match(r'AN(\d{4})$', str(x).strip(), flags=re.IGNORECASE)
             if m:
                 nums.append(int(m.group(1)))
         if not nums:
             # fallback: show unique AN ids joined
             uniq = sorted(set(filter(None, an_ids)))
             return f"Analytic ( {', '.join(uniq) if uniq else '—'} )"
-        return f"Analytic ( AN-{min(nums):04d} to AN-{max(nums):04d} )"
+        return f"Analytic ( AN{min(nums):04d} to AN{max(nums):04d} )"
 
     def _build_det_header_block(self, det_id: str, det_name: str, an_ids: list[str]):
         self._ensure_styles()
@@ -646,57 +579,66 @@ class DebriefReportSection(BaseReportSection):
 
     def _normalize_ext_id(self, s: str) -> str:
         s = (s or '').strip().upper()
-        if s.startswith('AN') and not s.startswith('AN-'):
-            return f'AN-{s[2:]}'
+        s = s.replace("AN-", "AN")
         return s
 
-    def _normalize_det_id(self, det_external_or_id: str, fallback: str = "") -> str:
-        """
-        Return canonical DET-#### when possible; otherwise fallback (usually the object id).
-        """
-        s = (det_external_or_id or "").strip()
-        m = re.match(r'^DET-?(\d{4})$', s, flags=re.IGNORECASE)
-        if m:
-            return f"DET-{int(m.group(1)):04d}"
-        return fallback or s
+    def _normalize_det_id(self, det_id: str, fallback=None):
+        if not det_id:
+            return fallback
+
+        s = det_id.upper().replace("DET", "")
+        digits = "".join(ch for ch in s if ch.isdigit())
+
+        if digits:
+            return f"DET{digits}"     # <-- NO DASH VERSION
+        return fallback
 
     def _resolve_det_meta(self, s: dict, ptid: str) -> tuple[str, str, str]:
         """
         Return (det_id, det_name, det_anchor) for a strategy dict `s`.
-        - det_id: canonical DET-#### when possible (falls back to object id)
-        - det_name: s['name'] or det_id
-        - det_anchor: anchor-safe id used in-PDF
+        - det_id: canonical DET#### when possible (no dash)
+        - det_name: strategy name or det_id
+        - det_anchor: anchor-safe version of det_id (also DET####)
         """
-        # 1) prefer stamped det_id (from _relevant_strategies_for_ptid), else external DET-####, else object id
-        ext = next((er.get('external_id', '') for er in (s.get('external_references') or [])
-                if isinstance(er.get('external_id',''), str)), '')
-        det_id = self._normalize_det_id(s.get('det_id') or ext, fallback=(s.get('id', '') or ''))
+        # 1) Try stamped det_id from relevant_strategies
+        raw = s.get("det_id") or ""
 
-        # 2) If still not canonical DET-####, consult analytics to lift to canonical DET
-        if not re.match(r'^DET-\d{4}$', str(det_id), flags=re.IGNORECASE):
-            a18 = self._load_attack18()
-            for r in (a18.get_analytics(ptid, platform=None) or []):
-                rd = (r.get('det_id') or '').strip()
-                if rd.upper().startswith('DET-'):
-                    det_id = self._normalize_det_id(rd, fallback=det_id)
-                    print(f"[DET/_resolve] Upgraded det_id via analytics: {rd} -> {det_id} (ptid={ptid})")
-                    break
+        # 2) Else fallback to external_id inside external_references
+        ext = next(
+            (
+                er.get("external_id", "")
+                for er in (s.get("external_references") or [])
+                if isinstance(er.get("external_id", ""), str)
+            ),
+            ""
+        )
 
-        det_name = s.get('name', '') or det_id
-        det_anchor = (det_id or (s.get('id','')[-8:]) or f"DET-{ptid}").replace(':','-')
+        # 3) Determine best raw ID
+        best = raw or ext or s.get("id", "") or ""
+
+        # 4) Normalize → DET#### (no dash)
+        det_id = self._normalize_det_id(best, fallback=best)
+
+        # 5) Strategy name or fallback to det_id
+        det_name = s.get("name") or det_id
+
+        # 6) Anchor is exactly the normalized det_id, sanitized
+        det_anchor = self._normalize_det_id(det_id)
+
         print(f"[DET/_resolve] det_id={det_id} det_anchor={det_anchor} name={det_name}")
         return det_id, det_name, det_anchor
 
+
     @staticmethod
     def _anchor_for_an(an_id: str) -> str:
-        return (an_id or '').upper().replace(':', '-')
+        return (an_id or '').upper().replace('AN-', 'AN')
     
     def _relevant_strategies_for_ptid(self, a18, ptid: str, plats: list[str], tid: str | None = None):
         plats_l = { str(p).strip().lower() for p in (plats or []) if p }
         rel = []
-        cand = a18.get_strategies(tid or ptid) or []
+        cand = self._a18.get_strategies(tid or ptid) or []
         # Gather analytics for parent PTID so we can match rows back to strategies
-        analytics = a18.get_analytics(ptid, platform=None) or []
+        analytics = self._a18.get_analytics(ptid, platform=None) or []
         for s in cand:
             sid = (s.get('id') or '').strip()
             has_hit = False
@@ -708,14 +650,15 @@ class DebriefReportSection(BaseReportSection):
                     continue
 
                 rdet = (r.get('det_id') or '').strip()
+                rdet_norm = self._normalize_det_id(rdet, fallback=rdet)
                 # rows may carry raw strategy id or DET-####
-                if rdet == sid or rdet.upper().startswith('DET-'):
+                if rdet_norm == self._normalize_det_id(sid, fallback=sid):
                     has_hit = True
                     break
             if has_hit:
                 # stamp a best-effort det_id label we can anchor to
                 det_label = next((er.get('external_id','') for er in (s.get('external_references') or [])
-                  if isinstance(er.get('external_id',''), str) and er.get('external_id','').startswith('DET-')),
+                  if isinstance(er.get('external_id',''), str) and er.get('external_id','').strip().upper().startswith('DET')),
                  None)
                 s = dict(s)
                 s['det_id'] = (det_label or sid)
@@ -737,9 +680,7 @@ class DebriefReportSection(BaseReportSection):
         # 1) explicit row-level AN id
         an = (arow.get('an_id') or '').strip()
         if re.match(r'^AN-?\d{4}$', an, flags=re.IGNORECASE):
-            canon = self._normalize_ext_id(an)
-            return canon, canon
-
+            return an.upper(), an.upper()
         # 2a) map by STIX analytic id -> AN
         aid = (arow.get('id') or '').strip().lower()
         if aid and getattr(self, '_an_external_by_stix', None):

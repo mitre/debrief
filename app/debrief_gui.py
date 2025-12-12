@@ -12,13 +12,15 @@ from io import BytesIO
 from reportlab import rl_settings
 from reportlab.lib.pagesizes import letter, landscape as to_landscape
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import SimpleDocTemplate, Spacer, PageTemplate, Frame, PageBreak, Flowable
+from reportlab.platypus import SimpleDocTemplate, Spacer, PageTemplate, Frame, PageBreak, Flowable, Paragraph
 
 
 from app.service.auth_svc import for_all_public_methods, check_authorization
 from app.utility.base_world import BaseWorld
 from plugins.debrief.app.debrief_svc import DebriefService
 from plugins.debrief.app.objects.c_story import Story
+
+from plugins.debrief.attack_mapper import get_attack18
 
 
 LEFT_MARGIN = RIGHT_MARGIN = 72
@@ -36,14 +38,16 @@ class DebriefGui(BaseWorld):
         self.knowledge_svc = services.get('knowledge_svc')
         self.log = logging.getLogger('debrief_gui')
         self.uploads_dir = os.path.relpath(os.path.join('plugins', 'debrief', 'uploads'))
-
+        self._suppress_logs('reportlab')
         self._suppress_logs('PIL')
         self._suppress_logs('svglib')
         self.report_section_modules = dict()
         self.report_section_names = list()
         self.loaded_report_sections = False
+        self._a18 = get_attack18()  # lazy load Attack18Map
 
         rl_settings.trustedHosts = BaseWorld.get_config(prop='reportlab_trusted_hosts', name='debrief') or None
+    
     
     async def _get_access(self, request):
         return dict(access=tuple(await self.auth_svc.get_permissions(request)))
@@ -60,7 +64,7 @@ class DebriefGui(BaseWorld):
             plugins = await self.data_svc.locate('plugins', match=dict(enabled=True))
             self._load_report_sections(plugins)
         except Exception as e:
-            self.log.error(e)
+            print(e)
         return dict(operations=operations, header_logos=header_logos, report_sections=self.report_section_names)
 
     async def report_sections(self, request):
@@ -69,7 +73,7 @@ class DebriefGui(BaseWorld):
             self._load_report_sections(plugins)
             self.log.debug("Debrief report sections loaded successfully: %s", self.report_section_names)
         except Exception as e:
-            self.log.error(e, stack_info=True, exc_info=True)
+            print(e, stack_info=True)
         report_sections = self.report_section_names
         return web.json_response(dict(report_sections=report_sections))
 
@@ -99,7 +103,7 @@ class DebriefGui(BaseWorld):
             graph = await graphs[graph_type](op_ids)
             return web.json_response(graph)
         except Exception as e:
-            self.log.error("graph() failed: %r", e, exc_info=True)
+            print("graph() failed: %r", e)
             return web.json_response({'error': 'internal error'}, status=500)
 
     async def download_pdf(self, request):
@@ -118,20 +122,21 @@ class DebriefGui(BaseWorld):
                 op_name = operations[0].name if operations else 'Operation'
                 safe_op_name = re.sub(r'[^A-Za-z0-9_-]+', '-', op_name)
                 runtime_paws = set()
-                    for op in operations or []:
-                        for ln in getattr(op, 'chain', []) or []:
-                            paw = getattr(ln, 'paw', None)
-                            if paw:
-                                runtime_paws.add(paw)
+                for op in operations or []:
+                    for ln in getattr(op, 'chain', []) or []:
+                        paw = getattr(ln, 'paw', None)
+                        if paw:
+                            runtime_paws.add(paw)
 
                 date_part = datetime.now().strftime('%Y_%m_%d')
                 filename = f"{safe_op_name}_Debrief_{date_part}.pdf"
+                agents = await self.data_svc.locate('agents')
                 pdf_bytes = await self._build_pdf(operations, agents, filename, data['report-sections'], header_logo_path)
                 self._clean_downloads()
                 return web.json_response(dict(filename=filename, pdf_bytes=pdf_bytes))
             return web.json_response({'error': 'No operations selected'}, status=400)
         except Exception as e:
-            self.log.error("download_pdf() failed: %r", e, exc_info=True)
+            print("download_pdf() failed: %r", e)
             return web.json_response({'error': 'Error generating PDF report'}, status=500)
 
     async def download_json(self, request):
@@ -186,7 +191,7 @@ class DebriefGui(BaseWorld):
                                 self.report_section_modules[safe_id] = module_obj
                                 self.report_section_names.append({'key': safe_id, 'name': module_obj.display_name})
                             except Exception as e:
-                                self.log.error("Skipping debrief section %s due to error: %r", module_name, e, exc_info=True)
+                                print("Skipping debrief section %s due to error: %r", module_name, e)
                     self.log.debug("Finished loading debrief report sections.")
             self.report_section_names.sort(key=lambda s: s['name'].lower())
             self.loaded_report_sections = True
@@ -260,10 +265,10 @@ class DebriefGui(BaseWorld):
         sections = list(sections or [])
         detections_only = (len(sections) == 1 and sections[0] == 'ttps-detections')
 
-        # Always render Detections last if present (unless it's the only section)
+        # # Always render Detections last if present (unless it's the only section)
         if 'ttps-detections' in sections and not detections_only:
             sections = [s for s in sections if s != 'ttps-detections'] + ['ttps-detections']
-
+        
         # Frames
         portrait_frame = Frame(
             doc.leftMargin, doc.bottomMargin,
@@ -312,7 +317,38 @@ class DebriefGui(BaseWorld):
         if any(('-graph' in v) for v in sections):
             for file in glob.glob('./plugins/debrief/downloads/*.svg'):
                 graph_files[os.path.basename(file).split('.')[0]] = file
+        # ---------------------------------------------------------
+        # PREDECLARE ALL DET ANCHORS BEFORE ANY SECTION BUILDS
+        # ---------------------------------------------------------
 
+        all_dets = set()
+        # Collect ALL DET IDs used by techniques in this report
+        for op in operations:
+            for link in getattr(op, 'chain', []):
+                tid = getattr(getattr(link, 'ability', None), 'technique_id', '')
+                if not tid:
+                    continue
+
+                # 1) normalize TID
+                tid = tid.strip().upper()
+                ptid = tid.split('.')[0]
+
+                # 2) get correct strategies: child first, same as tactic_technique_table
+                child_strats = self._a18.get_strategies(tid) or []
+                parent_strats = self._a18.get_strategies(ptid) or []
+                strategies = child_strats if child_strats else parent_strats
+
+                # 3) normalize DET IDs (remove dash)
+                for s in strategies:
+                    raw = s.get("det_id") or ""
+                    det = raw.upper().replace("DET-", "").replace("DET", "").strip()
+                    if det.isdigit():
+                        all_dets.add(f"DET{det}")
+
+        # Emit anchors now (before TTP table builds links)
+        for det in sorted(all_dets):
+            story_obj.append(Paragraph(f'<a name="{det}"></a>', styles["Normal"]))
+            print("[DET-PREDECLARE] created anchor for %s", det)
         try:
             # ---- COVER: ----
             cover_module = self.report_section_modules.get('main-summary')
@@ -332,7 +368,7 @@ class DebriefGui(BaseWorld):
             for section in sections:
                 section_module = self.report_section_modules.get(section)
                 if not section_module:
-                    self.log.error("Requested debrief section module %s not found.", section)
+                    print("Requested debrief section module %s not found.", section)
                     continue
 
                 flowables = await section_module.generate_section_elements(
@@ -357,7 +393,7 @@ class DebriefGui(BaseWorld):
             doc.build(story_obj.story_arr)
 
         except Exception as e:
-            self.log.error(e)
+            print(e)
 
         pdf_value = pdf_buffer.getvalue()
         pdf_buffer.close()

@@ -6,7 +6,7 @@ from reportlab.platypus.flowables import KeepTogetherSplitAtTop
 from svglib.svglib import svg2rlg
 
 from plugins.debrief.app.objects.c_story import Story
-from plugins.debrief.attack_mapper import Attack18Map, index_bundle, CACHE_PATH, load_attack18_cache
+from plugins.debrief.attack_mapper import get_attack18
 
 
 class BaseReportSection:
@@ -27,18 +27,7 @@ class BaseReportSection:
         self.display_name = 'Base Section Template'
         self.description = 'Base class for debrief report section'
         self.section_title = 'BASE SECTION HEADER'
-
-    @classmethod
-    def load_attack18(cls):
-        """Load ATT&CK v18 index, preferring the local cache so report gen works offline."""
-        if cls._a18 is None:
-            cache_path = CACHE_PATH
-            if not os.path.exists(cache_path):
-                cache_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'attack18_cache.json')
-                cache_path = os.path.abspath(cache_path)
-            bundle = load_attack18_cache(cache_path)
-            cls._a18 = Attack18Map(index_bundle(bundle))
-        return cls._a18
+        self._18 = get_attack18()
 
     def generate_section_title_and_description(self, styles):
         """Return grouped flowable containing section title and description."""

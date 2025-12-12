@@ -19,28 +19,6 @@ CACHE_PATH = os.getenv(
 _TID_RX = re.compile(r'(T\d{4}(?:\.\d{3})?)', re.IGNORECASE)
 
 
-def _extract_tids_from_analytic(a):
-    """
-    Return a set of ATT&CK technique IDs (T#### or T####.###) discoverable from an analytic.
-    Searches in: external_references.external_id, id, name, and (as a last resort) description.
-    """
-    out = set()
-
-    # 1) external refs, if any
-    for er in (a.get("external_references") or []):
-        eid = str(er.get("external_id", "") or "")
-        if eid.startswith("T"):
-            out.add(eid.upper())
-
-    # 2) embedded in id / name / description (e.g., an-T1074_001-…)
-    for field in ("id", "name", "description"):
-        s = str(a.get(field, "") or "")
-        for m in _TID_RX.findall(s):
-            out.add(m.upper())
-
-    return out
-
-
 # ----------------------------------------------------------------------------
 # Public Map API (back-compat name kept as Attack18Map)
 # ----------------------------------------------------------------------------
@@ -122,7 +100,10 @@ async def fetch_and_cache(session_get) -> Dict[str, Any]:
 # ----------------------------------------------------------------------------
 
 def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
-    objs: List[Dict[str, Any]] = [o for bundle_obj in bundle.get("objects", []) if not o.get("revoked", False)]
+    objs: List[Dict[str, Any]] = [
+        o for o in bundle.get("objects", [])
+        if not o.get("revoked", False)
+    ]
 
     # Base indices
     techniques_by_id: Dict[str, Dict[str, Any]] = {}
@@ -245,19 +226,13 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
                 a_row["dc_elements"] = dc_elems
                 a_row["det_id"] = det_id  # stamp parent DET on each analytic row
 
-                # 2) try analytic-derived TIDs first
-                tids = _extract_tids_from_analytic(a_obj)
+               
 
-                # 3) if none, fall back to the strategy's detected technique ids
+                # 2) if none, fall back to the strategy's detected technique ids
                 target_keys = []
-                if tids:
-                    for tid in tids:
-                        parent = _parent_tid(tid)
-                        target_keys.extend([tid, parent])
-                else:
-                    target_keys.extend(detected_tids)
+                target_keys.extend(detected_tids)
 
-                # 4) index the analytic under each target technique (and keep per-technique copy of technique_id)
+                # 3) index the analytic under each target technique (and keep per-technique copy of technique_id)
                 for key in target_keys:
                     if not key:
                         continue
@@ -265,8 +240,8 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
                     a_row_for_key["technique_id"] = key  # useful for exact vs parent filtering later
                     analytics_by_tid.setdefault(key, []).append(a_row_for_key)
 
-                # 5) also register the strategy under those keys (so TTT can list DET ids)
-                for key in (tids or detected_tids):
+                # 4) also register the strategy under those keys (so TTT can list DET ids)
+                for key in detected_tids:
                     if not key:
                         continue
                     strategies_by_tid.setdefault(_parent_tid(key), []).append(s_row)
@@ -275,15 +250,9 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
 
         # d) Also include any analytics that declare technique refs directly (outside strategies)
         for a_obj in analytics_by_id.values():
-            tids = _extract_tids_from_analytic(a_obj)
-            if not tids:
-                continue
             a_row, ls_ids, dc_elems = _normalize_analytic(a_obj, data_components_by_id)
             a_row["log_source_ids"] = ls_ids
             a_row["dc_elements"] = dc_elems
-            for tid in tids:
-                for key in (tid, _parent_tid(tid)):
-                    analytics_by_tid.setdefault(key, []).append(a_row)
 
         # e) Flatten log sources from data components
         for dc_id, dc in data_components_by_id.items():
@@ -295,45 +264,6 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
                     "channel": ls.get("channel"),
                     "notes": ls.get("description") or "",
                 }
-
-    # v17.1 fallback: synthesize analytics from data components + detection text
-    else:
-        # Heuristics: older bundles sometimes use relationships from data-component -> attack-pattern ("detects")
-        for dc_id, dc in data_components_by_id.items():
-            # which techniques does this DC detect?
-            rels = relationships_by_src.get(dc_id, [])
-            for rel in rels:
-                if (rel.get("relationship_type") or "").lower() != "detects":
-                    continue
-                t_tid = _tid_from_attack_pattern_id(rel.get("target_ref"), techniques_by_id)
-                if not t_tid:
-                    continue
-                parent = _parent_tid(t_tid)
-                # create synthetic analytic row from DC name, attach DC's log_sources if present
-                a_row = {
-                    "id": f"synthetic-analytic::{dc_id}",
-                    "name": dc.get("name", "Data Component"),
-                    "platform": "",
-                    "statement": (dc.get("description") or ""),
-                    "tunables": [],
-                }
-                # turn DC's log sources into flattened ids
-                ls_ids: List[str] = []
-                for i, ls in enumerate(dc.get("x_mitre_log_sources", []) or []):
-                    sid = f"{dc_id}#ls{i}"
-                    log_sources_by_id.setdefault(sid, {
-                        "id": sid,
-                        "name": ls.get("name") or ls.get("channel") or "log-source",
-                        "channel": ls.get("channel"),
-                        "notes": ls.get("description") or "",
-                    })
-                    ls_ids.append(sid)
-                a_row["log_source_ids"] = ls_ids
-                a_row["dc_elements"] = []
-                analytics_by_tid.setdefault(parent, []).append(a_row)
-
-        # Also index technique detection text so callers can show it if desired
-        # (already stored in techniques_by_id)
 
     # De-dup analytics per technique while preserving order (by id)
     for tid, items in list(analytics_by_tid.items()):
@@ -386,6 +316,39 @@ async def load_attack18_map(session_get) -> Attack18Map:
     bundle = await fetch_and_cache(session_get)
     return Attack18Map(index_bundle(bundle))
 
+
+# ----------------------------------------------------------------------------
+# Global single-source loader for ATT&CK v18
+# ----------------------------------------------------------------------------
+
+_attack18_global: Optional[Attack18Map] = None
+
+def get_attack18() -> Attack18Map:
+    """
+    Return a shared Attack18Map instance.
+    Ensures the ATT&CK v18 bundle is loaded and indexed once per process.
+    Consumers (TTT, Detections, Debrief GUI) should use only this.
+    """
+    global _attack18_global
+    if _attack18_global is not None:
+        return _attack18_global
+
+    # 1: Load bundle from cache (no network, fully offline)
+    if not os.path.exists(CACHE_PATH):
+        raise FileNotFoundError(f"ATT&CK v18 cache missing: {CACHE_PATH}")
+
+    with open(CACHE_PATH, "r", encoding="utf-8") as f:
+        raw = json.load(f)
+
+    # 2: Normalize the cached JSON (list OR dict)
+    if isinstance(raw, list):
+        raw = {"type": "bundle", "objects": raw}
+    elif not isinstance(raw, dict):
+        raise TypeError(f"Invalid ATT&CK cache format: {type(raw).__name__}")
+
+    # 3: Build the indexed map (canonical unified structure)
+    _attack18_global = Attack18Map(index_bundle(raw))
+    return _attack18_global
 
 # ----------------------------------------------------------------------------
 # Utilities

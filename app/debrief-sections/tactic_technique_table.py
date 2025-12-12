@@ -8,8 +8,7 @@ from html import escape
 from plugins.debrief.app.utility.base_report_section import BaseReportSection
 from plugins.debrief.app.debrief_svc import DebriefService
 
-from plugins.debrief.attack_mapper import Attack18Map, index_bundle, CACHE_PATH, load_attack18_cache
-
+from plugins.debrief.attack_mapper import get_attack18
 
 class DebriefReportSection(BaseReportSection):
     def __init__(self):
@@ -19,20 +18,10 @@ class DebriefReportSection(BaseReportSection):
         self.section_title = 'TACTICS AND TECHNIQUES'
         self.description = ''
         self.log = logging.getLogger('debrief_gui')
-        self._a18 = None  # lazy-loaded ATT&CK v18 index
+        self._a18 = get_attack18()  # lazy-loaded ATT&CK v18 index
         self._emitted_anchors = set() # track emitted anchors to avoid duplicates
+        
 
-    # ---------- ATT&CK v18 Load ----------
-    def _load_attack18(self):
-        """Load ATT&CK v18 index (cached file, works offline)."""
-        if self._a18 is None:
-            cache_path = CACHE_PATH
-            if not os.path.exists(cache_path):
-                cache_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'uploads', 'attack18_cache.json'))
-            bundle = load_attack18_cache(cache_path)
-            self._a18 = Attack18Map(index_bundle(bundle))
-            print(f"Loaded ATT&CK v18 cache from {cache_path}")
-        return self._a18
 
     # ---------- Report generation ----------
     async def generate_section_elements(self, styles, **kwargs):
@@ -46,22 +35,59 @@ class DebriefReportSection(BaseReportSection):
             spaceAfter=0,
             alignment=0,
         )
+
         flowable_list = []
         self.styles = styles
+
         if 'operations' in kwargs:
             print("Generating Tactic and Technique Table section")
             print(f"  - Operations count: {len(kwargs.get('operations', []))}")
-            
+
             operations = kwargs.get('operations', [])
             ttps = DebriefService.generate_ttps(operations) or {}
-            # Fallback if all tactics have empty/absent 'techniques'
+
             if not any((t or {}).get('techniques') for t in ttps.values()):
                 self.log.warning("generate_ttps() returned empty techniques; using _get_operation_ttps fallback")
                 ttps = self._get_operation_ttps(operations)
-            flowable_list.append(self.group_elements([
-                Paragraph(self.section_title, styles['Heading2']),
-                self._generate_ttps_table(ttps, kwargs.get('operations', []))
-            ]))
+
+            # ----------------------------------------------------------
+            # PREDECLARE DET ANCHORS — must go INSIDE the KeepTogether block
+            # ----------------------------------------------------------
+            anchors = []
+            predeclared = set()
+
+            for tactic in ttps.values():
+                tech_map = tactic.get("techniques") or {}
+
+                for tid, tname in tech_map.items():
+                    ptid = (tid or "").split(".")[0].strip().upper()
+                    strategies = self._a18.get_strategies(ptid) or []
+
+                    for s in strategies:
+                        det = self._normalize_det_id(s.get("det_id") or "")
+                        if not det or det in predeclared:
+                            continue
+
+                        anchor = self._anchor_for_det(det)
+                        anchors.append(Paragraph(f'<a name="{anchor}"/>', styles["Normal"]))
+                        predeclared.add(det)
+                        print(f"[TT-PREDECL] emitted anchor for {det} -> {anchor}")
+
+            # ----------------------------------------------------------
+            # Build section as ONE KeepTogether block containing:
+            #   - anchors
+            #   - section title
+            #   - final table
+            # ----------------------------------------------------------
+            block = self.group_elements(
+                anchors + [
+                    Paragraph(self.section_title, styles['Heading2']),
+                    self._generate_ttps_table(ttps, operations)
+                ]
+            )
+
+            flowable_list.append(block)
+
         return flowable_list
 
     def _generate_ttps_table(self, ttps, operations):
@@ -74,58 +100,117 @@ class DebriefReportSection(BaseReportSection):
 
         ttp_data = [['Tactics', 'Techniques', 'Abilities', 'Detections']]
         tech_plats = self._op_platforms_by_ptid(operations)
+
         for _tac_key, tactic in ttps.items():
+
             technique_lines = []
             detect_lines    = []
+
             tech_map = (tactic.get('techniques') or {})
 
-            # If keys look like names (not TIDs), invert to {tid: name}
+            # If keys look like names (not TIDs), invert to {tid -> name}
             def _is_tid(s: str) -> bool:
                 return bool(re.match(r'^T\d{4}(?:\.\d{3})?$', str(s or '').strip()))
 
             if tech_map and not all(_is_tid(k) for k in tech_map.keys()):
-                tech_map = {v: k for (k, v) in tech_map.items() if v}  # -> {tid: name}
+                tech_map = {v: k for (k, v) in tech_map.items() if v}
 
             for tid, tname in tech_map.items():
+
                 print(f"  - Processing technique: TID={tid}, Name={tname}")
                 ptid = (tid or '').split('.')[0].strip().upper()
+                print(f"[TTP-05] Technique loop: tid={tid}, tname={tname}")
 
-                # Technique label
-                label = f"{tid}: {tname}" if (tid and tname) else (tid or tname or '—')
-                technique_lines.append(label)
+                # ------------------------------------------------------------------
+                # TECHNIQUE LABEL
+                # ------------------------------------------------------------------
+                try:
+                    label = f"{tid}: {tname}" if (tid and tname) else (tid or tname or '—')
+                    technique_lines.append(label)
+                    print("[TTP-06] label OK")
+                except Exception:
+                    self.log.exception("[ERR-TTP-06] Failed building technique label")
+                    raise
 
-                # ---- ONE Analytic per technique (prefer the sub-technique) ----
-                chosen_platforms = tech_plats.get(ptid, set())
-                det_anchor = None
-                det_label = None
+                # ------------------------------------------------------------------
+                # DETECTION SELECTION
+                #   Use child technique strategies first; fallback to parent strategies.
+                #   Only DETs present in ATT&CK strategies are allowed.
+                #   Analytics guide choosing between multiple strategy DETs,
+                #   but analytics do NOT create new DETs.
+                # ------------------------------------------------------------------
 
-                for r in self._load_attack18().get_analytics(ptid, platform=None) or []:
-                    r_tid = (r.get('technique_id') or '').strip().upper()
-                    da = self._normalize_det_id(r.get('det_id') or '')
-                    if not da:
+                try:
+                    # --- Child technique strategies ---
+                    child_strats = self._a18.get_strategies(tid) or []
+                    parent_strats = self._a18.get_strategies(ptid) or []
+
+                    if child_strats:
+                        strategies = child_strats
+                        print(f"[TTP-07] Using CHILD strategies for {tid}: {len(strategies)} found")
+                    else:
+                        strategies = parent_strats
+                        print(f"[TTP-07] Using PARENT strategies for {tid}: {len(strategies)} found")
+
+                    # Collect allowed DETs from strategies (appendix will render only these)
+                    valid_strategy_dets = []
+                    for s in strategies:
+                        det_id = self._normalize_det_id(s.get("det_id") or "")
+                        if det_id:
+                            valid_strategy_dets.append(det_id)
+
+                    print(f"[TTP-07] Strategy DETs: {valid_strategy_dets}")
+
+                    if not valid_strategy_dets:
+                        print(f"[TTP-08] No valid strategy DETs for {tid} — using placeholder")
+                        detect_lines.append("—")
                         continue
-                    # prefer exact technique match
-                    if r_tid == tid.strip().upper():
-                        det_label = da
-                        break
-                    # fallback to any DET under parent technique
-                    if not det_label:
-                        det_label = da
 
-                if det_label:
-                    det_anchor = self._anchor_for_det(det_label)
-                    link_line = f'<link href="#{escape(det_anchor)}" color="blue">{escape(det_label)}</link>'
-                else:
-                    link_line = '—'
+                    # Analytics: used only for ranking selection
+                    analytics = self._a18.get_analytics(ptid, platform=None) or []
+                    print(f"[TTP-07] Analytics loaded for {ptid}: {len(analytics)} items")
 
-                detect_lines.append(link_line)
+                    # Prefer DETs whose analytics match the exact sub-technique
+                    exact_tid = tid.strip().upper()
+                    child_hits = []
 
-            
-            # Abilities (flatten & clean)   
+                    for det in valid_strategy_dets:
+                        for row in analytics:
+                            row_det = self._normalize_det_id(row.get("det_id") or "")
+                            if row_det != det:
+                                continue
+                            if (row.get("technique_id") or "").strip().upper() == exact_tid:
+                                child_hits.append(det)
+
+                    if child_hits:
+                        det_label = child_hits[0]
+                        print(f"[TTP-08] Choosing child-hit DET for {tid}: {det_label}")
+                    else:
+                        det_label = valid_strategy_dets[0]
+                        print(f"[TTP-08] No child-hit analytics; defaulting DET for {tid}: {det_label}")
+
+                    # Build the PDF link (safe: appendix WILL contain this anchor)
+                    try:
+                        det_anchor = self._anchor_for_det(det_label)
+                        link = f'<link href="#{escape(det_anchor)}" color="blue">{escape(det_label)}</link>'
+                        detect_lines.append(link)
+                        print(f"[TTP-09] DET link built: {link}")
+                    except Exception:
+                        self.log.exception("[ERR-TTP-09] DET link building failed")
+                        raise
+
+                except Exception:
+                    self.log.exception("[ERR-TTP-08] DET selection failed")
+                    raise
+
+            # ----------------------------------------------------------------------
+            # ABILITIES
+            # ----------------------------------------------------------------------
             raw_steps = []
             for _opname, steps in (tactic.get('steps') or {}).items():
                 raw_steps.extend(steps or [])
                 print(f"    - Found steps for op {_opname}: {steps}")
+
             cleaned_steps = []
             for ability in raw_steps:
                 a = ability or ''
@@ -133,7 +218,9 @@ class DebriefReportSection(BaseReportSection):
                 a = re.sub(r'\s*\((?:operation|op)[^)]*\)\s*$', '', a, flags=re.I)
                 cleaned_steps.append(a.strip() or '—')
 
-            # IMPORTANT: render as Paragraphs so <link> tags work
+            # ----------------------------------------------------------------------
+            # Build Paragraphs
+            # ----------------------------------------------------------------------
             t_para = Paragraph(self._stacked(technique_lines), self.tt_body)
             a_para = Paragraph(self._stacked(cleaned_steps),   self.tt_body)
             d_style = ParagraphStyle("tt-body-center", parent=self.tt_body, alignment=1)
@@ -143,11 +230,15 @@ class DebriefReportSection(BaseReportSection):
                 (tactic.get('name') or '').capitalize(),
                 t_para, a_para, d_para
             ])
-        print("[TT] BEFORE build types:",
-        type(ttp_data[1][1]).__name__ if len(ttp_data) > 1 else None,
-        type(ttp_data[1][2]).__name__ if len(ttp_data) > 1 else None,
-        type(ttp_data[1][3]).__name__ if len(ttp_data) > 1 else None)
 
+        print("[TT] BEFORE build types:",
+            type(ttp_data[1][1]).__name__ if len(ttp_data) > 1 else None,
+            type(ttp_data[1][2]).__name__ if len(ttp_data) > 1 else None,
+            type(ttp_data[1][3]).__name__ if len(ttp_data) > 1 else None)
+
+        # --------------------------------------------------------------------------
+        # TABLE LAYOUT
+        # --------------------------------------------------------------------------
         tbl = Table(
             ttp_data,
             colWidths=[
@@ -155,24 +246,23 @@ class DebriefReportSection(BaseReportSection):
                 2.85*inch, #Techniques
                 1.75*inch, #Abilities
                 0.90*inch  #Detections
-                ],
+            ],
             hAlign='LEFT'
         )
-        header_bg = colors.maroon
 
+        header_bg = colors.maroon
         tbl.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), header_bg),   # red/orange header
+            ('BACKGROUND', (0,0), (-1,0), header_bg),
             ('TEXTCOLOR',  (0,0), (-1,0), colors.whitesmoke),
             ('FONTNAME',   (0,0), (-1,0), 'Helvetica-Bold'),
             ('ALIGN',      (0,0), (-1,0), 'CENTER'),
 
             ('VALIGN',     (0,1), (-1,-1), 'TOP'),
             ('TEXTCOLOR',  (0,1), (-1,-1), colors.black),
-            
-            ('ALIGN',      (0,1), (0,-1), 'CENTER'),   # Tactics column
-            ('ALIGN',      (1,1), (2,-1), 'LEFT'),     # Techniques & Abilities columns
-            ('ALIGN',      (3,1), (3,-1), 'CENTER'),   # Detections column
 
+            ('ALIGN',      (0,1), (0,-1), 'CENTER'),
+            ('ALIGN',      (1,1), (2,-1), 'LEFT'),
+            ('ALIGN',      (3,1), (3,-1), 'CENTER'),
 
             ('BOX',        (0,0), (-1,-1), 0.75, colors.black),
             ('INNERGRID',  (0,0), (-1,-1), 0.25, colors.black),
@@ -184,10 +274,9 @@ class DebriefReportSection(BaseReportSection):
         ]))
 
         print(f"Generated TTP table with {len(ttp_data)-1} tactics")
-        print(f"Generated TTP table with {len(ttp_data)-1} tactics")
         print("[TT] sample technique_lines:", ttp_data[1][1] if len(ttp_data) > 1 else None)
         print("[TT] sample detections cell:", ttp_data[1][3] if len(ttp_data) > 1 else None)
-     
+
         return tbl
 
     @staticmethod
@@ -279,32 +368,46 @@ class DebriefReportSection(BaseReportSection):
         return '<br/>'.join(clean) or '—'
 
     @staticmethod
-    def _anchor_for_det(det_id: str) -> str:
-        """Anchor-safe DET id used by the detections section."""
-        return (det_id or '').replace(':', '-')
-    def _normalize_det_id(self, s: str) -> str:
-        s = (s or "").strip()
-        m = re.match(r'^DET-?(\d{4})$', s, flags=re.IGNORECASE)
-        return f"DET-{int(m.group(1)):04d}" if m else ""
+    def _anchor_for_det(det_id):
+        return (det_id or "").upper().replace("DET-", "DET")
+    def _normalize_det_id(self, det_id: str, fallback=None):
+        if not det_id:
+            return fallback
+
+        s = det_id.upper().replace("DET", "")
+        digits = "".join(ch for ch in s if ch.isdigit())
+
+        if digits:
+            return f"DET{digits}"     # <-- NO DASH
+        return fallback
 
     @staticmethod
     def _anchor_for_an(an_id: str) -> str:
-        """Anchor-safe AN id used by the tactic-technique table."""
-        s = (an_id or '').strip().upper()
-        m = re.match(r'^AN-?(\d{4})$', s)
+        """
+        Return anchor-safe analytic ID in dashless form: AN0001
+        """
+        s = (an_id or "").strip().upper()
+
+        # Accept AN0001 or AN-0001 or AN-1 etc.
+        m = re.match(r'^AN-?(\d+)$', s)
         if m:
-            return f"AN-{int(m.group(1)):04d}"
-        return s.replace(':', '-')
-    
-    def _a18_index(self):
-        a18 = self._load_attack18()
-        # Attack18Map likely keeps a dict of all objects by id; fall back to bundle index if needed
-        return getattr(a18, 'index', None) or getattr(a18, '_index', None) or {}
+            return f"AN{int(m.group(1)):04d}"
+
+        # Last-resort fallback — strip non-allowed characters
+        safe = re.sub(r'[^A-Z0-9]', '', s)
+        return safe or "AN0000"
 
     def _normalize_ext_id(self, s: str) -> str:
-        s = (s or '').strip().upper()
-        if s.startswith('AN') and not s.startswith('AN-'):
-            return f'AN-{s[2:]}'
+        """
+        Normalize analytic external IDs into canonical dashless AN0001 format.
+        """
+        s = (s or "").strip().upper()
+
+        # Handle AN0001, AN-0001, AN-1, AN1, AN001, etc.
+        m = re.match(r'^AN-?(\d+)$', s)
+        if m:
+            return f"AN{int(m.group(1)):04d}"
+
         return s
 
     def _analytic_ids_for_tid(self, ptid: str, tid: str = None):
@@ -312,11 +415,10 @@ class DebriefReportSection(BaseReportSection):
         Return unique AN IDs for a technique using analytics rows,
         preferring exact sub-technique (tid) when provided.
         """
-        a18 = self._load_attack18()
         an_ids_exact = set()
         an_ids_parent = set()
         print(f"[TT/_an] ptid={ptid} tid={tid}", flush=True)
-        rows = a18.get_analytics(ptid, platform=None) or []
+        rows = self._a18.get_analytics(ptid, platform=None) or []
         print(f"[TT/_an] rows={len(rows)}", flush=True)
         tid_u = (tid or '').strip().upper()
 
@@ -353,7 +455,7 @@ class DebriefReportSection(BaseReportSection):
         plat_set = { (p or '').strip().lower() for p in (platforms or set()) if p }
         if plat_set:
             # derive per-AN platforms from analytics rows for this PTID
-            rows = self._load_attack18().get_analytics(ptid, platform=None) or []
+            rows = self._a18.get_analytics(ptid, platform=None) or []
             an_to_plats = {}
             for r in rows:
                 an = r.get('an_id') or (r.get('id','')[-8:] or '')

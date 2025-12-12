@@ -20,40 +20,35 @@ _TID_RX = re.compile(r'(T\d{4}(?:\.\d{3})?)', re.IGNORECASE)
 
 
 # ----------------------------------------------------------------------------
-# Public Map API (back-compat name kept as Attack18Map)
+# Public Map API
 # ----------------------------------------------------------------------------
 class Attack18Map:
-    """Unified view over ATT&CK bundles (v17.1 today; v18-ready).
+    """Unified view over ATT&CK v18 bundles.
 
     Exposes stable helpers used by the report section:
       - get_strategies(tid)
+      - get_parent_strategies(tid)
       - get_analytics(tid, platform=None)
-      - get_log_sources(ids)
+      - get_parent_analytics(tid, platform=None)
 
     On v18 bundles, these map to Detection Strategies / Analytics / DC log-sources.
-    On v17.1, we synthesize minimal analytics from Data Components and detection text
-    so downstream code still renders useful telemetry.
     """
 
     def __init__(self, idx: Dict[str, Any]):
         self._idx = idx or {}
-        self._is_v18 = bool(self._idx.get("has_v18"))
 
     # ------------------------------ Public ----------------------------------
     def get_strategies(self, tid: str) -> List[Dict[str, Any]]:
         key = (tid or "").strip().upper()
-        return (
-            self._idx.get("strategies_by_tid", {}).get(key, [])
-            or self._idx.get("strategies_by_tid", {}).get(_parent_tid(key), [])
-        )
+        return self._idx.get("strategies_by_tid", {}).get(key, [])
+
+    def get_parent_strategies(self, tid: str) -> List[Dict[str, Any]]:
+        parent_tid = _parent_tid((tid or "").strip().upper())
+        return get_strategies(parent_tid)
 
     def get_analytics(self, tid: str, platform: Optional[str] = None) -> List[Dict[str, Any]]:
-        # DO NOT force-parent here; we index under both exact+parent.
         key = (tid or "").strip().upper()
-        all_an = (
-            self._idx.get("analytics_by_tid", {}).get(key, [])
-            or self._idx.get("analytics_by_tid", {}).get(_parent_tid(key), [])
-        )
+        all_an = self._idx.get("analytics_by_tid", {}).get(key, [])
         if platform:
             p = platform.lower()
 
@@ -64,19 +59,13 @@ class Attack18Map:
             return [a for a in all_an if _match(a)]
         return all_an
 
-    def get_log_sources(self, ids: List[str]) -> List[Dict[str, Any]]:
-        d = self._idx.get("log_sources_by_id", {})
-        return [d[i] for i in ids if i in d]
+    def get_parent_analytics(self, tid: str, platform: Optional[str] = None) -> List[Dict[str, Any]]:
+        parent_tid = _parent_tid((tid or "").strip().upper())
+        return get_analytics(parent_tid, platform=platform)
 
-    # Optional helpers (useful for fallbacks / debugging)
-    def get_detection_text(self, tid: str) -> Optional[str]:
-        tid = _parent_tid(tid)
-        t = self._idx.get("techniques_by_id", {}).get(tid)
-        return t.get("x_mitre_detection") if t else None
 
-    def is_v18(self) -> bool:
-        return self._is_v18
-
+class NormalizeAnalyticException(Exception):
+    pass
 
 # ----------------------------------------------------------------------------
 # Fetch & Cache
@@ -100,180 +89,126 @@ async def fetch_and_cache(session_get) -> Dict[str, Any]:
 # ----------------------------------------------------------------------------
 
 def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
-    objs: List[Dict[str, Any]] = [
-        o for o in bundle.get("objects", [])
-        if not o.get("revoked", False)
-    ]
+    objs: List[Dict[str, Any]] = [o for o in bundle.get("objects", []) if not o.get("revoked", False)]
 
     # Base indices
     techniques_by_id: Dict[str, Dict[str, Any]] = {}
+    attack_pattern_id_to_tid: Dict[str, str] = {}
     relationships_by_src: Dict[str, List[Dict[str, Any]]] = {}
     relationships_by_dst: Dict[str, List[Dict[str, Any]]] = {}
 
-    # v18-ish indices (preferred)
+    # v18 indices
+    strategies_by_id: Dict[str, Dict[str, Any]] = {}
     strategies_by_tid: Dict[str, List[Dict[str, Any]]] = {}
     analytics_by_id: Dict[str, Dict[str, Any]] = {}
     analytics_by_tid: Dict[str, List[Dict[str, Any]]] = {}
     data_components_by_id: Dict[str, Dict[str, Any]] = {}
-    log_sources_by_id: Dict[str, Dict[str, Any]] = {}
 
     # Pass 1: collect objects & relationships
     for o in objs:
         typ = (o.get("type") or "").lower()
+
+        # Collect technique objects
         if typ == "attack-pattern":
             tid = _extract_tid(o)
             if not tid:
                 continue
+
             techniques_by_id[tid] = {
                 "technique_id": tid,
                 "name": o.get("name", ""),
-                "x_mitre_detection": o.get("x_mitre_detection"),
-                "id": o.get("id"),
+                "ap_id": o.get("id"),
             }
+            attack_pattern_id_to_tid[o.get("id")] = tid
+
+        # Relationships can map detection strategies to techniques
         elif typ == "relationship":
             src = o.get("source_ref")
             dst = o.get("target_ref")
             if src and dst:
                 relationships_by_src.setdefault(src, []).append(o)
                 relationships_by_dst.setdefault(dst, []).append(o)
-        elif typ in ("x-mitre-data-component", "x_mitre_data_component"):
+
+        # Data component objects
+        elif typ == "x-mitre-data-component":
             data_components_by_id[o.get("id")] = o
-        elif "analytic" in typ:  # x-mitre-analytic
+
+        # Detection strategies
+        elif typ == "x-mitre-detection-strategy":
+            det_id = None
+            for er in o.get("external_references", []):
+                ext_id = er.get("external_id", "")
+                m = re.match(r'^DET-?(\d{4})$', str(ext_id).strip(), flags=re.IGNORECASE)
+                if m:
+                    det_id = f"DET{m.group(1)}"  # normalize to DET0001
+                    break
+
+            strategies_by_id[o.get("id")] = {
+                "obj": o,
+                "det_id": det_id,
+            }
+
+        elif typ == "x-mitre-analytic":
             analytics_by_id[o.get("id")] = o
 
     # Detect v18 presence: any detection-strategy SDOs or x-mitre-analytic
-    has_v18_strategy = any((o.get("type") or "").lower() in ("x-mitre-detection-strategy", "x_mitre_detection_strategy") for o in objs)
+    has_v18_strategy = any((o.get("type") or "").lower() == "x-mitre-detection-strategy" for o in objs)
     has_v18_analytic = bool(analytics_by_id)
     has_v18 = has_v18_strategy or has_v18_analytic
+    if not has_v18:
+        raise Exception('ATT&CK bundle JSON missing v18+ elements (detection strategies and analytics). Please use an ATT&CK bundle that is version 18 or newer.')
 
     # Build v18 indices if present
-    if has_v18:
-        # a) First, collect strategies w/ friendly DET id
-        strategies_by_id: Dict[str, Dict[str, Any]] = {}
-        for o in objs:
-            typ = (o.get("type") or "").lower()
-            if typ in ("x-mitre-detection-strategy", "x_mitre_detection_strategy"):
-                det_id = None
-                for er in (o.get("external_references") or []):
-                    ext = er.get("external_id", "") or ""
-                    m = re.match(r'^DET-?(\d{4})$', str(ext).strip(), flags=re.IGNORECASE)
-                    if m:
-                        det_id = f"DET{m.group(1)}"  # normalize to DET0001
-                        break
 
-                strategies_by_id[o.get("id")] = {
-                    "obj": o,
-                    "det_id": det_id,
-                }
+    # Map detection strategies and associated analytics
+    # to techniques via explicit detects relationships (if present)
+    for s_id, pack in strategies_by_id.items():
+        s_obj = pack["obj"]
+        det_id = pack["det_id"]
+        s_row = {
+            "id": s_id,
+            "name": s_obj.get("name", ""),
+            "external_references": s_obj.get("external_references", []),
+            "det_id": det_id,
+        }
 
-        # b) Map strategies to techniques via explicit detects relationships (if present)
-        for s_id, pack in strategies_by_id.items():
-            s_obj = pack["obj"]
-            det_id = pack["det_id"]
-            s_row = {
-                "id": s_id,
-                "name": s_obj.get("name", ""),
-                "summary": s_obj.get("description", ""),
-                "external_references": s_obj.get("external_references", []),
-                "det_id": det_id,
-            }
-            for rel in relationships_by_src.get(s_id, []):
-                if (rel.get("relationship_type") or "").lower() != "detects":
-                    continue
-                tgt = rel.get("target_ref")
-                t_tid = _tid_from_attack_pattern_id(tgt, techniques_by_id)
-                if not t_tid:
-                    continue
-                p_tid = _parent_tid(t_tid)
-                strategies_by_tid.setdefault(t_tid, []).append(s_row)
-                if t_tid != p_tid:
-                    strategies_by_tid.setdefault(p_tid, []).append(s_row)
+        # Gather analytics for detection strategy
+        strat_analytic_rows = []
+        for a_ref in s_obj.get("x_mitre_analytic_refs", []):
+            a_obj = analytics_by_id.get(a_ref)
+            if not a_obj:
+                continue
 
-        # c) Regardless of relationships, also bind strategies/analytics to techniques by
-        #    extracting TIDs from each referenced analytic's id/name/refs.
-        for s_id, pack in strategies_by_id.items():
-            s_obj = pack["obj"]
-            det_id = pack["det_id"]
-            s_row = {
-                "id": s_id,
-                "name": s_obj.get("name", ""),
-                "summary": s_obj.get("description", ""),
-                "external_references": s_obj.get("external_references", []),
-                "det_id": det_id,
-            }
+            try:
+                a_row, dc_elements = _normalize_analytic(a_obj, data_components_by_id)
+            except NormalizeAnalyticException as e:
+                continue
 
-            analytic_refs = (
-                s_obj.get("x_mitre_analytic_refs")
-                or s_obj.get("x_mitre_analytics")
-                or []
-            )
+            a_row["dc_elements"] = dc_elements
+            a_row["det_id"] = det_id  # stamp parent DET ID on each analytic row
+            strat_analytic_rows.append(a_row)
 
-            # 1) collect technique ids this strategy detects (from relationships_by_src)
-            detected_tids = []
-            for rel in relationships_by_src.get(s_id, []):
-                if (rel.get("relationship_type") or "").lower() == "detects":
-                    t_tid = _tid_from_attack_pattern_id(rel.get("target_ref"), techniques_by_id)
-                    if t_tid:
-                        detected_tids.extend([t_tid, _parent_tid(t_tid)])
+        for rel in relationships_by_src.get(s_id, []):
+            if (rel.get("relationship_type") or "").lower() != "detects":
+                continue
+            target_id = rel.get("target_ref")
+            t_tid = attack_pattern_id_to_tid.get(target_id)
+            if not t_tid:
+                continue
 
-            for a_ref in analytic_refs:
-                a_obj = analytics_by_id.get(a_ref)
-                if not a_obj:
-                    continue
-
-                a_row, ls_ids, dc_elems = _normalize_analytic(a_obj, data_components_by_id)
-                a_row["log_source_ids"] = ls_ids
-                a_row["dc_elements"] = dc_elems
-                a_row["det_id"] = det_id  # stamp parent DET on each analytic row
-
-               
-
-                # 2) if none, fall back to the strategy's detected technique ids
-                target_keys = []
-                target_keys.extend(detected_tids)
-
-                # 3) index the analytic under each target technique (and keep per-technique copy of technique_id)
-                for key in target_keys:
-                    if not key:
-                        continue
-                    a_row_for_key = dict(a_row)
-                    a_row_for_key["technique_id"] = key  # useful for exact vs parent filtering later
-                    analytics_by_tid.setdefault(key, []).append(a_row_for_key)
-
-                # 4) also register the strategy under those keys (so TTT can list DET ids)
-                for key in detected_tids:
-                    if not key:
-                        continue
-                    strategies_by_tid.setdefault(_parent_tid(key), []).append(s_row)
-                    strategies_by_tid.setdefault(key, []).append(s_row)
-
-
-        # d) Also include any analytics that declare technique refs directly (outside strategies)
-        for a_obj in analytics_by_id.values():
-            a_row, ls_ids, dc_elems = _normalize_analytic(a_obj, data_components_by_id)
-            a_row["log_source_ids"] = ls_ids
-            a_row["dc_elements"] = dc_elems
-
-        # e) Flatten log sources from data components
-        for dc_id, dc in data_components_by_id.items():
-            for i, ls in enumerate(dc.get("x_mitre_log_sources", []) or []):
-                sid = f"{dc_id}#ls{i}"
-                log_sources_by_id[sid] = {
-                    "id": sid,
-                    "name": ls.get("name") or ls.get("channel") or "log-source",
-                    "channel": ls.get("channel"),
-                    "notes": ls.get("description") or "",
-                }
+            # Map detection strategy and associated analytics to the TID
+            strategies_by_tid.setdefault(t_tid, []).append(s_row)
+            analytics_by_tid.setdefault(t_tid, []).extend(strat_analytic_rows)
 
     # De-dup analytics per technique while preserving order (by id)
     for tid, items in list(analytics_by_tid.items()):
         seen: set = set()
         dedup: List[Dict[str, Any]] = []
         for a in items:
-            key = (a.get("id"), a.get("det_id"))  # preserve per-strategy stamping
-            if key in seen:
+            aid = a.get("id")
+            if aid in seen:
                 continue
-            seen.add(key)
+            seen.add(aid)
             dedup.append(a)
         analytics_by_tid[tid] = dedup
 
@@ -290,13 +225,12 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
         strategies_by_tid[tid] = out
 
     return {
-       "has_v18": has_v18,
-       "techniques_by_id": techniques_by_id,
-       "strategies_by_tid": strategies_by_tid,
-       "analytics_by_tid": analytics_by_tid,
-       "log_sources_by_id": log_sources_by_id,
-   }
-    
+        "techniques_by_id": techniques_by_id,
+        "strategies_by_tid": strategies_by_tid,
+        "analytics_by_tid": analytics_by_tid,
+    }
+
+
 # ----------------------------------------------------------------------------
 # Loader
 # ----------------------------------------------------------------------------
@@ -350,6 +284,7 @@ def get_attack18() -> Attack18Map:
     _attack18_global = Attack18Map(index_bundle(raw))
     return _attack18_global
 
+
 # ----------------------------------------------------------------------------
 # Utilities
 # ----------------------------------------------------------------------------
@@ -365,41 +300,11 @@ def _extract_tid(o: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def _tid_from_attack_pattern_id(ap_id: Optional[str], techniques_by_id: Dict[str, Dict[str, Any]]) -> Optional[str]:
-    if not ap_id:
-        return None
-    # reverse lookup by internal id
-    for tid, t in techniques_by_id.items():
-        if t.get("id") == ap_id:
-            return tid
-    return None
-
-
-def _rel_tids(x: Dict[str, Any]) -> List[str]:
-    out = set()
-    # 1) explicit technique refs in external_refs
-    for ref in x.get("external_references", []) or []:
-        eid = str(ref.get("external_id", "") or "")
-        if ref.get("source_name") == "mitre-attack" and eid.startswith("T"):
-            out.add(eid.upper())
-    # 2) explicit technique refs in fields
-    for k in ("technique_refs", "x_mitre_technique_refs", "attack_pattern_refs"):
-        for tid in x.get(k, []) or []:
-            if isinstance(tid, str) and tid.startswith("T"):
-                out.add(tid.upper())
-    # 3) heuristic from id/name
-    sid = str(x.get("id", "") or "")
-    sname = str(x.get("name", "") or "")
-    for m in re.findall(r'(T\d{4}(?:\.\d{3})?)', sid + " " + sname, flags=re.IGNORECASE):
-        out.add(m.upper())
-    return list(out)
-
-
 def _normalize_analytic(
     a: Dict[str, Any],
     data_components_by_id: Dict[str, Dict[str, Any]]
-    ) -> Tuple[Dict[str, Any], List[str], List[Dict[str, Any]]]:
-        # keep both primary and full list for better per-OS filtering downstream
+) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
+    # keep both primary and full list for better per-OS filtering downstream
     plats = a.get("x_mitre_platforms") or a.get("platform") or []
     if isinstance(plats, str):
         plats = [plats]
@@ -412,41 +317,41 @@ def _normalize_analytic(
         "platform": plat_primary,          # for existing callers
         "platforms": plats_norm,           # for improved filtering
         "statement": a.get("description", ""),
-        "tunables": a.get("x_mitre_mutable_elements")
-                    or a.get("x_mitre_tunable_parameters")
-                    or a.get("tunables") or [],
+        "tunables": a.get("x_mitre_mutable_elements", []),
     }
 
-    # derive a clean AN-#### for display if present in external refs or name
+    # derive a clean AN#### for display if present in external refs or name
     an_id = None
-    for er in (a.get("external_references") or []):
-        ext = er.get("external_id", "")
-        if isinstance(ext, str) and ext.startswith("AN-"):
-            an_id = ext
+    for ext_ref in a.get("external_references", []):
+        ext_id = ext_ref.get("external_id", "")
+        m = re.match(r'^AN-?(\d{4})$', str(ext_id).strip(), flags=re.IGNORECASE)
+        if m:
+            an_id = f'AN{m.group(1)}'  # normalize to AN0001
             break
     if not an_id:
-        m = re.search(r'(AN-\d{4})', a.get("name", "") or "")
+        m = re.search(r'Analytic (\d{4})', a.get("name", "") or "")
         if m:
-            an_id = m.group(1)
+            an_id = f'AN{m.group(1)}'  # normalize to AN0001
+
+    if not an_id:
+        raise NormalizeAnalyticException("Failed to parse analytic ID from analytic object.")
+
     row["an_id"] = an_id
 
-    # extract linked data components & their log source ids
-    ls_ids: List[str] = []
+    # extract linked log sources with data components info
     dc_elements: List[Dict[str, Any]] = []
-    for ref in (a.get("x_mitre_log_source_references") or []):
-        dc_ref = ref.get("x_mitre_data_component_ref")
-        dc_refs = [dc_ref] if dc_ref else (ref.get("x_mitre_data_component_refs") or [])
+    for log_ref in a.get("x_mitre_log_source_references", []):
+        dc_ref = log_ref.get("x_mitre_data_component_ref")
+        dc_refs = [dc_ref] if dc_ref else log_ref.get("x_mitre_data_component_refs", [])
         for dc_id in dc_refs:
             dc = data_components_by_id.get(dc_id)
             if not dc:
                 continue
             dc_elements.append({
-                "name": dc.get("name", ""),
-                "channel": (ref.get("channel") or ""), # channel only exists on the ref
-                "data_component": dc.get("name", ""),
+                "name": log_ref.get("name", ""), # e.g. "wineventlog:security"
+                "channel": log_ref.get("channel", ""), # channel only exists in the log ref
+                "data_component": dc.get("name", ""), # <-- FIX: DC display (e.g., "Process Creation")
             })
-            # keep any existing log-source indexing you rely on
-            for i, _ in enumerate(dc.get("x_mitre_log_sources", []) or []):
-                ls_ids.append(f"{dc_id}#ls{i}")
 
-    return row, ls_ids, dc_elements
+    return row, dc_elements
+

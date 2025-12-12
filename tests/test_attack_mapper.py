@@ -161,19 +161,232 @@ def example_analytic():
 ''')
 
 @pytest.fixture
+def example_analytics_by_tid():
+    return {
+        'T1053.005': [{
+            'an_id': 'AN1221',
+            'id': 'x-mitre-analytic--4959f750-78db-4b4c-8d91-23027b386c2b',
+            'name': 'Analytic 1221',
+            'platform': 'windows',
+            'platforms': ['windows'],
+            'statement': 'test description 1221',
+            'tunables': [
+                {
+                    "field": "TimeWindow",
+                    "description": "Defines threshold for grouping task creation and associated execution within suspicious time proximity."
+                },
+                {
+                    "field": "UserContext",
+                    "description": "Filters based on non-standard user accounts or execution under SYSTEM when not typical for the environment."
+                },
+                {
+                    "field": "TaskNamePattern",
+                    "description": "Allows defenders to flag obfuscated, randomized, or suspicious task names outside normal conventions."
+                },
+                {
+                    "field": "CommandLineEntropyThreshold",
+                    "description": "Flags tasks executing heavily obfuscated PowerShell or binary blobs via base64 or encoding."
+                }
+            ],
+            'det_id': 'DET0441',
+            'dc_elements': [
+                {
+                    "data_component": "Scheduled Job Creation",
+                    "name": "WinEventLog:Security",
+                    "channel": "EventCode=4698"
+                },
+                {
+                    "data_component": "Scheduled Job Modification",
+                    "name": "WinEventLog:Security",
+                    "channel": "EventCode=4702"
+                },
+                {
+                    "data_component": "Process Creation",
+                    "name": "WinEventLog:Sysmon",
+                    "channel": "EventCode=1"
+                },
+                {
+                    "data_component": "File Creation",
+                    "name": "WinEventLog:Sysmon",
+                    "channel": "EventCode=11"
+                },
+                {
+                    "data_component": "Windows Registry Key Modification",
+                    "name": "WinEventLog:Sysmon",
+                    "channel": "EventCode=13, 14"
+                }
+            ]
+        }],
+        'T1083': [
+            {
+                'an_id': 'AN1040',
+                'id': 'x-mitre-analytic--69d9d158-aa43-4b73-b9a4-f1a2dc6c13c1',
+                'name': 'Analytic 1040',
+                'platform': 'windows',
+                'platforms': ['windows'],
+                'statement': 'test description 1040',
+                'tunables': [
+                    {
+                        "field": "CommandLineRegex",
+                        "description": "Allows tuning based on tools/scripts used for enumeration (e.g., tree, dir /s /b)"
+                    },
+                    {
+                        "field": "UserContext",
+                        "description": "Scoping for standard vs elevated or service accounts"
+                    },
+                    {
+                        "field": "TimeWindow",
+                        "description": "Defines burst activity over short periods (e.g., >50 directory queries in 30s)"
+                    }
+                ],
+                'det_id': 'DET0370',
+                'dc_elements': [
+                    {
+                        "data_component": "Process Creation",
+                        "name": "WinEventLog:Security",
+                        "channel": "EventCode=4688"
+                    },
+                    {
+                        "data_component": "File Creation",
+                        "name": "WinEventLog:Sysmon",
+                        "channel": "EventCode=11"
+                    }
+                ]
+            },
+            {
+                'an_id': 'AN1041',
+                'id': 'x-mitre-analytic--b50bf863-644a-48c2-85a3-2c633f135650',
+                'name': 'Analytic 1041',
+                'platform': 'linux',
+                'platforms': ['linux'],
+                'statement': 'test description 1041',
+                'tunables': [
+                    {
+                        "field": "FilePathDepth",
+                        "description": "Max depth of recursive access to tune noise vs anomaly"
+                    },
+                    {
+                        "field": "UserContext",
+                        "description": "Helpful to exclude known scripts or automation accounts"
+                    }
+                ],
+                'det_id': 'DET0370',
+                'dc_elements': [
+                    {
+                        "data_component": "Process Creation",
+                        "name": "auditd:SYSCALL",
+                        "channel": "execve"
+                    },
+                    {
+                        "data_component": "File Access",
+                        "name": "auditd:PATH",
+                        "channel": "PATH"
+                    }
+                ]
+            },
+            {
+                'an_id': 'AN1042',
+                'id': 'x-mitre-analytic--42683860-d6df-4585-af65-31f783269f8f',
+                'name': 'Analytic 1042',
+                'platform': 'macos',
+                'platforms': ['macos'],
+                'statement': 'test description 1042',
+                'tunables': [
+                    {
+                        "field": "PredicateScope",
+                        "description": "Adjust macOS unified log filter to include/exclude system paths"
+                    },
+                    {
+                        "field": "TimeWindow",
+                        "description": "Tune based on burst access patterns"
+                    }
+                ],
+                'det_id': 'DET0370',
+                'dc_elements': [
+                    {
+                        "data_component": "Process Creation",
+                        "name": "macos:unifiedlog",
+                        "channel": "log collect --predicate"
+                    },
+                    {
+                        "data_component": "File Access",
+                        "name": "fs:fsusage",
+                        "channel": "Filesystem Call Monitoring"
+                    }
+                ]
+            },
+            {
+                'an_id': 'AN1043',
+                'id': 'x-mitre-analytic--aaddc766-52bb-428b-98c4-3a742d10befa',
+                'name': 'Analytic 1043',
+                'platform': 'esxi',
+                'platforms': ['esxi'],
+                'statement': 'test description 1043',
+                'tunables': [
+                    {
+                        "field": "CLICommandPattern",
+                        "description": "Match on esxcli storage|filesystem commands"
+                    },
+                    {
+                        "field": "AccessSource",
+                        "description": "Limit alerting to non-vCenter or remote IPs"
+                    }
+                ],
+                'det_id': 'DET0370',
+                'dc_elements': [
+                    {
+                        "data_component": "Command Execution",
+                        "name": "esxi:shell",
+                        "channel": "Shell Access/Command Execution"
+                    },
+                    {
+                        "data_component": "File Access",
+                        "name": "esxi:hostd",
+                        "channel": "vSphere File API Access"
+                    }
+                ]
+            },
+            {
+                'an_id': 'AN1044',
+                'id': 'x-mitre-analytic--be6e5f23-0e29-430f-83f7-d76c58de3a2d',
+                'name': 'Analytic 1044',
+                'platform': 'network devices',
+                'platforms': ['network devices'],
+                'statement': 'test description 1044',
+                'tunables': [
+                    {
+                        "field": "CommandWhitelist",
+                        "description": "Filter allowed commands by account or IP"
+                    },
+                    {
+                        "field": "SessionOrigin",
+                        "description": "Tunable to restrict detection to remote terminal or Telnet/SSH"
+                    }
+                ],
+                'det_id': 'DET0370',
+                'dc_elements': [
+                    {
+                        "data_component": "Command Execution",
+                        "name": "networkdevice:syslog",
+                        "channel": "CLI Command Logging"
+                    }
+                ]
+            }
+        ]
+    }
+
+@pytest.fixture
 def example_techniques_by_id():
     return {
         'T1053.005': {
             'technique_id': 'T1053.005',
             'name': 'Scheduled Task',
-            'x_mitre_detection': '',
-            'id': 'attack-pattern--005a06c6-14bf-4118-afa0-ebcd8aebb0c9'
+            'ap_id': 'attack-pattern--005a06c6-14bf-4118-afa0-ebcd8aebb0c9'
         },
         'T1083': {
             'technique_id': 'T1083',
             'name': 'File and Directory Discovery',
-            'x_mitre_detection': '',
-            'id': 'attack-pattern--7bc57495-ea59-4380-be31-a64af124ef18'
+            'ap_id': 'attack-pattern--7bc57495-ea59-4380-be31-a64af124ef18'
         },
     }
 
@@ -183,7 +396,6 @@ def example_strategies_by_tid():
         'T1053.005': [{
             'id': 'x-mitre-detection-strategy--c7bdd7d7-19dc-4042-8565-5e0cf4656102',
             'name': 'Detection of Suspicious Scheduled Task Creation and Execution on Windows',
-            'summary': '',
             'external_references': [
                 {
                     'source_name': 'mitre-attack',
@@ -196,7 +408,6 @@ def example_strategies_by_tid():
         'T1083': [{
             'id': 'x-mitre-detection-strategy--33ab9d0c-5671-48e6-8465-f80560909c65',
             'name': 'Recursive Enumeration of Files and Directories Across Privilege Contexts',
-            'summary': '',
             'external_references': [
                 {
                     'source_name': 'mitre-attack',
@@ -301,8 +512,7 @@ def example_bundle_v18():
                 },
                 {
                     "source_name": "US-CERT-TA18-106A",
-                    "description": "US-CERT. (2018, April 20). Alert (TA18-106A) Russian State-Sponsored Cyber Actors Targeting Network Infra
-structure Devices. Retrieved October 19, 2020.",
+                    "description": "US-CERT. (2018, April 20). Alert (TA18-106A) Russian State-Sponsored Cyber Actors Targeting Network Infrastructure Devices. Retrieved October 19, 2020.",
                     "url": "https://www.us-cert.gov/ncas/alerts/TA18-106A"
                 }
             ],
@@ -542,7 +752,7 @@ structure Devices. Retrieved October 19, 2020.",
             ],
             "modified": "2025-11-12T22:03:39.105Z",
             "name": "Analytic 1221",
-            "description": "Detects the creation, modification, or deletion of scheduled tasks through Task Scheduler, WMI, PowerShell, or API-based methods followed by execution from svchost.exe or taskeng.exe. Includes detection of hidden or anomalous scheduled tasks, especially those created under SYSTEM or suspicious user contexts.",
+            "description": "test description 1221",
             "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
             "x_mitre_deprecated": false,
             "x_mitre_version": "1.0",
@@ -617,7 +827,7 @@ structure Devices. Retrieved October 19, 2020.",
             ],
             "modified": "2025-10-21T15:10:28.402Z",
             "name": "Analytic 1948",
-            "description": "Much of this activity may have a very high occurrence and associated false positive rate, as well as potentially taking place outside the visibility of the target organization, making detection difficult for defenders.\n\nDetection efforts may be focused on related stages of the adversary lifecycle, such as during Initial Access.",
+            "description": "test description 1948",
             "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
             "x_mitre_version": "1.0",
             "x_mitre_attack_spec_version": "3.3.0",
@@ -703,7 +913,7 @@ structure Devices. Retrieved October 19, 2020.",
             ],
             "modified": "2025-10-21T15:10:28.402Z",
             "name": "Analytic 1040",
-            "description": "Execution of file enumeration commands (e.g., 'dir', 'tree') from non-standard processes or unusual user contexts, followed by recursive directory traversal or access to sensitive locations.",
+            "description": "test description 1040",
             "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
             "x_mitre_version": "1.0",
             "x_mitre_attack_spec_version": "3.3.0",
@@ -759,7 +969,7 @@ structure Devices. Retrieved October 19, 2020.",
             ],
             "modified": "2025-10-21T15:10:28.402Z",
             "name": "Analytic 1041",
-            "description": "Use of file enumeration commands (e.g., 'ls', 'find', 'locate') executed by suspicious users or scripts accessing broad file hierarchies or restricted directories.",
+            "description": "test description 1041",
             "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
             "x_mitre_version": "1.0",
             "x_mitre_attack_spec_version": "3.3.0",
@@ -811,7 +1021,7 @@ structure Devices. Retrieved October 19, 2020.",
             ],
             "modified": "2025-10-21T15:10:28.402Z",
             "name": "Analytic 1042",
-            "description": "Execution of file or directory discovery commands (e.g., 'ls', 'find') from terminal or script-based tooling, especially outside normal user workflows.",
+            "description": "test description 1042",
             "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
             "x_mitre_version": "1.0",
             "x_mitre_attack_spec_version": "3.3.0",
@@ -863,7 +1073,7 @@ structure Devices. Retrieved October 19, 2020.",
             ],
             "modified": "2025-10-21T15:10:28.402Z",
             "name": "Analytic 1043",
-            "description": "Execution of esxcli commands to enumerate datastore, configuration files, or directory structures by unauthorized or remote users.",
+            "description": "test description 1043",
             "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
             "x_mitre_version": "1.0",
             "x_mitre_attack_spec_version": "3.3.0",
@@ -915,7 +1125,7 @@ structure Devices. Retrieved October 19, 2020.",
             ],
             "modified": "2025-10-21T15:10:28.402Z",
             "name": "Analytic 1044",
-            "description": "Execution of file discovery commands (e.g., 'dir', 'show flash', 'nvram:') from CLI interfaces, especially by unauthorized users or from abnormal source IPs.",
+            "description": "test description 1044",
             "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
             "x_mitre_version": "1.0",
             "x_mitre_attack_spec_version": "3.3.0",
@@ -1142,7 +1352,7 @@ structure Devices. Retrieved October 19, 2020.",
             ],
             "modified": "2025-11-12T22:03:39.105Z",
             "name": "Windows Registry Key Modification",
-            "description": "Changes made to an existing registry key or its values. These modifications can include altering permissions, modifying stored data, or updating configuration settings.\n\n*Data Collection Measures:*\n\n- Windows Event Logs\n    - Event ID 4657 - Registry Value Modified: Logs changes to registry values, including modifications to startup entries, security settings, or system configurations.\n- Sysmon (System Monitor) for Windows\n    - Sysmon Event ID 13 - Registry Value Set: Captures changes to specific registry values.\n    - Sysmon Event ID 14 - Registry Key & Value Renamed: Logs renaming of registry keys, which may indicate evasion attempts.\n- Endpoint Detection and Response (EDR) Solutions\n    - Monitor registry modifications for suspicious behavior.",
+            "description": "test description",
             "x_mitre_data_source_ref": "",
             "x_mitre_modified_by_ref": "identity--c78cb6e5-0c4b-4611-8297-d1b8b55e40b5",
             "x_mitre_deprecated": false,
@@ -1404,13 +1614,6 @@ class TestAttackMapper:
         assert attack_mapper._parent_tid('T1000') == 'T1000'
         assert attack_mapper._parent_tid('t1000') == 'T1000'
 
-    def test_tid_from_attack_pattern_id(self, example_techniques_by_id):
-        assert attack_mapper._tid_from_attack_pattern_id(None, example_techniques_by_id) is None
-        assert attack_mapper._tid_from_attack_pattern_id('', example_techniques_by_id) is None
-        assert attack_mapper._tid_from_attack_pattern_id('attack-pattern--005a06c6-14bf-4118-afa0-ebcd8aebb0c9', example_techniques_by_id) == 'T1053.005'
-        assert attack_mapper._tid_from_attack_pattern_id('attack-pattern--7bc57495-ea59-4380-be31-a64af124ef18', example_techniques_by_id) == 'T1083'
-        assert attack_mapper._tid_from_attack_pattern_id('attack-pattern--DNE', example_techniques_by_id) is None
-
     def test_normalize_analytic(self, example_analytic, example_data_comp_by_id):
         want_row = {
             'an_id': 'AN1025',
@@ -1446,24 +1649,15 @@ class TestAttackMapper:
                 "data_component": "Command Execution"
             },
         ]
-        want_ls_ids = [
-            "x-mitre-data-component--3d20385b-24ef-40e1-9f56-f39750379077#ls0",
-            "x-mitre-data-component--3d20385b-24ef-40e1-9f56-f39750379077#ls1",
-            "x-mitre-data-component--685f917a-e95e-4ba0-ade1-c7d354dae6e0#ls0",
-            "x-mitre-data-component--685f917a-e95e-4ba0-ade1-c7d354dae6e0#ls1",
-            "x-mitre-data-component--685f917a-e95e-4ba0-ade1-c7d354dae6e0#ls2"
-        ]
-        row, ls_ids, dc_elements = attack_mapper._normalize_analytic(example_analytic, example_data_comp_by_id)
+        row, dc_elements = attack_mapper._normalize_analytic(example_analytic, example_data_comp_by_id)
         assert row == want_row
-        assert ls_ids == want_ls_ids
-        assert dc_elements == want_dc_elements
+        assert want_dc_elements == want_dc_elements
 
-    def test_index_bundle_v18(self, example_techniques_by_id, example_strategies_by_tid):
+    def test_index_bundle_v18(self, example_bundle_v18, example_techniques_by_id, example_strategies_by_tid, example_analytics_by_tid):
         want = {
-            'has_v18': True,
             'techniques_by_id': example_techniques_by_id,
             'strategies_by_tid': example_strategies_by_tid,
-            'analytics_by_tid': None,
-            'log_sources_by_id': None,
+            'analytics_by_tid': example_analytics_by_tid,
         }
+        assert attack_mapper.index_bundle(example_bundle_v18) == want
 

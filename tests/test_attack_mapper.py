@@ -1603,6 +1603,10 @@ def example_attack_pattern_no_tid_ref():
     }
     ''')
 
+@pytest.fixture
+def example_attack18_map(example_bundle_v18):
+    return attack_mapper.Attack18Map(attack_mapper.index_bundle(example_bundle_v18))
+
 class TestAttackMapper:
     def test_extract_tid(self, example_attack_pattern, example_attack_pattern_no_tid_ref):
         assert attack_mapper._extract_tid(example_attack_pattern) == 'T1055.011'
@@ -1660,4 +1664,29 @@ class TestAttackMapper:
             'analytics_by_tid': example_analytics_by_tid,
         }
         assert attack_mapper.index_bundle(example_bundle_v18) == want
+
+    def test_example_get_strategies(self, example_attack18_map):
+        want = [{
+            'id': 'x-mitre-detection-strategy--c7bdd7d7-19dc-4042-8565-5e0cf4656102',
+            'name': 'Detection of Suspicious Scheduled Task Creation and Execution on Windows',
+            'external_references': [
+                {
+                    'source_name': 'mitre-attack',
+                    'url': 'https://attack.mitre.org/detectionstrategies/DET0441',
+                    'external_id': 'DET0441'
+                }
+            ],
+            'det_id': 'DET0441',
+        }]
+        assert example_attack18_map.get_strategies('T1053.005') == want
+
+    def test_example_get_analytics(self, example_attack18_map, example_analytics_by_tid):
+        want = example_analytics_by_tid.get('T1083')
+        assert len(want) == 5
+        assert example_attack18_map.get_analytics('T1083') == want
+        assert example_attack18_map.get_analytics('T1083', 'Windows') == [want[0]]
+        assert example_attack18_map.get_analytics('T1083', 'WINDOWS') == [want[0]]
+        assert example_attack18_map.get_analytics('T1083', 'windows') == [want[0]]
+        assert example_attack18_map.get_analytics('T1083', 'Linux') == [want[1]]
+        assert example_attack18_map.get_analytics('T1083', 'DNE') == []
 

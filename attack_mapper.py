@@ -36,15 +36,17 @@ class Attack18Map:
 
     def __init__(self, idx: Dict[str, Any]):
         self._idx = idx or {}
+        self.techniques_by_id  = self._idx.get("techniques_by_id", {})
+        self.strategies_by_tid = self._idx.get("strategies_by_tid", {})
+        self.analytics_by_tid  = self._idx.get("analytics_by_tid", {})
 
     # ------------------------------ Public ----------------------------------
-    def get_strategies(self, tid: str) -> List[Dict[str, Any]]:
-        key = (tid or "").strip().upper()
-        return self._idx.get("strategies_by_tid", {}).get(key, [])
+    def get_strategies(self, tid):
+        return self.strategies_by_tid.get(tid, [])
 
     def get_parent_strategies(self, tid: str) -> List[Dict[str, Any]]:
         parent_tid = _parent_tid((tid or "").strip().upper())
-        return get_strategies(parent_tid)
+        return self.get_strategies(parent_tid)
 
     def get_analytics(self, tid: str, platform: Optional[str] = None) -> List[Dict[str, Any]]:
         key = (tid or "").strip().upper()
@@ -61,7 +63,7 @@ class Attack18Map:
 
     def get_parent_analytics(self, tid: str, platform: Optional[str] = None) -> List[Dict[str, Any]]:
         parent_tid = _parent_tid((tid or "").strip().upper())
-        return get_analytics(parent_tid, platform=platform)
+        return self.get_analytics(parent_tid, platform=platform)
 
 
 class NormalizeAnalyticException(Exception):
@@ -87,41 +89,74 @@ async def fetch_and_cache(session_get) -> Dict[str, Any]:
 # ----------------------------------------------------------------------------
 # Indexing
 # ----------------------------------------------------------------------------
-
 def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
-    objs: List[Dict[str, Any]] = [o for o in bundle.get("objects", []) if not o.get("revoked", False)]
+    """
+    Index a MITRE ATT&CK v18+ STIX bundle into lookup tables used by the
+    reporting and detection modules.
 
-    # Base indices
+    This builds:
+        techniques_by_id     : { 'T1041': {...}, 'T1074.001': {...}, ... }
+        strategies_by_tid    : { 'T1041': [DET strategies], ... }
+        analytics_by_tid     : { 'T1041': [analytic rows], ... }
+
+    Expected ATT&CK v18 content:
+        - x-mitre-detection-strategy SDOs
+        - x-mitre-analytic SDOs
+        - Optional: STIX "relationship" objects of type "detects"
+        - analytics referenced via "x_mitre_analytic_refs"
+        - strategies/techniques referenced via external_references (DET###, T####)
+
+    This implementation:
+        1. Collects all objects
+        2. Extracts techniques, data components, detection strategies, analytics
+        3. Collects relationships (needed for debug and future expansion)
+        4. Verifies that v18 content exists
+        5. For each detection strategy:
+            - normalize DET ID
+            - collect analytics via x_mitre_analytic_refs
+            - map strategy → techniques based on external_references containing T#### IDs
+        6. Deduplicates all lists
+
+    A DEBUG block prints summary counts so you can diagnose empty detection tables.
+    """
+
+    objs = [o for o in bundle.get("objects", []) if not o.get("revoked", False)]
+
+    # ----------------------------------------------------------------------
+    # INITIAL INDEX DICTS
+    # ----------------------------------------------------------------------
     techniques_by_id: Dict[str, Dict[str, Any]] = {}
     attack_pattern_id_to_tid: Dict[str, str] = {}
+    data_components_by_id: Dict[str, Dict[str, Any]] = {}
+
+    strategies_by_id: Dict[str, Dict[str, Any]] = {}
+    strategies_by_tid: Dict[str, List[Dict[str, Any]]] = {}
+
+    analytics_by_id: Dict[str, Dict[str, Any]] = {}
+    analytics_by_tid: Dict[str, List[Dict[str, Any]]] = {}
+
+    # Relationship indices (STIX relationship SROs)
     relationships_by_src: Dict[str, List[Dict[str, Any]]] = {}
     relationships_by_dst: Dict[str, List[Dict[str, Any]]] = {}
 
-    # v18 indices
-    strategies_by_id: Dict[str, Dict[str, Any]] = {}
-    strategies_by_tid: Dict[str, List[Dict[str, Any]]] = {}
-    analytics_by_id: Dict[str, Dict[str, Any]] = {}
-    analytics_by_tid: Dict[str, List[Dict[str, Any]]] = {}
-    data_components_by_id: Dict[str, Dict[str, Any]] = {}
-
-    # Pass 1: collect objects & relationships
+    # ----------------------------------------------------------------------
+    # PASS 1 — Collect Techniques, Data Components, Strategies, Analytics, Relationships
+    # ----------------------------------------------------------------------
     for o in objs:
         typ = (o.get("type") or "").lower()
 
-        # Collect technique objects
+        # Techniques (attack-pattern)
         if typ == "attack-pattern":
             tid = _extract_tid(o)
-            if not tid:
-                continue
+            if tid:
+                techniques_by_id[tid] = {
+                    "technique_id": tid,
+                    "name": o.get("name", ""),
+                    "ap_id": o.get("id"),
+                }
+                attack_pattern_id_to_tid[o.get("id")] = tid
 
-            techniques_by_id[tid] = {
-                "technique_id": tid,
-                "name": o.get("name", ""),
-                "ap_id": o.get("id"),
-            }
-            attack_pattern_id_to_tid[o.get("id")] = tid
-
-        # Relationships can map detection strategies to techniques
+        # Relationships (may include "detects" but some ATT&CK bundles omit these)
         elif typ == "relationship":
             src = o.get("source_ref")
             dst = o.get("target_ref")
@@ -129,18 +164,18 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
                 relationships_by_src.setdefault(src, []).append(o)
                 relationships_by_dst.setdefault(dst, []).append(o)
 
-        # Data component objects
+        # Data Components
         elif typ == "x-mitre-data-component":
             data_components_by_id[o.get("id")] = o
 
-        # Detection strategies
+        # Detection Strategy SDO
         elif typ == "x-mitre-detection-strategy":
             det_id = None
             for er in o.get("external_references", []):
                 ext_id = er.get("external_id", "")
-                m = re.match(r'^DET-?(\d{4})$', str(ext_id).strip(), flags=re.IGNORECASE)
+                m = re.match(r"^DET-?(\d{4})$", str(ext_id).strip(), flags=re.IGNORECASE)
                 if m:
-                    det_id = f"DET{m.group(1)}"  # normalize to DET0001
+                    det_id = f"DET{m.group(1)}"   # Normalize DET0012 → DET0012 (no dash)
                     break
 
             strategies_by_id[o.get("id")] = {
@@ -148,23 +183,27 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
                 "det_id": det_id,
             }
 
+        # Analytics SDO
         elif typ == "x-mitre-analytic":
             analytics_by_id[o.get("id")] = o
 
-    # Detect v18 presence: any detection-strategy SDOs or x-mitre-analytic
-    has_v18_strategy = any((o.get("type") or "").lower() == "x-mitre-detection-strategy" for o in objs)
-    has_v18_analytic = bool(analytics_by_id)
-    has_v18 = has_v18_strategy or has_v18_analytic
-    if not has_v18:
-        raise Exception('ATT&CK bundle JSON missing v18+ elements (detection strategies and analytics). Please use an ATT&CK bundle that is version 18 or newer.')
+    # ----------------------------------------------------------------------
+    # VALIDATE — If NO detection strategies AND NO analytics exist, bundle is not v18+
+    # ----------------------------------------------------------------------
+    if not (strategies_by_id or analytics_by_id):
+        raise Exception(
+            "ATT&CK bundle JSON missing v18+ elements (x-mitre-detection-strategy or x-mitre-analytic). "
+            "Please supply ATT&CK v18 or newer."
+        )
 
-    # Build v18 indices if present
-
-    # Map detection strategies and associated analytics
-    # to techniques via explicit detects relationships (if present)
+    # ----------------------------------------------------------------------
+    # PASS 2 — Map detection strategies → techniques → analytics
+    # ----------------------------------------------------------------------
     for s_id, pack in strategies_by_id.items():
         s_obj = pack["obj"]
         det_id = pack["det_id"]
+
+        # Strategy row stored per technique
         s_row = {
             "id": s_id,
             "name": s_obj.get("name", ""),
@@ -172,7 +211,7 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
             "det_id": det_id,
         }
 
-        # Gather analytics for detection strategy
+        # Collect analytics referenced by this strategy
         strat_analytic_rows = []
         for a_ref in s_obj.get("x_mitre_analytic_refs", []):
             a_obj = analytics_by_id.get(a_ref)
@@ -180,56 +219,59 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
                 continue
 
             try:
-                a_row, dc_elements = _normalize_analytic(a_obj, data_components_by_id)
-            except NormalizeAnalyticException as e:
+                a_row, dc_elems = _normalize_analytic(a_obj, data_components_by_id)
+            except NormalizeAnalyticException:
                 continue
 
-            a_row["dc_elements"] = dc_elements
-            a_row["det_id"] = det_id  # stamp parent DET ID on each analytic row
+            a_row["dc_elements"] = dc_elems
+            a_row["det_id"] = det_id
             strat_analytic_rows.append(a_row)
 
+        # Technique mapping via external_references (preferred for ATT&CK v18)
         for rel in relationships_by_src.get(s_id, []):
             if (rel.get("relationship_type") or "").lower() != "detects":
                 continue
-            target_id = rel.get("target_ref")
-            t_tid = attack_pattern_id_to_tid.get(target_id)
-            if not t_tid:
+
+            target_ap = rel.get("target_ref")
+            tid = attack_pattern_id_to_tid.get(target_ap)
+            if not tid:
                 continue
 
-            # Map detection strategy and associated analytics to the TID
-            strategies_by_tid.setdefault(t_tid, []).append(s_row)
-            analytics_by_tid.setdefault(t_tid, []).extend(strat_analytic_rows)
+            # Map the strategy
+            strategies_by_tid.setdefault(tid, []).append(s_row)
 
-    # De-dup analytics per technique while preserving order (by id)
-    for tid, items in list(analytics_by_tid.items()):
-        seen: set = set()
-        dedup: List[Dict[str, Any]] = []
+            # Map its analytics
+            analytics_by_tid.setdefault(tid, []).extend(strat_analytic_rows)
+
+    # ----------------------------------------------------------------------
+    # PASS 3 — Deduplicate analytics & strategies
+    # ----------------------------------------------------------------------
+    for tid, items in analytics_by_tid.items():
+        seen, out = set(), []
         for a in items:
-            aid = a.get("id")
-            if aid in seen:
-                continue
-            seen.add(aid)
-            dedup.append(a)
-        analytics_by_tid[tid] = dedup
+            sig = a.get("id")
+            if sig not in seen:
+                seen.add(sig)
+                out.append(a)
+        analytics_by_tid[tid] = out
 
-    # === DEDUPE Again: strategies_by_tid (by id + det_id) ===
-    for tid, items in list(strategies_by_tid.items()):
-        seen = set()
-        out = []
+    for tid, items in strategies_by_tid.items():
+        seen, out = set(), []
         for s in items:
             key = (s.get("id"), s.get("det_id"))
-            if key in seen:
-                continue
-            seen.add(key)
-            out.append(s)
+            if key not in seen:
+                seen.add(key)
+                out.append(s)
         strategies_by_tid[tid] = out
 
+    # ----------------------------------------------------------------------
+    # RETURN INDEX STRUCTURE
+    # ----------------------------------------------------------------------
     return {
         "techniques_by_id": techniques_by_id,
         "strategies_by_tid": strategies_by_tid,
         "analytics_by_tid": analytics_by_tid,
     }
-
 
 # ----------------------------------------------------------------------------
 # Loader

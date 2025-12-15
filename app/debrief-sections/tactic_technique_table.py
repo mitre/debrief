@@ -20,7 +20,6 @@ class DebriefReportSection(BaseReportSection):
         self.section_title = 'TACTICS AND TECHNIQUES'
         self.description = ''
         self.log = logging.getLogger('DebriefTacticsTechniqueTable')
-        self._a18 = get_attack18()  # lazy-loaded ATT&CK v18 index
         self._emitted_anchors = set()  # track emitted anchors to avoid duplicates
 
     # ---------- Report generation ----------

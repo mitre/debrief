@@ -84,19 +84,18 @@ class DebriefReportSection(BaseReportSection):
                         paws.add(lnk.paw)
             if paws:
                 paws = sorted(paws)
-                self.log.debug(f"[FACTS] runtime paws for trait {trait!r}: {paws}")
+                self.log.debug(f'[FACTS] runtime paws for trait {trait!r}: {paws}')
 
                 if include_agent_links:
                     # Define the destination anchor inline (safe even if Agents renders later)
                     source_cell = ', '.join(
-                        f'<a name="agent-{escape(p)}"></a>'
                         f'<link href="#agent-{escape(p)}" color="blue">{escape(p)}</link>'
                         for p in paws
                     )
-                    self.log.debug(f"[FACTS] source_cell with links: {source_cell}")
+                    self.log.debug(f'[FACTS] source_cell with links: {source_cell}')
                 else:
                     source_cell = ', '.join(escape(p) for p in paws)
-                    self.log.debug(f"[FACTS] source_cell without links: {source_cell}")
+                    self.log.debug(f'[FACTS] source_cell without links: {source_cell}')
 
         if not source_cell:
             self.log.debug(f'[FACTS] no paws/whitecard/imported match; fallback to source id {fact_source_id}')

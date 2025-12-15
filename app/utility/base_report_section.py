@@ -1,5 +1,3 @@
-import os
-
 from reportlab.lib import colors
 from reportlab.platypus import Image, Paragraph, Table, TableStyle
 from reportlab.platypus.flowables import KeepTogetherSplitAtTop
@@ -20,14 +18,12 @@ class BaseReportSection:
         -5: 'visibility',
     }
 
-    _a18 = None
-
     def __init__(self):
         self.id = 'base-section-template'
         self.display_name = 'Base Section Template'
         self.description = 'Base class for debrief report section'
         self.section_title = 'BASE SECTION HEADER'
-        self._18 = get_attack18()
+        self._a18 = get_attack18()  # lazy-loaded ATT&CK v18 index
 
     def generate_section_title_and_description(self, styles):
         """Return grouped flowable containing section title and description."""

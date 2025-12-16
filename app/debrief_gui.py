@@ -14,12 +14,10 @@ from reportlab.lib.pagesizes import letter, landscape as to_landscape
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import SimpleDocTemplate, Spacer, PageTemplate, Frame, PageBreak, Flowable, Paragraph
 
-
 from app.service.auth_svc import for_all_public_methods, check_authorization
 from app.utility.base_world import BaseWorld
 from plugins.debrief.app.debrief_svc import DebriefService
 from plugins.debrief.app.objects.c_story import Story
-
 from plugins.debrief.attack_mapper import get_attack18
 
 
@@ -47,8 +45,7 @@ class DebriefGui(BaseWorld):
         self._a18 = get_attack18()  # lazy load Attack18Map
 
         rl_settings.trustedHosts = BaseWorld.get_config(prop='reportlab_trusted_hosts', name='debrief') or None
-    
-    
+
     async def _get_access(self, request):
         return dict(access=tuple(await self.auth_svc.get_permissions(request)))
 
@@ -64,16 +61,16 @@ class DebriefGui(BaseWorld):
             plugins = await self.data_svc.locate('plugins', match=dict(enabled=True))
             self._load_report_sections(plugins)
         except Exception as e:
-            print(e)
+            self.log.exception(e)
         return dict(operations=operations, header_logos=header_logos, report_sections=self.report_section_names)
 
     async def report_sections(self, request):
         try:
             plugins = await self.data_svc.locate('plugins', match=dict(enabled=True))
             self._load_report_sections(plugins)
-            self.log.debug("Debrief report sections loaded successfully: %s", self.report_section_names)
+            self.log.debug('Debrief report sections loaded successfully: %s', self.report_section_names)
         except Exception as e:
-            print(e, stack_info=True)
+            self.log.exception(e, stack_info=True)
         report_sections = self.report_section_names
         return web.json_response(dict(report_sections=report_sections))
 
@@ -103,7 +100,7 @@ class DebriefGui(BaseWorld):
             graph = await graphs[graph_type](op_ids)
             return web.json_response(graph)
         except Exception as e:
-            print("graph() failed: %r", e)
+            self.log.exception('graph() failed: %r', e)
             return web.json_response({'error': 'internal error'}, status=500)
 
     async def download_pdf(self, request):
@@ -129,15 +126,16 @@ class DebriefGui(BaseWorld):
                             runtime_paws.add(paw)
 
                 date_part = datetime.now().strftime('%Y_%m_%d')
-                filename = f"{safe_op_name}_Debrief_{date_part}.pdf"
+                filename = f'{safe_op_name}_Debrief_{date_part}.pdf'
                 agents = await self.data_svc.locate('agents')
                 pdf_bytes = await self._build_pdf(operations, agents, filename, data['report-sections'], header_logo_path)
-                self._clean_downloads()
                 return web.json_response(dict(filename=filename, pdf_bytes=pdf_bytes))
             return web.json_response({'error': 'No operations selected'}, status=400)
         except Exception as e:
-            print("download_pdf() failed: %r", e)
+            self.log.exception('download_pdf() failed: %r', e)
             return web.json_response({'error': 'Error generating PDF report'}, status=500)
+        finally:
+            self._clean_downloads()
 
     async def download_json(self, request):
         data = dict(await request.json())
@@ -167,7 +165,7 @@ class DebriefGui(BaseWorld):
                 self._save_uploaded_image(sanitized_filename, content)
             except Exception as e:
                 return web.json_response(str(e))
-            return web.json_response({"filename": sanitized_filename})
+            return web.json_response({'filename': sanitized_filename})
         return web.json_response('No header logo file provided.')
 
     def _save_uploaded_image(self, filename, content):
@@ -191,60 +189,18 @@ class DebriefGui(BaseWorld):
                                 self.report_section_modules[safe_id] = module_obj
                                 self.report_section_names.append({'key': safe_id, 'name': module_obj.display_name})
                             except Exception as e:
-                                print("Skipping debrief section %s due to error: %r", module_name, e)
-                    self.log.debug("Finished loading debrief report sections.")
+                                self.log.error('Skipping debrief section %s due to error: %r', module_name, e)
+            self.log.debug('Finished loading debrief report sections.')
             self.report_section_names.sort(key=lambda s: s['name'].lower())
             self.loaded_report_sections = True
 
     def _pretty_name(self, trait: str) -> str:
         # fallback pretty name when no explicit name is present
-        # examples: "server.malicious.url" -> "Server Malicious Url"
+        # examples: 'server.malicious.url' -> 'Server Malicious Url'
         return ' '.join(p.capitalize() for p in str(trait).replace('_', '.').split('.') if p)
 
-    async def _build_whitecard_metrics(self, operation):
-        """
-        Build a list of {name, trait, value, source_id} derived from facts in the operation's 'source'
-        (the white cards). We only keep numeric facts.
-        """
-        metrics = []
-        if not getattr(operation, 'source', None):
-            return metrics
-
-        source_id = getattr(operation.source, 'id', None) or getattr(operation.source, 'source', None)
-        if not source_id:
-            return metrics
-
-        # Pull all facts from this source (white cards)
-        # NOTE: knowledge_svc is already available in Caldera plugins.
-        facts = await self.knowledge_svc.get_facts(criteria=dict(source=source_id))  # returns c_fact objects
-
-        for f in facts or []:
-            # try to resolve a friendly name if present in metadata; else prettify the trait
-            meta = getattr(f, 'meta', None) or {}
-            friendly = meta.get('display_name') or meta.get('name') or self._pretty_name(getattr(f, 'trait', ''))
-
-            # only include numeric-ish values
-            val = getattr(f, 'value', None)
-            if val is None:
-                continue
-            try:
-                num = int(val)
-            except (ValueError, TypeError):
-                try:
-                    num = float(val)
-                except (ValueError, TypeError):
-                    continue
-
-            metrics.append({
-                'name': friendly,
-                'trait': getattr(f, 'trait', ''),
-                'value': num,
-                'source_id': getattr(f, 'source', ''),
-            })
-        return metrics
-
     async def _build_pdf(self, operations, agents, filename, sections, header_logo_path):
-        self._landscape_locked = False 
+        self._landscape_locked = False
         pdf_buffer = BytesIO()
         doc = TemplateSwitchDoc(
             pdf_buffer,
@@ -268,12 +224,12 @@ class DebriefGui(BaseWorld):
         # # Always render Detections last if present (unless it's the only section)
         if 'ttps-detections' in sections and not detections_only:
             sections = [s for s in sections if s != 'ttps-detections'] + ['ttps-detections']
-        
+
         # Frames
         portrait_frame = Frame(
             doc.leftMargin, doc.bottomMargin,
             doc.width, doc.height,
-            id="portrait-frame"
+            id='portrait-frame'
         )
         lm = bm = rm = tm = 18
         lw, lh = to_landscape(letter)
@@ -281,17 +237,17 @@ class DebriefGui(BaseWorld):
             lm, bm,
             lw - (lm + rm),
             lh - (tm + bm),
-            id="landscape-frame"
+            id='landscape-frame'
         )
 
         # PageTemplates
-        portrait_first_tpl = PageTemplate(id="PortraitFirst", frames=[portrait_frame], pagesize=letter,
+        portrait_first_tpl = PageTemplate(id='PortraitFirst', frames=[portrait_frame], pagesize=letter,
                                           onPage=story_obj.header_footer_first)
-        portrait_tpl = PageTemplate(id="Portrait", frames=[portrait_frame], pagesize=letter,
+        portrait_tpl = PageTemplate(id='Portrait', frames=[portrait_frame], pagesize=letter,
                                     onPage=story_obj.header_footer_rest)
-        landscape_first_tpl = PageTemplate(id="LandscapeFirst", frames=[landscape_frame], pagesize=to_landscape(letter),
+        landscape_first_tpl = PageTemplate(id='LandscapeFirst', frames=[landscape_frame], pagesize=to_landscape(letter),
                                            onPage=story_obj.header_footer_first)
-        landscape_tpl = PageTemplate(id="Landscape", frames=[landscape_frame], pagesize=to_landscape(letter),
+        landscape_tpl = PageTemplate(id='Landscape', frames=[landscape_frame], pagesize=to_landscape(letter),
                                      onPage=story_obj.header_footer_rest)
 
         if detections_only:
@@ -302,7 +258,7 @@ class DebriefGui(BaseWorld):
                 portrait_tpl,
                 portrait_first_tpl,
             ])
-            story_obj.append(LockTemplateMarker('Landscape')) 
+            story_obj.append(LockTemplateMarker('Landscape'))
         else:
             # Default is portrait; we'll switch to landscape only for the detections block
             doc.addPageTemplates([
@@ -317,11 +273,12 @@ class DebriefGui(BaseWorld):
         if any(('-graph' in v) for v in sections):
             for file in glob.glob('./plugins/debrief/downloads/*.svg'):
                 graph_files[os.path.basename(file).split('.')[0]] = file
+
         # ---------------------------------------------------------
         # PREDECLARE ALL DET ANCHORS BEFORE ANY SECTION BUILDS
         # ---------------------------------------------------------
-
         all_dets = set()
+
         # Collect ALL DET IDs used by techniques in this report
         for op in operations:
             for link in getattr(op, 'chain', []):
@@ -340,15 +297,15 @@ class DebriefGui(BaseWorld):
 
                 # 3) normalize DET IDs (remove dash)
                 for s in strategies:
-                    raw = s.get("det_id") or ""
-                    det = raw.upper().replace("DET-", "").replace("DET", "").strip()
+                    raw = s.get('det_id') or ''
+                    det = raw.upper().replace('DET-', '').replace('DET', '').strip()
                     if det.isdigit():
-                        all_dets.add(f"DET{det}")
+                        all_dets.add(f'DET{det}')
 
         # Emit anchors now (before TTP table builds links)
         for det in sorted(all_dets):
-            story_obj.append(Paragraph(f'<a name="{det}"></a>', styles["Normal"]))
-            print("[DET-PREDECLARE] created anchor for %s", det)
+            story_obj.append(Paragraph(f'<a name="{det}"></a>', styles['Normal']))
+            self.log.debug('[DET-PREDECLARE] created anchor for %s', det)
         try:
             # ---- COVER: ----
             cover_module = self.report_section_modules.get('main-summary')
@@ -368,7 +325,7 @@ class DebriefGui(BaseWorld):
             for section in sections:
                 section_module = self.report_section_modules.get(section)
                 if not section_module:
-                    print("Requested debrief section module %s not found.", section)
+                    self.log.warn(f'Requested debrief section module {section} not found.')
                     continue
 
                 flowables = await section_module.generate_section_elements(
@@ -378,26 +335,26 @@ class DebriefGui(BaseWorld):
                     graph_files=graph_files,
                     selected_sections=sections
                 )
-                if (section == 'ttps-detections'
-                    and not getattr(self, '_landscape_locked', False)
-                    and not detections_only):
+                if section == 'ttps-detections' and not self._landscape_locked and not detections_only:
                     story_obj.append(UseTemplateMarker('LandscapeFirst'))
                     story_obj.append(PageBreak())
+
                     # lock landscape for the remainder of the doc
                     story_obj.append(LockTemplateMarker('Landscape'))
                     self._landscape_locked = True
+
                 for f in flowables:
                     story_obj.append(f)
 
             # Build PDF
             doc.build(story_obj.story_arr)
-
+            pdf_value = pdf_buffer.getvalue()
+            return pdf_value.decode('utf-8', errors='ignore')
         except Exception as e:
-            print(e)
-
-        pdf_value = pdf_buffer.getvalue()
-        pdf_buffer.close()
-        return pdf_value.decode('utf-8', errors='ignore')
+            self.log.exception(e)
+            raise e
+        finally:
+            pdf_buffer.close()
 
     @staticmethod
     def _sanitize_filename(filename):
@@ -409,7 +366,7 @@ class DebriefGui(BaseWorld):
     def _save_svgs(svgs):
         for filename, svg_bytes in svgs.items():
             save_location = './plugins/debrief/downloads/'
-            with open(save_location + filename + '.svg', "wb") as fh:
+            with open(save_location + filename + '.svg', 'wb') as fh:
                 fh.write(base64.b64decode(svg_bytes))
 
     @staticmethod
@@ -427,29 +384,37 @@ class DebriefGui(BaseWorld):
 
 
 # --- Template switch primitives that work on all ReportLab versions ---
-
 class UseTemplateMarker(Flowable):
-    """A zero-size flowable that signals a page-template switch."""
+    '''A zero-size flowable that signals a page-template switch.'''
+
     def __init__(self, name: str):
         super().__init__()
         self.name = name
+
     def wrap(self, *args, **kwargs):
         return (0, 0)
+
     def draw(self):
         pass
+
 
 class LockTemplateMarker(Flowable):
-    """Locks the page template for all subsequent pages."""
+    '''Locks the page template for all subsequent pages.'''
+
     def __init__(self, name: str):
         super().__init__()
         self.name = name
+
     def wrap(self, *args, **kwargs):
         return (0, 0)
+
     def draw(self):
         pass
 
+
 class TemplateSwitchDoc(SimpleDocTemplate):
-    """SimpleDocTemplate that reacts to UseTemplateMarker/LockTemplateMarker."""
+    '''SimpleDocTemplate that reacts to UseTemplateMarker/LockTemplateMarker.'''
+
     def afterFlowable(self, flowable):
         try:
             if isinstance(flowable, UseTemplateMarker):
@@ -460,7 +425,7 @@ class TemplateSwitchDoc(SimpleDocTemplate):
                 # Persistently force all subsequent pages
                 self._locked_template = flowable.name
                 self.handle_nextPageTemplate(self._locked_template)
-            
+
             if isinstance(flowable, PageBreak) and getattr(self, '_locked_template', None):
                 self.handle_nextPageTemplate(self._locked_template)
 

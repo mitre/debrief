@@ -105,6 +105,7 @@ class DebriefGui(BaseWorld):
 
     async def download_pdf(self, request):
         data = dict(await request.json())
+        self.log.debug('PDF download request ops: ' + str(data['operations']))
         svg_data = data['graphs']
         header_logo_filename = data.get('header-logo')
         self._save_svgs(svg_data)
@@ -280,6 +281,7 @@ class DebriefGui(BaseWorld):
         all_dets = set()
 
         # Collect ALL DET IDs used by techniques in this report
+        self.log.debug('Building PDFs for operations: ' + str(operations))
         for op in operations:
             for link in getattr(op, 'chain', []):
                 tid = getattr(getattr(link, 'ability', None), 'technique_id', '')
@@ -310,6 +312,7 @@ class DebriefGui(BaseWorld):
             # ---- COVER: ----
             cover_module = self.report_section_modules.get('main-summary')
             if cover_module:
+                self.log.debug('Generating main summary cover flowables')
                 cover_flowables = await cover_module.generate_section_elements(
                     styles,
                     operations=operations,
@@ -323,11 +326,15 @@ class DebriefGui(BaseWorld):
 
             # ---- SECTIONS: append each section’s flowables ----
             for section in sections:
+                if section == 'main-summary':
+                    continue
+
                 section_module = self.report_section_modules.get(section)
                 if not section_module:
                     self.log.warn(f'Requested debrief section module {section} not found.')
                     continue
 
+                self.log.debug(f'Generating flowables for section: {section}')
                 flowables = await section_module.generate_section_elements(
                     styles,
                     operations=operations,

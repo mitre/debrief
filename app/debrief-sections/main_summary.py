@@ -18,9 +18,6 @@ class DebriefReportSection(BaseReportSection):
                            'review of each specific operation ran.'
 
     async def generate_section_elements(self, styles, **kwargs):
-        if getattr(self, "_emitted_once", False):
-            return []
-        self._emitted_once = True
         title = styles['Heading1']
         title.fontName = 'Helvetica-Bold'
         title.textColor = 'maroon'

@@ -119,17 +119,10 @@ class DebriefGui(BaseWorld):
                               if str(o.id) in data.get('operations', [])]
                 op_name = operations[0].name if operations else 'Operation'
                 safe_op_name = re.sub(r'[^A-Za-z0-9_-]+', '-', op_name)
-                runtime_paws = set()
-                for op in operations or []:
-                    for ln in getattr(op, 'chain', []) or []:
-                        paw = getattr(ln, 'paw', None)
-                        if paw:
-                            runtime_paws.add(paw)
-
                 date_part = datetime.now().strftime('%Y_%m_%d')
                 filename = f'{safe_op_name}_Debrief_{date_part}.pdf'
-                agents = await self.data_svc.locate('agents')
-                pdf_bytes = await self._build_pdf(operations, agents, filename, data['report-sections'], header_logo_path)
+                runtime_agents = self._get_runtime_agents(operations, await self.data_svc.locate('agents'))
+                pdf_bytes = await self._build_pdf(operations, runtime_agents, filename, data['report-sections'], header_logo_path)
                 return web.json_response(dict(filename=filename, pdf_bytes=pdf_bytes))
             return web.json_response({'error': 'No operations selected'}, status=400)
         except Exception as e:
@@ -194,6 +187,19 @@ class DebriefGui(BaseWorld):
             self.log.debug('Finished loading debrief report sections.')
             self.report_section_names.sort(key=lambda s: s['name'].lower())
             self.loaded_report_sections = True
+
+    def _get_runtime_agents(self, operations, agents):
+        runtime_paws = set()
+        runtime_agents = []
+        for op in operations or []:
+            for ln in getattr(op, 'chain', []) or []:
+                paw = getattr(ln, 'paw', None)
+                if paw:
+                    runtime_paws.add(paw)
+        for agent in agents:
+            if agent.paw in runtime_paws:
+                runtime_agents.append(agent)
+        return runtime_agents
 
     def _pretty_name(self, trait: str) -> str:
         # fallback pretty name when no explicit name is present

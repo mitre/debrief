@@ -615,9 +615,9 @@ div
   h2 Debrief
   p
     strong Campaign Analytics.
-    |  Debrief gathers overall campaign information and analytics for a selected
-    |  set of operations. It provides a centralized view of operation metadata, graphical displays of
-    |  the operations, the techniques and tactics used, and the facts discovered by the operations.
+    |  Debrief gathers overall campaign information and analytics for operations.
+    |  It provides a centralized view of operation metadata, graphical displays of
+    |  the operation, the techniques and tactics used, and the facts discovered by the operation.
 
 hr
 

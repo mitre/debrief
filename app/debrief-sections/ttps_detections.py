@@ -1,6 +1,7 @@
+import logging
 import re
 
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 from reportlab.lib import colors
 
 from reportlab.lib.units import inch
@@ -19,6 +20,7 @@ class DebriefReportSection(BaseReportSection):
         self.display_name = 'TTPs & V18 Detections'
         self.section_title = 'TTPs and V18 Detections for <font name=Courier-Bold size=17>%s</font>'
         self.description = 'Ordered steps (TTPs) from the operation with their associated ATT&CK v18 Detections.'
+        self.log = logging.getLogger('DebriefTTPsDetectionsTable')
 
         if not hasattr(self, 'styles') or self.styles is None:
             self.styles = getSampleStyleSheet()
@@ -65,6 +67,7 @@ class DebriefReportSection(BaseReportSection):
 
     def _p(self, text: str):
         text = str(text or '')
+
         # Light escape to avoid accidental tag parsing
         text = (text
                 .replace('&', '&amp;')
@@ -148,8 +151,7 @@ class DebriefReportSection(BaseReportSection):
         self._ensure_styles()
 
         flows = []
-
-        operations = kwargs.get('operations', []) or []
+        operations = kwargs.get('operations', [])
         if not operations:
             return flows
 
@@ -176,207 +178,183 @@ class DebriefReportSection(BaseReportSection):
 
         agents = kwargs.get('agents', []) or []
         paw_to_platform = {getattr(a, 'paw', None): getattr(a, 'platform', None) for a in agents}
-        run_platforms = sorted({
-            str(getattr(a, 'platform', '') or '').strip().lower()
-            for a in agents if getattr(a, 'platform', None)
-        })
-        print(f'[DET] agents={len(agents)} run_platforms={run_platforms}')
+        self.log.debug(f'[DET] agents={len(agents)} paw_to_platform={paw_to_platform}')
+
         for i, op in enumerate(operations):
             if i > 0:
                 flows.append(PageBreak())
-            flows.extend(self._generate_detection_appendix(op, self._a18, paw_to_platform, run_platforms=run_platforms))
+            flows.extend(self._generate_detection_appendix(op, paw_to_platform))
 
         return flows
 
-    def _generate_detection_appendix(self, operation, a18, paw_to_platform, run_platforms=None):
-        flows = []
-        self._ensure_styles()
-        run_platforms = (run_platforms or [])
-
-        # 1) Collect platforms and TID → sub-technique TIDs used in operation
-        tech_plats = defaultdict(lambda: OrderedDict())
-        ptid_to_tids = defaultdict(set)
+    @staticmethod
+    def _get_op_platforms_and_tids(operation, paw_to_platform):
+        tid_to_platforms = defaultdict(set)
+        tids = set()
 
         for link in getattr(operation, 'chain', []) or []:
             if getattr(link, 'cleanup', False):
                 continue
 
-            tid = (getattr(getattr(link, 'ability', None), 'technique_id', '') or '').strip().upper()
+            tid = getattr(getattr(link, 'ability', None), 'technique_id', '').strip().upper()
             if not tid:
                 continue
 
-            ptid = tid.split('.')[0]       # parent TID
-            plat = (paw_to_platform.get(getattr(link, 'paw', None)) or '').lower()
+            plat = paw_to_platform.get(getattr(link, 'paw', None), '').lower()
 
-            tech_plats[ptid].setdefault((plat or None), None)
-            ptid_to_tids[ptid].add(tid)
+            if plat:
+                tid_to_platforms[tid].add(plat)
+            tids.add(tid)
 
-        print('[DET] op:', getattr(operation, 'name', '?'), 'ptids:', list(tech_plats.keys()))
+        return (tid_to_platforms, tids)
 
-        # ----------------------------------------------------------------------
-        # For EACH parent technique, build DET appendix
-        # ----------------------------------------------------------------------
-        for ptid, _plats in tech_plats.items():
-            exact_tids = sorted(ptid_to_tids.get(ptid, []))
-            print(f'[DET] PTID={ptid} plats={list(_plats.keys())} exact_tids={exact_tids}', flush=True)
-
-            # Determine platforms used in operation
-            if run_platforms:
-                observed_plats = run_platforms[:]  # platforms from agents
-            else:
-                # fallback: derive from analytics across all exact technique IDs
-                cache_plats = set()
-                for tid in exact_tids or [ptid]:
-                    for r in (self._a18.get_analytics(tid, platform=None) or []):
-                        cache_plats.update(p.lower() for p in (r.get('platforms') or []) if p)
-                        sp = (r.get('platform') or '').strip().lower()
-                        if sp:
-                            cache_plats.add(sp)
-                observed_plats = sorted(cache_plats)
-
-            # What we iterate to render rows (at least once)
-            plats_iter = observed_plats or [None]
-            plats_filter = observed_plats
-            print(f'[DET] Using plats_iter={plats_iter} plats_filter={plats_filter}')
-
-            # Try each exact sub-technique first; fall back to parent if none hit
-            tids = list(ptid_to_tids.get(ptid, [])) or [ptid]
-            chosen_tid = None
-            refs = []
-
-            for exact_tid in tids + [ptid]:
-                refs = self._build_detection_refs(ptid, a18, plats_iter, tid=exact_tid)
+    def _get_technique_detection_refs(self, tid):
+        # Try each exact sub-technique first; fall back to parent if none hit
+        refs = self._build_detection_refs(tid)
+        if not refs:
+            # Fall back to parent
+            ptid = tid.split('.')[0].strip().upper()
+            if ptid != tid:
+                refs = self._build_detection_refs(ptid)
                 if refs:
-                    chosen_tid = exact_tid
-                    break
+                    self.log.debug(f'Fell back to parent TID: {ptid}')
+        return refs
 
+    def _build_det_appendix_rows(self, ref, platforms):
+        det_id = ref['det_id']
+        tid = ref['tid']
+
+        # header rows
+        rows = [
+            [
+                'AN', 'Platform', 'Detection Statement',
+                'Data Component Elements (DC)', '', '',
+                'Mutable Elements', ''
+            ],
+            ['', '', '', 'Name', 'Channel', 'Data Component', 'Field', 'Description']
+        ]
+
+        an_ids = set()
+        seen_rows = set()
+
+        # --------------------------------------------------------------
+        # analytics_by_plat uses EXACT technique IDs
+        # --------------------------------------------------------------
+        analytics_by_plat = {}
+        for plat in platforms:
+            analytics_by_plat[plat] = self._a18.get_analytics(tid, platform=plat) or []
+
+        # --------------------------------------------------------------
+        # Process analytic rows for this DET
+        # --------------------------------------------------------------
+        for plat, analytics in analytics_by_plat.items():
+            self.log.debug(f'[DET] analytics for {tid} plat={plat} → {len(analytics)} rows')
+
+            for a_row in analytics:
+                an_id = a_row.get('an_id')
+                if not an_id:
+                    self.log.warn(f'No analytic ID found for analytic object: {a_row.get('id')}')
+                    continue
+
+                self.log.debug(f'  [DET] row det_id={a_row.get('det_id')} an_id={an_id} tech={a_row.get('technique_id')}')
+
+                row_det = a_row.get('det_id', '').strip()
+                row_det_norm = self._normalize_det_id(row_det, fallback=row_det)
+                det_norm = self._normalize_det_id(det_id, fallback=det_id)
+
+                # DET matching logic
+                if row_det:
+                    if row_det_norm != det_norm:
+                        self.log.warn(f'Mismatching analytic detection ID {row_det_norm} and referenced detection ID {det_norm}')
+                        continue
+                else:
+                    self.log.warn(f'Did not find detection ID for analytic {an_id}')
+                    continue
+
+                stmt = Paragraph(
+                    (str(a_row.get('statement', '') or '')
+                        .replace('&', '&amp;')
+                        .replace('<', '&lt;')
+                        .replace('>', '&gt;')),
+                    self.sty_cell_center,
+                )
+
+                # ensure platform filled for AN mapping
+                if plat and not a_row.get('platform'):
+                    a_row = dict(a_row)
+                    a_row['platform'] = plat
+
+                an_ids.add(an_id)
+                plat_disp = (plat or a_row.get('platform', '') or '').capitalize()
+                an_cell = Paragraph(an_id, self.sty_cell_center)
+                plat_cell = Paragraph(plat_disp, self.sty_cell_center)
+
+                dcs = a_row.get('dc_elements') or [{}]
+                tuns = a_row.get('tunables') or []
+
+                for d in (dcs or [{}]):
+                    dc_name = d.get('name', '')
+                    dc_chan = d.get('channel', '')
+                    dc_comp = d.get('data_component', '')
+
+                    tuns_iter = tuns if tuns else [None]
+                    for t in tuns_iter:
+                        if t is None:
+                            field_val = ''
+                            desc_val = ''
+                        else:
+                            field_val = (t.get('field') or '').strip()
+                            desc_val = (t.get('description') or '').strip()
+
+                        key = (an_id, plat_disp, dc_name, field_val, dc_chan)
+                        if key in seen_rows:
+                            continue
+                        seen_rows.add(key)
+
+                        rows.append([
+                            an_cell, plat_cell, stmt,
+                            self._p(dc_name), self._p(dc_chan), self._p(dc_comp),
+                            self._p(field_val), self._p(desc_val)
+                        ])
+
+        self.log.debug(f'[ANs] for {det_id}: {sorted(an_ids)}')
+        return rows, an_ids
+
+    def _generate_detection_appendix(self, operation, paw_to_platform):
+        flows = []
+        self._ensure_styles()
+
+        # Collect platforms and TID → sub-technique TIDs used in operation
+        tid_to_platforms, tids = self._get_op_platforms_and_tids(operation, paw_to_platform)
+
+        # For EACH (sub)technique, build DET appendix
+        for tid in sorted(tids):
+            self.log.debug(f'Building DET appendix for technique {tid}')
+
+            # Determine platforms used for this technique
+            observed_platforms = sorted(tid_to_platforms.get(tid, []))
+
+            self.log.debug(f'[DET] Using observed platforms for technique: {observed_platforms}')
+
+            refs = self._get_technique_detection_refs(tid)
             if not refs:
-                print(f'[DET] No detection refs for ptid={ptid} (tids={tids})')
+                self.log.warn(f'[DET] No detection strategies found for TID {tid} or parent)')
                 continue
 
-            print(f'[DET] Built {len(refs)} unique detection refs for ptid={ptid} (chosen_tid={chosen_tid})')
+            self.log.debug(f'[DET] Built {len(refs)} unique detection strategy references for TID {tid}')
 
             # ------------------------------------------------------------------
             # Build appendix table PER DET strategy
             # ------------------------------------------------------------------
+            processed_refs = set()
             for ref in refs:
-                s = ref['strategy']
-                det_id = ref['det_id']
-                det_name = ref['det_name']
+                det_id = ref.get('det_id')
+                det_name = ref.get('det_name', '')
+                if det_id in processed_refs:
+                    continue
 
-                print(f'[DET] {det_id} — {det_name} (ptid={ptid}, plats={list(plats_iter)})')
-
-                # header rows
-                rows = [
-                    [
-                        'AN', 'Platform', 'Detection Statement',
-                        'Data Component Elements (DC)', '', '',
-                        'Mutable Elements', ''
-                    ],
-                    ['', '', '', 'Name', 'Channel', 'Data Component', 'Field', 'Description']
-                ]
-
-                an_ids = set()
-                seen_rows = set()
-
-                # --------------------------------------------------------------
-                # analytics_by_plat uses EXACT technique IDs
-                # --------------------------------------------------------------
-                analytics_by_plat = {}
-
-                for plat in plats_iter:
-                    merged = []
-                    for t in exact_tids or [ptid]:
-                        merged.extend(self._a18.get_analytics(t, platform=plat) or [])
-                    analytics_by_plat[plat] = merged
-
-                # --------------------------------------------------------------
-                # Process analytic rows for this DET
-                # --------------------------------------------------------------
-                for plat, analytics in analytics_by_plat.items():
-                    print(f'[DET] analytics for {ptid}/{exact_tids} plat={plat} → {len(analytics)} rows')
-
-                    for arow in analytics:
-                        print(f'  [DET] row det_id={arow.get('det_id')} an_id={arow.get('an_id')} tech={arow.get('technique_id')}')
-
-                        row_det = (arow.get('det_id') or '').strip()
-                        row_det_norm = self._normalize_det_id(row_det, fallback=row_det)
-                        det_norm = self._normalize_det_id(det_id, fallback=det_id)
-                        sid = (s.get('id') or '').strip()
-
-                        # DET matching logic
-                        if row_det:
-                            if not (row_det_norm == det_norm or row_det == sid):
-                                continue
-                        else:
-                            if sid:
-                                continue
-
-                        plat_disp = (plat or arow.get('platform', '') or '').capitalize()
-
-                        stmt = Paragraph(
-                            (str(arow.get('statement', '') or '')
-                                .replace('&', '&amp;')
-                                .replace('<', '&lt;')
-                                .replace('>', '&gt;')),
-                            self.sty_cell_center,
-                        )
-
-                        # ensure platform filled for AN mapping
-                        if plat and not arow.get('platform'):
-                            arow = dict(arow)
-                            arow['platform'] = plat
-
-                        cell_label, header_an = self._extract_an_labels(arow, a18=a18, strategy=s, ptid=ptid)
-
-                        if header_an:
-                            an_ids.add(header_an)
-                        elif re.match(r'^AN-?\d{4}$', cell_label, flags=re.IGNORECASE):
-                            an_ids.add(self._normalize_ext_id(cell_label))
-
-                        # anchor = self._anchor_for_an(cell_label)
-                        # if cell_label not in getattr(self, '_emitted_anchors', set()):
-                        #     an_cell = Paragraph(f'<a name="{anchor}"></a>{cell_label}', self.sty_cell_center)
-                        #     self._emitted_anchors.add(cell_label)
-                        # else:
-                        an_cell = Paragraph(cell_label, self.sty_cell_center)
-
-                        plat_cell = Paragraph(plat_disp, self.sty_cell_center)
-
-                        dcs = arow.get('dc_elements') or [{}]
-                        tuns = arow.get('tunables') or []
-
-                        for d in (dcs or [{}]):
-                            dc_name = d.get('name', '')
-                            dc_chan = d.get('channel', '')
-                            dc_comp = d.get('data_component', '')
-
-                            tuns_iter = tuns if tuns else [None]
-                            for t in tuns_iter:
-                                if t is None:
-                                    field_val = ''
-                                    desc_val = ''
-                                else:
-                                    field_val = (t.get('field') or '').strip()
-                                    desc_val = (t.get('description') or '').strip()
-
-                                key = (cell_label, plat_disp, dc_name, field_val, dc_chan)
-                                if key in seen_rows:
-                                    continue
-                                seen_rows.add(key)
-
-                                rows.append([
-                                    an_cell, plat_cell, stmt,
-                                    self._p(dc_name), self._p(dc_chan), self._p(dc_comp),
-                                    self._p(field_val), self._p(desc_val)
-                                ])
-
-                print(f'[ANs] for {det_id}: {sorted(an_ids)}')
-
-                det_anchor = self._anchor_for_det(det_id)
-                flows.append(Paragraph(f'<a name="{det_anchor}"></a>', self.styles['Normal']))
-
-                hdr_block = self._build_det_header_block(det_id, det_name, sorted(an_ids))
+                processed_refs.add(det_id)
+                rows, an_ids = self._build_det_appendix_rows(ref, observed_platforms)
 
                 if len(rows) <= 2:
                     rows.append(['', '', self._p('No analytics for the selected OS scope.'), '', '', '', '', ''])
@@ -385,8 +363,10 @@ class DebriefReportSection(BaseReportSection):
                 tbl.spaceBefore = 0
                 tbl.spaceAfter = 0
 
+                normalized_det_id = self._normalize_det_id(det_id)
+                flows.append(Paragraph(f'<a name="{normalized_det_id}"></a>', self.styles['Normal']))
+                hdr_block = self._build_det_header_block(det_id, det_name, sorted(an_ids))
                 flows.append(KeepTogether(hdr_block + [tbl]))
-
         return flows
 
     def _build_det_header_block(self, det_id: str, det_name: str, an_ids: list[str]):
@@ -502,7 +482,7 @@ class DebriefReportSection(BaseReportSection):
         end = len(rows)
         valign_cmds = []              # stores ('VALIGN', (col,r1),(col,r2),'MIDDLE')
 
-        def add_spans_for_column(col_idx):
+        def _add_spans_for_column(col_idx):
             '''
             Detect consecutive identical values in rows[col_idx],
             SPAN them, and emit a VALIGN rule to center vertically.
@@ -522,9 +502,9 @@ class DebriefReportSection(BaseReportSection):
                 r += 1
 
         # Spanning for AN / Platform / Statement
-        add_spans_for_column(0)
-        add_spans_for_column(1)
-        add_spans_for_column(2)
+        _add_spans_for_column(0)
+        _add_spans_for_column(1)
+        _add_spans_for_column(2)
 
         # ------------------------------------------------------------------
         # BUILD TABLE
@@ -584,35 +564,40 @@ class DebriefReportSection(BaseReportSection):
         tbl.spaceAfter = 0
         return tbl
 
-    def _build_detection_refs(self, ptid: str, a18, platforms: list[str], tid: str | None = None) -> list[dict]:
+    def _build_detection_refs(self, tid: str) -> list[dict]:
         '''
-        Return a list of dicts for unique detection strategies relevant to `ptid`
-        after platform filtering. Each item has:
+        Return a list of dicts for unique detection strategies relevant to `tid`.
+        Each item in the returned list has:
         - 'strategy' : the source strategy dict (with s['det_id'] stamped)
-        - 'det_id'   : canonical DET-#### (or object id fallback)
+        - 'det_id'   : canonical DET-####
         - 'det_name' : strategy name or det_id
-        - 'det_anchor': anchor-safe id used in-PDF (matches appendix anchors)
+        - 'tid'      : the associated technique ID
         '''
         # Use the existing single source of truth for relevance
-        strategies = self._a18.get_strategies(tid or ptid)
+        strategies = self._a18.get_strategies(tid)
         out, seen = [], set()
         for s in strategies:
-            det_id, det_name, det_anchor = self._resolve_det_meta(s, tid or ptid)
-            if det_id in seen:
+            det_id = s.get('det_id', '').strip()
+            if not det_id:
                 continue
-            seen.add(det_id)
-            s = dict(s)
-            s['det_id'] = det_id  # keep normalized id on the strategy (downstream checks rely on this)
+
+            normalized_det_id = self._normalize_det_id(det_id)
+            if normalized_det_id in seen:
+                continue
+
+            seen.add(normalized_det_id)
+            ret_strat = dict(s)
+            ret_strat['det_id'] = normalized_det_id  # keep normalized id on the strategy (downstream checks rely on this)
             out.append({
-                'strategy': s,
-                'det_id': det_id,
-                'det_name': det_name,
-                'det_anchor': det_anchor,
+                'strategy': ret_strat,
+                'det_id': normalized_det_id,
+                'det_name': ret_strat.get('name', normalized_det_id),
+                'tid': tid
             })
         return out
 
     def _format_an_range(self, an_ids: list[str]) -> str:
-        '''Format 'Analytic .'''
+        '''Format Analytic.'''
         nums = []
         for x in an_ids:
             m = re.match(r'AN(\d{4})$', str(x).strip(), flags=re.IGNORECASE)
@@ -624,11 +609,6 @@ class DebriefReportSection(BaseReportSection):
             return f'Analytic ( {', '.join(uniq) if uniq else '—'} )'
         return f'Analytic ( AN{min(nums):04d} to AN{max(nums):04d} )'
 
-    def _normalize_ext_id(self, s: str) -> str:
-        s = (s or '').strip().upper()
-        s = s.replace('AN-', 'AN')
-        return s
-
     def _normalize_det_id(self, det_id: str, fallback=None):
         if not det_id:
             return fallback
@@ -639,111 +619,3 @@ class DebriefReportSection(BaseReportSection):
         if digits:
             return f'DET{digits}'     # <-- NO DASH VERSION
         return fallback
-
-    def _resolve_det_meta(self, s: dict, ptid: str) -> tuple[str, str, str]:
-        '''
-        Return (det_id, det_name, det_anchor) for a strategy dict `s`.
-        - det_id: canonical DET#### when possible (no dash)
-        - det_name: strategy name or det_id
-        - det_anchor: anchor-safe version of det_id (also DET####)
-        '''
-        # 1) Try stamped det_id from relevant_strategies
-        raw = s.get('det_id') or ''
-
-        # 2) Else fallback to external_id inside external_references
-        ext = next(
-            (
-                er.get('external_id', '')
-                for er in (s.get('external_references') or [])
-                if isinstance(er.get('external_id', ''), str)
-            ),
-            ''
-        )
-
-        # 3) Determine best raw ID
-        best = raw or ext or s.get('id', '') or ''
-
-        # 4) Normalize → DET#### (no dash)
-        det_id = self._normalize_det_id(best, fallback=best)
-
-        # 5) Strategy name or fallback to det_id
-        det_name = s.get('name') or det_id
-
-        # 6) Anchor is exactly the normalized det_id, sanitized
-        det_anchor = self._normalize_det_id(det_id)
-
-        print(f'[DET/_resolve] det_id={det_id} det_anchor={det_anchor} name={det_name}')
-        return det_id, det_name, det_anchor
-
-    def _anchor_for_det(self, det_id: str) -> str:
-        '''
-        Convert a DET id (DET####) into a stable PDF anchor.
-
-        - Normalizes dash/no-dash variants
-        - Ensures uppercase
-        - Produces something safe for <a name="..."> tags
-        '''
-        det = (det_id or '').strip().upper()
-        det = det.replace('DET-', 'DET')  # normalize DET-#### → DET####
-        return det
-
-    def _extract_an_labels(self, arow, a18=None, strategy=None, ptid=None):
-        '''
-        Return (cell_label, header_an) for an analytic row.
-        - cell_label: what we display in the AN column (and anchor on).
-        - header_an : canonical 'AN-####' that contributes to the header range.
-        '''
-        # 1) explicit row-level AN id
-        an = (arow.get('an_id') or '').strip()
-        if re.match(r'^AN-?\d{4}$', an, flags=re.IGNORECASE):
-            return an.upper(), an.upper()
-        # 2a) map by STIX analytic id -> AN
-        aid = (arow.get('id') or '').strip().lower()
-        if aid and getattr(self, '_an_external_by_stix', None):
-            mapped = self._an_external_by_stix.get(aid)
-            if mapped:
-                canon = self._normalize_ext_id(mapped)
-                return canon, canon
-
-        # 2b) map by (DET, platform) -> AN
-        det = self._normalize_det_id(arow.get('det_id') or '')
-        plat_l = (arow.get('platform') or '').strip().lower()
-        if det and getattr(self, '_an_by_det_and_platform', None):
-            mapped = (self._an_by_det_and_platform.get((det, plat_l)) or
-                      self._an_by_det_and_platform.get((det, None)))
-            if mapped:
-                canon = self._normalize_ext_id(mapped)
-                return canon, canon
-
-        # 3) (slower) resolve via full analytic object in bundle
-        analytic_obj = None
-        if a18 and aid:
-            # Try common places to find the full STIX objects list
-            candidate_lists = []
-            for attr in ('objects', '_objects'):
-                v = getattr(a18, attr, None)
-                if isinstance(v, list):
-                    candidate_lists.append(v)
-            for attr in ('bundle', '_bundle'):
-                v = getattr(a18, attr, None)
-                if isinstance(v, dict) and isinstance(v.get('objects'), list):
-                    candidate_lists.append(v['objects'])
-
-            for objs in candidate_lists:
-                for o in objs:
-                    if o.get('type') == 'x-mitre-analytic' and (o.get('id', '').strip().lower() == aid):
-                        analytic_obj = o
-                        break
-                if analytic_obj:
-                    break
-
-        if analytic_obj:
-            for er in (analytic_obj.get('external_references') or []):
-                eid = (er.get('external_id') or '').strip()
-                if re.match(r'^AN-?\d{4}$', eid, flags=re.IGNORECASE):
-                    canon = self._normalize_ext_id(eid)
-                    return canon, canon
-
-        # 4) final fallback: stable short label (does NOT contribute to header range)
-        fallback = (arow.get('id', '')[-8:] or '').upper() or 'AN'
-        return fallback, None

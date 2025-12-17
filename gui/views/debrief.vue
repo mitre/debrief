@@ -98,7 +98,7 @@ export default {
   data() {
     return {
         operations: [],
-        selectedOperationIds: [],
+        selectedOperationId: '',
         activeTab: 'stats',
 
         stats: [],
@@ -195,7 +195,7 @@ export default {
         },
 
         initReportSections() {
-            const BASE_ORDERING = [ 
+            const BASE_ORDERING = [
                 "main-summary",
                 "statistics",
                 "agents",
@@ -217,8 +217,8 @@ export default {
         },
 
         loadOperation() {
-            if (!this.selectedOperationIds.length) return;
-            this.$api.post('/plugin/debrief/report', { operations: this.selectedOperationIds }).then((data) => {
+            if (!this.selectedOperationId.length) return;
+            this.$api.post('/plugin/debrief/report', { operations: [this.selectedOperationId] }).then((data) => {
                 data = data.data;
                 this.stats = data.operations;
                 this.agents = data.operations.map((o) => o.host_group).flat();
@@ -240,7 +240,7 @@ export default {
                 })
                 this.tacticsAndTechniques = data.ttps;
 
-                updateReportGraph(this.selectedOperationIds);
+                updateReportGraph([this.selectedOperationId]);
             }).catch((error) => {
                 toast({
                   message:
@@ -255,15 +255,6 @@ export default {
             })
         },
 
-        operationSelectMousedown(el) {
-            // An override to the select field so users don't need to hold CMD or Ctrl while selecting multiple op's
-            el.selected = !el.selected;
-            this.selectedOperationIds = Array.from(el.parentNode.childNodes)
-                .filter((node) => node.localName === 'option' && node.selected)
-                .map((node) => node.value);
-            this.loadOperation();
-        },
-        
         getStatusName(status) {
             if (status === 0) {
                 return 'success';
@@ -337,7 +328,7 @@ export default {
                 legend.style.display = (this.showGraphLegend ? 'block' : 'none');
             });
         },
-        
+
         uploadLogo(el) {
             if (el.files.length === 0) return;
 
@@ -363,7 +354,7 @@ export default {
 
         downloadPDF() {
             let requestBody = {
-                'operations': this.selectedOperationIds,
+                'operations': [this.selectedOperationId],
                 'graphs': this.getGraphData(),
                 'report-sections': this.activeReportSections,
                 'header-logo': this.logoFilename
@@ -392,7 +383,7 @@ export default {
         },
 
         downloadJSON() {
-          this.$api.post('/plugin/debrief/json', { 'operations': this.selectedOperationIds }).then((data) => {
+          this.$api.post('/plugin/debrief/json', { 'operations': [this.selectedOperationId] }).then((data) => {
                 data = data.data;
                 this.downloadJson(data.filename, data);
             }).catch((error) => {
@@ -441,14 +432,14 @@ export default {
                 document.querySelectorAll('#copy-svg .link').forEach((el) => el.style.display = '');
                 document.querySelectorAll('#copy-svg polyline').forEach((el) => el.style.display = '');
                 document.querySelectorAll('#copy-svg .link .icons').forEach((el) => {
-                    Array.from(el.children).forEach((child) => { 
+                    Array.from(el.children).forEach((child) => {
                         if (child.getAttribute('class').includes('svg-icon')) {
                             child.style.display = '';
                         }
                     })
                 })
                 document.querySelectorAll('#copy-svg .link .icons').forEach((el) => {
-                    Array.from(el.children).forEach((child) => { 
+                    Array.from(el.children).forEach((child) => {
                         if (child.getAttribute('class').includes('hidden')) {
                             child.remove();
                         }
@@ -496,13 +487,13 @@ export default {
         toggleTactics() {
             let showing = [];
             document.querySelectorAll('#debrief-graph .link .icons').forEach((el) => {
-                Array.from(el.children).forEach((child) => { 
+                Array.from(el.children).forEach((child) => {
                     if (child.classList.contains('svg-icon') && !child.classList.contains('hidden')) showing.push(child);
                 });
             });
             let hidden = [];
             document.querySelectorAll('#debrief-graph .link .icons').forEach((el) => {
-                Array.from(el.children).forEach((child) => { 
+                Array.from(el.children).forEach((child) => {
                     if (child.classList.contains('hidden')) hidden.push(child);
                 });
             });
@@ -532,7 +523,7 @@ export default {
             function getSortedNodes(id) {
                 return Array.from(document.querySelectorAll(`#${id} .node`)).sort(compareTimestamp);
             }
-            
+
             this.nodesOrderedByTime = {};
             this.nodesOrderedByTime["debrief-steps-svg"] = getSortedNodes("debrief-steps-svg");
             this.nodesOrderedByTime["debrief-attackpath-svg"] = getSortedNodes("debrief-attackpath-svg");
@@ -624,23 +615,23 @@ div
   h2 Debrief
   p
     strong Campaign Analytics.
-    |  Debrief gathers overall campaign information and analytics for a selected 
-    |  set of operations. It provides a centralized view of operation metadata, graphical displays of 
+    |  Debrief gathers overall campaign information and analytics for a selected
+    |  set of operations. It provides a centralized view of operation metadata, graphical displays of
     |  the operations, the techniques and tactics used, and the facts discovered by the operations.
 
 hr
 
 div
   .buttons
-    button.button.is-primary.is-small(:disabled="!selectedOperationIds.length", @click="showGraphSettingsModal = true")
+    button.button.is-primary.is-small(:disabled="!selectedOperationId.length", @click="showGraphSettingsModal = true")
       span.icon.is-small
         font-awesome-icon(icon="fas fa-cog")
       span Graph Settings
-    button.button.is-primary.is-small(:disabled="!selectedOperationIds.length", @click="showReportModal = true")
+    button.button.is-primary.is-small(:disabled="!selectedOperationId.length", @click="showReportModal = true")
       span.icon.is-small
         font-awesome-icon(icon="fas fa-download")
       span Download PDF Report
-    button.button.is-primary.is-small(:disabled="!selectedOperationIds.length", @click="downloadJSON")
+    button.button.is-primary.is-small(:disabled="!selectedOperationId.length", @click="downloadJSON")
       span.icon.is-small
         font-awesome-icon(icon="fas fa-download")
       span Download Operation JSON
@@ -649,16 +640,16 @@ div
     .column.is-3
       form
         .field
-          label.label Select one or more operations
-          .control.is-expanded
-            .select.is-small.is-fullwidth.is-multiple
-              select(size="10", multiple, v-model="selectedOperationIds", @change="loadOperation")
+          .control.mr-2
+            .select.is-fullwidth
+              select.has-text-centered(v-model="selectedOperationId", @change="loadOperation")
+                option(disabled selected value="") Select an operation
                 template(v-for="operation in operations", :key="operation.id")
                   option(:value="operation.id") {{ operation.name }}
     .column.is-9.is-flex.is-justify-content-center.m-0
       #images(style="display: none")
       #copy
-      #debrief-graph.svg-container(v-show="selectedOperationIds.length")
+      #debrief-graph.svg-container(v-show="1")
         .d3-tooltip#op-tooltip(style="opacity: 0")
         .is-flex.graph-controls.m-2
           .select.is-small.mr-2
@@ -692,7 +683,7 @@ div
             span.icon.is-small
               font-awesome-icon(icon="fas fa-fast-forward")
 
-  .tabs.is-centered(v-show="selectedOperationIds.length")
+  .tabs.is-centered(v-show="selectedOperationId.length")
     ul.ml-0
       li(:class="{ 'is-active': activeTab === 'stats' }", @click="activeTab = 'stats'")
         a Stats
@@ -705,7 +696,7 @@ div
       li(:class="{ 'is-active': activeTab === 'facts' }", @click="activeTab = 'facts'")
         a Fact Graph
 
-  div(v-show="selectedOperationIds.length")
+  div(v-show="selectedOperationId.length")
     div(v-show="activeTab === 'stats'")
       table.table.is-striped
         caption Operation Statistics
@@ -945,3 +936,4 @@ div
             .level-item
               button.button.is-small(@click="showCommandModal = false") Close
 </template>
+

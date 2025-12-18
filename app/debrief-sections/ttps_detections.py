@@ -1,7 +1,7 @@
 import logging
 import re
 
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from reportlab.lib import colors
 
 from reportlab.lib.units import inch
@@ -237,7 +237,7 @@ class DebriefReportSection(BaseReportSection):
         # --------------------------------------------------------------
         # analytics_by_plat uses EXACT technique IDs
         # --------------------------------------------------------------
-        analytics_by_plat = {}
+        analytics_by_plat = OrderedDict()
         for plat in platforms:
             analytics_by_plat[plat] = self._a18.get_analytics(tid, platform=plat) or []
 

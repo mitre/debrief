@@ -64,9 +64,9 @@ class DebriefReportSection(BaseReportSection):
 
         # --- provenance: White Card vs Imported vs runtime PAWs ---
         is_whitecard = (
-            origin == 'IMPORTED' and
+            white_traits and origin == 'IMPORTED' and
             fact_source_id == op_source_id and
-            (not white_traits or trait in white_traits)
+            trait in white_traits
         )
 
         if is_whitecard:
@@ -80,8 +80,10 @@ class DebriefReportSection(BaseReportSection):
             if not paws:
                 for lid in (getattr(curr_fact, 'links', []) or []):
                     lnk = link_by_id.get(lid)
-                    if lnk and getattr(lnk, 'paw', None):
-                        paws.add(lnk.paw)
+                    if lnk:
+                        lnk_paw = getattr(lnk, 'paw', None)
+                        if lnk_paw:
+                            paws.add(lnk_paw)
             if paws:
                 paws = sorted(paws)
                 self.log.debug(f'[FACTS] runtime paws for trait {trait!r}: {paws}')

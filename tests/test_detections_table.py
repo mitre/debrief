@@ -76,8 +76,10 @@ def parse_datestring():
 def link_T1083_windows(op_link, win_agent, encode_command, parse_datestring):
     command = 'ls'
     link_exec = Executor(name='psh', platform='windows', command=command)
-    link_abil = Ability(ability_id='123', tactic='discovery', technique_id='T1083', technique_name='File and Directory Discovery',
-                        name='T1083 Ability', description='T1083 Ability Desc', executors=[link_exec])
+    link_abil = Ability(ability_id='1083-1', tactic='discovery', technique_id='T1083',
+                        technique_name='File and Directory Discovery',
+                        name='T1083 Ability Windows', description='T1083 Ability Windows Desc',
+                        executors=[link_exec])
     return op_link(ability=link_abil, paw=win_agent.paw, executor=link_exec,
                    command=encode_command(command), plaintext_command=encode_command(command), status=0, host=win_agent.host, pid=789,
                    decide=parse_datestring(LINK_DECIDE_TIME),
@@ -89,19 +91,81 @@ def link_T1083_windows(op_link, win_agent, encode_command, parse_datestring):
 def link_T1083_linux(op_link, linux_agent, encode_command, parse_datestring):
     command = 'ls'
     link_exec = Executor(name='sh', platform='linux', command=command)
-    link_abil = Ability(ability_id='123', tactic='discovery', technique_id='T1083', technique_name='File and Directory Discovery',
-                        name='T1083 Ability', description='T1083 Ability Desc', executors=[link_exec])
+    link_abil = Ability(ability_id='1083-2', tactic='discovery', technique_id='T1083',
+                        technique_name='File and Directory Discovery',
+                        name='T1083 Ability Linux', description='T1083 Ability Linux Desc',
+                        executors=[link_exec])
     return op_link(ability=link_abil, paw=linux_agent.paw, executor=link_exec,
-                   command=encode_command(command), plaintext_command=encode_command(command), status=0, host=linux_agent.host, pid=789,
+                   command=encode_command(command), plaintext_command=encode_command(command),
+                   status=0, host=linux_agent.host, pid=789,
                    decide=parse_datestring(LINK_DECIDE_TIME),
                    collect=parse_datestring(LINK_COLLECT_TIME),
                    finish=LINK_FINISH_TIME)
 
 
 @pytest.fixture
-def create_test_op():
-    def _create_test_op(name, agents, adversary, links=[]):
-        op = Operation(name=name, agents=agents, adversary=adversary)
+def link_T1547_001_windows(op_link, win_agent, encode_command, parse_datestring):
+    command = 'reg'
+    link_exec = Executor(name='psh', platform='windows', command=command)
+    link_abil = Ability(ability_id='1547-001-1', tactic='persistence',
+                        technique_id='T1547.001', name='T1547.001 Ability',
+                        technique_name='Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder',
+                        description='T1547.001 Ability Desc', executors=[link_exec])
+    return op_link(ability=link_abil, paw=win_agent.paw, executor=link_exec,
+                   command=encode_command(command), plaintext_command=encode_command(command),
+                   status=0, host=win_agent.host, pid=789,
+                   decide=parse_datestring(LINK_DECIDE_TIME),
+                   collect=parse_datestring(LINK_COLLECT_TIME),
+                   finish=LINK_FINISH_TIME)
+
+
+@pytest.fixture
+def link_T1560_001_windows(op_link, win_agent, encode_command, parse_datestring):
+    command = 'zip'
+    link_exec = Executor(name='psh', platform='windows', command=command)
+    link_abil = Ability(ability_id='1560-001-1', tactic='collection', technique_id='T1560.001',
+                        technique_name='Archive Collected Data: Archive via Utility',
+                        name='T1560.001 Ability Windows', description='T1560.001 Ability Windows Desc',
+                        executors=[link_exec])
+    return op_link(ability=link_abil, paw=win_agent.paw, executor=link_exec,
+                   command=encode_command(command), plaintext_command=encode_command(command),
+                   status=0, host=win_agent.host, pid=789,
+                   decide=parse_datestring(LINK_DECIDE_TIME),
+                   collect=parse_datestring(LINK_COLLECT_TIME),
+                   finish=LINK_FINISH_TIME)
+
+
+@pytest.fixture
+def link_T1560_001_linux(op_link, linux_agent, encode_command, parse_datestring):
+    command = 'zip'
+    link_exec = Executor(name='sh', platform='linux', command=command)
+    link_abil = Ability(ability_id='1560-001-2', tactic='collection', technique_id='T1560.001',
+                        technique_name='Archive Collected Data: Archive via Utility',
+                        name='T1560.001 Ability Linux', description='T1560.001 Ability Linux Desc',
+                        executors=[link_exec])
+    return op_link(ability=link_abil, paw=linux_agent.paw, executor=link_exec,
+                   command=encode_command(command), plaintext_command=encode_command(command),
+                   status=0, host=linux_agent.host, pid=789,
+                   decide=parse_datestring(LINK_DECIDE_TIME),
+                   collect=parse_datestring(LINK_COLLECT_TIME),
+                   finish=LINK_FINISH_TIME)
+
+@pytest.fixture
+def link_library(link_T1083_windows, link_T1083_linux, link_T1547_001_windows,
+                 link_T1560_001_windows, link_T1560_001_linux):
+    return {
+        'win_T1083': link_T1083_windows,
+        'lin_T1083': link_T1083_linux,
+        'win_T1547.001': link_T1547_001_windows,
+        'win_T1560.001': link_T1560_001_windows,
+        'lin_T1560.001': link_T1560_001_linux,
+    }
+
+
+@pytest.fixture
+def create_test_op(op_adversary):
+    def _create_test_op(name, agents, links=[]):
+        op = Operation(name=name, agents=agents, adversary=op_adversary)
         op.set_start_details()
         op.chain = links
         return op
@@ -135,6 +199,68 @@ class TestDetectionsTable:
         assert det_report_section._format_an_range(an_list1) == 'Analytic ( AN0001 to AN0003 )'
         assert det_report_section._format_an_range(an_list2) == 'Analytic ( AN0001 to AN0001 )'
         assert det_report_section._format_an_range(an_list3) == 'Analytic ( AN1202 to AN1205 )'
+
+    def test_get_op_platforms_and_tids(self, det_report_section, paw_to_platform, create_test_op,
+                                       win_agent, linux_agent, link_library):
+        # One agent, one platform
+        single_agent_links = [
+            link_library.get('win_T1083'),
+            link_library.get('win_T1083'),
+            link_library.get('win_T1547.001'),
+            link_library.get('win_T1560.001'),
+        ]
+        single_agent_op = create_test_op('single agent op', [win_agent], single_agent_links)
+        tid_to_platforms, tids = det_report_section._get_op_platforms_and_tids(single_agent_op, paw_to_platform)
+        assert tid_to_platforms == {
+            'T1083': {'windows'},
+            'T1547.001': {'windows'},
+            'T1560.001': {'windows'},
+        }
+        assert tids == {'T1083', 'T1547.001', 'T1560.001'}
+
+        # Two agents, two platforms
+        two_agent_links = [
+            link_library.get('win_T1083'),
+            link_library.get('win_T1083'),
+            link_library.get('win_T1547.001'),
+            link_library.get('win_T1560.001'),
+            link_library.get('lin_T1083'),
+            link_library.get('lin_T1083'),
+            link_library.get('lin_T1560.001'),
+        ]
+        two_agent_op = create_test_op('two agent op', [win_agent, linux_agent], two_agent_links)
+        tid_to_platforms2, tids2 = det_report_section._get_op_platforms_and_tids(two_agent_op, paw_to_platform)
+        assert tid_to_platforms2 == {
+            'T1083': {'windows', 'linux'},
+            'T1547.001': {'windows'},
+            'T1560.001': {'windows', 'linux'},
+        }
+        assert tids2 == {'T1083', 'T1547.001', 'T1560.001'}
+
+    def test_get_technique_detection_refs(self, det_report_section):
+        # Non-subtechnique
+        main_tid_ret = det_report_section._get_technique_detection_refs('T1083')
+        assert len(main_tid_ret) == 1
+        main_tid_det = main_tid_ret[0]
+        assert main_tid_det['strategy']['name'] == 'Recursive Enumeration of Files and Directories Across Privilege Contexts'
+        assert main_tid_det['strategy']['det_id'] == 'DET0370'
+        assert main_tid_det['det_id'] == 'DET0370'
+        assert main_tid_det['strategy']['name'] == main_tid_det['det_name']
+        assert main_tid_det['tid'] == 'T1083'
+
+        # Subtechnique
+        sub_tid_ret = det_report_section._get_technique_detection_refs('T1548.001')
+        assert len(sub_tid_ret) == 1
+        sub_tid_det = sub_tid_ret[0]
+        assert sub_tid_det['strategy']['name'] == 'Setuid/Setgid Privilege Abuse Detection (Linux/macOS)'
+        assert sub_tid_det['strategy']['det_id'] == 'DET0110'
+        assert sub_tid_det['det_id'] == 'DET0110'
+        assert sub_tid_det['strategy']['name'] == sub_tid_det['det_name']
+        assert sub_tid_det['tid'] == 'T1548.001'
+
+        # Force fallback with non-existent subtechnique
+        fallback_ret = det_report_section._get_technique_detection_refs('T1083.DNE')
+        assert fallback_ret == main_tid_ret
 
     def test_single_link(self, create_test_op):
         pass

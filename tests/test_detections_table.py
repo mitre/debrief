@@ -4,6 +4,8 @@ import importlib
 from base64 import b64encode
 from datetime import datetime
 
+from reportlab.platypus import Paragraph
+
 from app.objects.c_ability import Ability
 from app.objects.c_adversary import Adversary
 from app.objects.c_agent import Agent
@@ -182,8 +184,25 @@ def paw_to_platform(win_agent, linux_agent):
 
 @pytest.fixture
 def det_report_section():
-    return TTP_DET_MODULE.DebriefReportSection()
+    section = TTP_DET_MODULE.DebriefReportSection()
+    section._ensure_styles()
+    return section
 
+
+def compare_paragraphs(a, b):
+    return a.text == b.text and a.style == b.style
+
+
+def compare_rows(a, b):
+    if len(a) != len(b):
+        return False
+    for i, elem in enumerate(a):
+        if type(a) != type(b):
+            return False
+        elif type(a) is Paragraph:
+            if not compare_paragraphs(elem, b[i]):
+                return False
+    return True
 
 class TestDetectionsTable:
     def test_report_section_fields(self, det_report_section):
@@ -262,14 +281,196 @@ class TestDetectionsTable:
         fallback_ret = det_report_section._get_technique_detection_refs('T1083.DNE')
         assert fallback_ret == main_tid_ret
 
-    def test_single_link(self, create_test_op):
-        pass
+    def test_det_rows_single_platform(self, det_report_section):
+        refs = det_report_section._get_technique_detection_refs('T1083')
+        assert len(refs) == 1
+        rows, an_ids = det_report_section._build_det_appendix_rows(refs[0], ['windows'])
+        want_rows = [
+            [
+                'AN', 'Platform', 'Detection Statement',
+                'Data Component Elements (DC)', '', '',
+                'Mutable Elements', ''
+            ],
+            ['', '', '', 'Name', 'Channel', 'Data Component', 'Field', 'Description'],
+            [
+                Paragraph('AN1040', det_report_section.sty_cell_center),
+                Paragraph('Windows', det_report_section.sty_cell_center),
+                Paragraph("Execution of file enumeration commands (e.g., 'dir', 'tree') from non-standard processes or unusual user contexts, followed by recursive directory traversal or access to sensitive locations.", det_report_section.sty_cell_center),
+                Paragraph('WinEventLog:Security', det_report_section.cell_style),
+                Paragraph('EventCode=4688', det_report_section.cell_style),
+                Paragraph('Process Creation', det_report_section.cell_style),
+                Paragraph('CommandLineRegex', det_report_section.cell_style),
+                Paragraph('Allows tuning based on tools/scripts used for enumeration (e.g., tree, dir /s /b)', det_report_section.cell_style),
+            ],
+            [
+                Paragraph('AN1040', det_report_section.sty_cell_center),
+                Paragraph('Windows', det_report_section.sty_cell_center),
+                Paragraph("Execution of file enumeration commands (e.g., 'dir', 'tree') from non-standard processes or unusual user contexts, followed by recursive directory traversal or access to sensitive locations.", det_report_section.sty_cell_center),
+                Paragraph('WinEventLog:Security', det_report_section.cell_style),
+                Paragraph('EventCode=4688', det_report_section.cell_style),
+                Paragraph('Process Creation', det_report_section.cell_style),
+                Paragraph('UserContext', det_report_section.cell_style),
+                Paragraph('Scoping for standard vs elevated or service accounts', det_report_section.cell_style),
+            ],
+            [
+                Paragraph('AN1040', det_report_section.sty_cell_center),
+                Paragraph('Windows', det_report_section.sty_cell_center),
+                Paragraph("Execution of file enumeration commands (e.g., 'dir', 'tree') from non-standard processes or unusual user contexts, followed by recursive directory traversal or access to sensitive locations.", det_report_section.sty_cell_center),
+                Paragraph('WinEventLog:Security', det_report_section.cell_style),
+                Paragraph('EventCode=4688', det_report_section.cell_style),
+                Paragraph('File Creation', det_report_section.cell_style),
+                Paragraph('TimeWindow', det_report_section.cell_style),
+                Paragraph('Defines burst activity over short periods (e.g., &gt;50 directory queries in 30s)', det_report_section.cell_style),
+            ],
+            [
+                Paragraph('AN1040', det_report_section.sty_cell_center),
+                Paragraph('Windows', det_report_section.sty_cell_center),
+                Paragraph("Execution of file enumeration commands (e.g., 'dir', 'tree') from non-standard processes or unusual user contexts, followed by recursive directory traversal or access to sensitive locations.", det_report_section.sty_cell_center),
+                Paragraph('WinEventLog:Sysmon', det_report_section.cell_style),
+                Paragraph('EventCode=11', det_report_section.cell_style),
+                Paragraph('File Creation', det_report_section.cell_style),
+                Paragraph('CommandLineRegex', det_report_section.cell_style),
+                Paragraph('Allows tuning based on tools/scripts used for enumeration (e.g., tree, dir /s /b)', det_report_section.cell_style),
+            ],
+            [
+                Paragraph('AN1040', det_report_section.sty_cell_center),
+                Paragraph('Windows', det_report_section.sty_cell_center),
+                Paragraph("Execution of file enumeration commands (e.g., 'dir', 'tree') from non-standard processes or unusual user contexts, followed by recursive directory traversal or access to sensitive locations.", det_report_section.sty_cell_center),
+                Paragraph('WinEventLog:Sysmon', det_report_section.cell_style),
+                Paragraph('EventCode=11', det_report_section.cell_style),
+                Paragraph('File Creation', det_report_section.cell_style),
+                Paragraph('UserContext', det_report_section.cell_style),
+                Paragraph('Scoping for standard vs elevated or service accounts', det_report_section.cell_style),
+            ],
+            [
+                Paragraph('AN1040', det_report_section.sty_cell_center),
+                Paragraph('Windows', det_report_section.sty_cell_center),
+                Paragraph("Execution of file enumeration commands (e.g., 'dir', 'tree') from non-standard processes or unusual user contexts, followed by recursive directory traversal or access to sensitive locations.", det_report_section.sty_cell_center),
+                Paragraph('WinEventLog:Sysmon', det_report_section.cell_style),
+                Paragraph('EventCode=11', det_report_section.cell_style),
+                Paragraph('Process Creation', det_report_section.cell_style),
+                Paragraph('TimeWindow', det_report_section.cell_style),
+                Paragraph('Defines burst activity over short periods (e.g., &gt;50 directory queries in 30s)', det_report_section.cell_style),
+            ]
+        ]
+        assert len(rows) == len(want_rows)
+        for i, want_row in enumerate(want_rows):
+            assert compare_rows(want_row, rows[i])
+        assert an_ids == {'AN1040'}
 
-    def test_single_tid_multi_platform(self, create_test_op):
-        pass
-
-    def test_single_tid_repeated_platform(self, create_test_op):
-        pass
-
-    def test_multi_tid(self, create_test_op):
-        pass
+    def test_det_rows_multi_platform(self, det_report_section):
+        refs = det_report_section._get_technique_detection_refs('T1083')
+        assert len(refs) == 1
+        rows, an_ids = det_report_section._build_det_appendix_rows(refs[0], ['linux', 'windows'])
+        want_rows = [
+            [
+                'AN', 'Platform', 'Detection Statement',
+                'Data Component Elements (DC)', '', '',
+                'Mutable Elements', ''
+            ],
+            ['', '', '', 'Name', 'Channel', 'Data Component', 'Field', 'Description'],
+            [
+                Paragraph('AN1041', det_report_section.sty_cell_center),
+                Paragraph('Linux', det_report_section.sty_cell_center),
+                Paragraph("Use of file enumeration commands (e.g., 'ls', 'find', 'locate') executed by suspicious users or scripts accessing broad file hierarchies or restricted directories.", det_report_section.sty_cell_center),
+                Paragraph('auditd:SYSCALL', det_report_section.cell_style),
+                Paragraph('execve', det_report_section.cell_style),
+                Paragraph('Process Creation', det_report_section.cell_style),
+                Paragraph('FilePathDepth', det_report_section.cell_style),
+                Paragraph('Max depth of recursive access to tune noise vs anomaly', det_report_section.cell_style),
+            ],
+            [
+                Paragraph('AN1041', det_report_section.sty_cell_center),
+                Paragraph('Linux', det_report_section.sty_cell_center),
+                Paragraph("Use of file enumeration commands (e.g., 'ls', 'find', 'locate') executed by suspicious users or scripts accessing broad file hierarchies or restricted directories.", det_report_section.sty_cell_center),
+                Paragraph('auditd:SYSCALL', det_report_section.cell_style),
+                Paragraph('execve', det_report_section.cell_style),
+                Paragraph('Process Creation', det_report_section.cell_style),
+                Paragraph('UserContext', det_report_section.cell_style),
+                Paragraph('Helpful to exclude known scripts or automation accounts', det_report_section.cell_style),
+            ],
+            [
+                Paragraph('AN1041', det_report_section.sty_cell_center),
+                Paragraph('Linux', det_report_section.sty_cell_center),
+                Paragraph("Use of file enumeration commands (e.g., 'ls', 'find', 'locate') executed by suspicious users or scripts accessing broad file hierarchies or restricted directories.", det_report_section.sty_cell_center),
+                Paragraph('auditd:PATH', det_report_section.cell_style),
+                Paragraph('execve', det_report_section.cell_style),
+                Paragraph('File Access', det_report_section.cell_style),
+                Paragraph('FilePathDepth', det_report_section.cell_style),
+                Paragraph('Max depth of recursive access to tune noise vs anomaly', det_report_section.cell_style),
+            ],
+            [
+                Paragraph('AN1041', det_report_section.sty_cell_center),
+                Paragraph('Linux', det_report_section.sty_cell_center),
+                Paragraph("Use of file enumeration commands (e.g., 'ls', 'find', 'locate') executed by suspicious users or scripts accessing broad file hierarchies or restricted directories.", det_report_section.sty_cell_center),
+                Paragraph('auditd:PATH', det_report_section.cell_style),
+                Paragraph('execve', det_report_section.cell_style),
+                Paragraph('File Access', det_report_section.cell_style),
+                Paragraph('UserContext', det_report_section.cell_style),
+                Paragraph('Helpful to exclude known scripts or automation accounts', det_report_section.cell_style),
+            ],
+            [
+                Paragraph('AN1040', det_report_section.sty_cell_center),
+                Paragraph('Windows', det_report_section.sty_cell_center),
+                Paragraph("Execution of file enumeration commands (e.g., 'dir', 'tree') from non-standard processes or unusual user contexts, followed by recursive directory traversal or access to sensitive locations.", det_report_section.sty_cell_center),
+                Paragraph('WinEventLog:Security', det_report_section.cell_style),
+                Paragraph('EventCode=4688', det_report_section.cell_style),
+                Paragraph('Process Creation', det_report_section.cell_style),
+                Paragraph('CommandLineRegex', det_report_section.cell_style),
+                Paragraph('Allows tuning based on tools/scripts used for enumeration (e.g., tree, dir /s /b)', det_report_section.cell_style),
+            ],
+            [
+                Paragraph('AN1040', det_report_section.sty_cell_center),
+                Paragraph('Windows', det_report_section.sty_cell_center),
+                Paragraph("Execution of file enumeration commands (e.g., 'dir', 'tree') from non-standard processes or unusual user contexts, followed by recursive directory traversal or access to sensitive locations.", det_report_section.sty_cell_center),
+                Paragraph('WinEventLog:Security', det_report_section.cell_style),
+                Paragraph('EventCode=4688', det_report_section.cell_style),
+                Paragraph('Process Creation', det_report_section.cell_style),
+                Paragraph('UserContext', det_report_section.cell_style),
+                Paragraph('Scoping for standard vs elevated or service accounts', det_report_section.cell_style),
+            ],
+            [
+                Paragraph('AN1040', det_report_section.sty_cell_center),
+                Paragraph('Windows', det_report_section.sty_cell_center),
+                Paragraph("Execution of file enumeration commands (e.g., 'dir', 'tree') from non-standard processes or unusual user contexts, followed by recursive directory traversal or access to sensitive locations.", det_report_section.sty_cell_center),
+                Paragraph('WinEventLog:Security', det_report_section.cell_style),
+                Paragraph('EventCode=4688', det_report_section.cell_style),
+                Paragraph('File Creation', det_report_section.cell_style),
+                Paragraph('TimeWindow', det_report_section.cell_style),
+                Paragraph('Defines burst activity over short periods (e.g., &gt;50 directory queries in 30s)', det_report_section.cell_style),
+            ],
+            [
+                Paragraph('AN1040', det_report_section.sty_cell_center),
+                Paragraph('Windows', det_report_section.sty_cell_center),
+                Paragraph("Execution of file enumeration commands (e.g., 'dir', 'tree') from non-standard processes or unusual user contexts, followed by recursive directory traversal or access to sensitive locations.", det_report_section.sty_cell_center),
+                Paragraph('WinEventLog:Sysmon', det_report_section.cell_style),
+                Paragraph('EventCode=11', det_report_section.cell_style),
+                Paragraph('File Creation', det_report_section.cell_style),
+                Paragraph('CommandLineRegex', det_report_section.cell_style),
+                Paragraph('Allows tuning based on tools/scripts used for enumeration (e.g., tree, dir /s /b)', det_report_section.cell_style),
+            ],
+            [
+                Paragraph('AN1040', det_report_section.sty_cell_center),
+                Paragraph('Windows', det_report_section.sty_cell_center),
+                Paragraph("Execution of file enumeration commands (e.g., 'dir', 'tree') from non-standard processes or unusual user contexts, followed by recursive directory traversal or access to sensitive locations.", det_report_section.sty_cell_center),
+                Paragraph('WinEventLog:Sysmon', det_report_section.cell_style),
+                Paragraph('EventCode=11', det_report_section.cell_style),
+                Paragraph('File Creation', det_report_section.cell_style),
+                Paragraph('UserContext', det_report_section.cell_style),
+                Paragraph('Scoping for standard vs elevated or service accounts', det_report_section.cell_style),
+            ],
+            [
+                Paragraph('AN1040', det_report_section.sty_cell_center),
+                Paragraph('Windows', det_report_section.sty_cell_center),
+                Paragraph("Execution of file enumeration commands (e.g., 'dir', 'tree') from non-standard processes or unusual user contexts, followed by recursive directory traversal or access to sensitive locations.", det_report_section.sty_cell_center),
+                Paragraph('WinEventLog:Sysmon', det_report_section.cell_style),
+                Paragraph('EventCode=11', det_report_section.cell_style),
+                Paragraph('Process Creation', det_report_section.cell_style),
+                Paragraph('TimeWindow', det_report_section.cell_style),
+                Paragraph('Defines burst activity over short periods (e.g., &gt;50 directory queries in 30s)', det_report_section.cell_style),
+            ]
+        ]
+        assert len(rows) == len(want_rows)
+        for i, want_row in enumerate(want_rows):
+            assert compare_rows(want_row, rows[i])
+        assert an_ids == {'AN1040', 'AN1041'}

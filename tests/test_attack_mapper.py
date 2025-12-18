@@ -1,9 +1,7 @@
-# pytest tests
-
 import pytest
 import json
 
-import attack_mapper
+from plugins.debrief.attack_mapper import Attack18Map, index_bundle, _extract_tid, _parent_tid, _normalize_analytic
 
 @pytest.fixture
 def example_data_comp_by_id():
@@ -1605,18 +1603,18 @@ def example_attack_pattern_no_tid_ref():
 
 @pytest.fixture
 def example_attack18_map(example_bundle_v18):
-    return attack_mapper.Attack18Map(attack_mapper.index_bundle(example_bundle_v18))
+    return Attack18Map(index_bundle(example_bundle_v18))
 
 class TestAttackMapper:
     def test_extract_tid(self, example_attack_pattern, example_attack_pattern_no_tid_ref):
-        assert attack_mapper._extract_tid(example_attack_pattern) == 'T1055.011'
-        assert attack_mapper._extract_tid(example_attack_pattern_no_tid_ref) is None
+        assert _extract_tid(example_attack_pattern) == 'T1055.011'
+        assert _extract_tid(example_attack_pattern_no_tid_ref) is None
 
     def test_parent_tid(self):
-        assert attack_mapper._parent_tid('T1000.123') == 'T1000'
-        assert attack_mapper._parent_tid('t1000.123') == 'T1000'
-        assert attack_mapper._parent_tid('T1000') == 'T1000'
-        assert attack_mapper._parent_tid('t1000') == 'T1000'
+        assert _parent_tid('T1000.123') == 'T1000'
+        assert _parent_tid('t1000.123') == 'T1000'
+        assert _parent_tid('T1000') == 'T1000'
+        assert _parent_tid('t1000') == 'T1000'
 
     def test_normalize_analytic(self, example_analytic, example_data_comp_by_id):
         want_row = {
@@ -1653,9 +1651,9 @@ class TestAttackMapper:
                 "data_component": "Command Execution"
             },
         ]
-        row, dc_elements = attack_mapper._normalize_analytic(example_analytic, example_data_comp_by_id)
+        row, dc_elements = _normalize_analytic(example_analytic, example_data_comp_by_id)
         assert row == want_row
-        assert want_dc_elements == want_dc_elements
+        assert dc_elements == want_dc_elements
 
     def test_index_bundle_v18(self, example_bundle_v18, example_techniques_by_id, example_strategies_by_tid, example_analytics_by_tid):
         want = {
@@ -1663,7 +1661,7 @@ class TestAttackMapper:
             'strategies_by_tid': example_strategies_by_tid,
             'analytics_by_tid': example_analytics_by_tid,
         }
-        assert attack_mapper.index_bundle(example_bundle_v18) == want
+        assert index_bundle(example_bundle_v18) == want
 
     def test_example_get_strategies(self, example_attack18_map):
         want = [{
@@ -1689,4 +1687,3 @@ class TestAttackMapper:
         assert example_attack18_map.get_analytics('T1083', 'windows') == [want[0]]
         assert example_attack18_map.get_analytics('T1083', 'Linux') == [want[1]]
         assert example_attack18_map.get_analytics('T1083', 'DNE') == []
-

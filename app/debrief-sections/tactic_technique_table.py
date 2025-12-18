@@ -9,8 +9,6 @@ from html import escape
 from plugins.debrief.app.utility.base_report_section import BaseReportSection
 from plugins.debrief.app.debrief_svc import DebriefService
 
-from plugins.debrief.attack_mapper import get_attack18
-
 
 class DebriefReportSection(BaseReportSection):
     def __init__(self):

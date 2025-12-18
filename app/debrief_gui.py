@@ -447,5 +447,5 @@ class TemplateSwitchDoc(SimpleDocTemplate):
             # If locked, keep reasserting the template after each flowable
             if getattr(self, '_locked_template', None):
                 self.handle_nextPageTemplate(self._locked_template)
-        except Exception:
-            pass
+        except Exception as e:
+            logging.error('Error while processing flowable in TemplateSwitchDoc.afterFlowable: %r', e)

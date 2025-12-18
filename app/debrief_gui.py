@@ -121,7 +121,7 @@ class DebriefGui(BaseWorld):
                 safe_op_name = re.sub(r'[^A-Za-z0-9_-]+', '-', op_name)
                 date_part = datetime.now().strftime('%Y_%m_%d')
                 filename = f'{safe_op_name}_Debrief_{date_part}.pdf'
-                runtime_agents = self._get_runtime_agents(operations, await self.data_svc.locate('agents'))
+                runtime_agents = self._get_runtime_agents(operations)
                 pdf_bytes = await self._build_pdf(operations, runtime_agents, filename, data['report-sections'], header_logo_path)
                 return web.json_response(dict(filename=filename, pdf_bytes=pdf_bytes))
             return web.json_response({'error': 'No operations selected'}, status=400)
@@ -188,17 +188,19 @@ class DebriefGui(BaseWorld):
             self.report_section_names.sort(key=lambda s: s['name'].lower())
             self.loaded_report_sections = True
 
-    def _get_runtime_agents(self, operations, agents):
-        runtime_paws = set()
+    def _get_runtime_agents(self, operations):
+        added_paws = set()
+        executed_paws = set()
         runtime_agents = []
         for op in operations or []:
             for ln in getattr(op, 'chain', []) or []:
                 paw = getattr(ln, 'paw', None)
                 if paw:
-                    runtime_paws.add(paw)
-        for agent in agents:
-            if agent.paw in runtime_paws:
-                runtime_agents.append(agent)
+                    executed_paws.add(paw)
+            for agent in op.agents:
+                if agent.paw not in added_paws:
+                    runtime_agents.append(agent)
+                    added_paws.add(agent.paw)
         return runtime_agents
 
     def _pretty_name(self, trait: str) -> str:

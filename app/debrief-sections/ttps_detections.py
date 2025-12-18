@@ -155,26 +155,23 @@ class DebriefReportSection(BaseReportSection):
         if not operations:
             return flows
 
-        if not getattr(self, '_section_band_added', False):
-            op_name = (getattr(operations[0], 'name', None) or 'Operation').strip()
-            flows.append(self._section_band(f'Detections for {op_name}'))
+        op_name = (getattr(operations[0], 'name', None) or 'Operation').strip()
+        flows.append(self._section_band(f'Detections for {op_name}'))
 
-            # Add the one-time intro paragraph here (not per DET)
-            flows.append(Paragraph(
-                'This section lists mapping of Analytic Elements to Data Components and their tunable fields for the selected operation.',
-                ParagraphStyle(
-                    name='DetectionsIntro',
-                    parent=self.styles['Normal'],
-                    fontName='Helvetica',
-                    fontSize=9,
-                    leading=11,
-                    alignment=TA_CENTER,
-                    spaceBefore=6,
-                    spaceAfter=10,
-                )
-            ))
-
-            self._section_band_added = True
+        # Add the intro paragraph here (not per DET)
+        flows.append(Paragraph(
+            'This section lists mapping of Analytic Elements to Data Components and their tunable fields for the selected operation.',
+            ParagraphStyle(
+                name='DetectionsIntro',
+                parent=self.styles['Normal'],
+                fontName='Helvetica',
+                fontSize=9,
+                leading=11,
+                alignment=TA_CENTER,
+                spaceBefore=6,
+                spaceAfter=10,
+            )
+        ))
 
         agents = kwargs.get('agents', []) or []
         paw_to_platform = {getattr(a, 'paw', None): getattr(a, 'platform', None) for a in agents}

@@ -55,14 +55,13 @@ class DebriefReportSection(BaseReportSection):
                     strategies = self._a18.get_strategies(tid) or []
 
                     for s in strategies:
-                        det = self._normalize_det_id(s.get('det_id') or '')
-                        if not det or det in predeclared:
+                        normalized_det = self._normalize_det_id(s.get('det_id') or '')
+                        if not normalized_det or normalized_det in predeclared:
                             continue
 
-                        anchor = self._anchor_for_det(det)
-                        anchors.append(Paragraph(f'<a name="{anchor}"/>', styles['Normal']))
+                        anchors.append(Paragraph(f'<a name="{normalized_det}"/>', styles['Normal']))
                         predeclared.add(det)
-                        self.log.debug(f'[TT-PREDECL] emitted anchor for {det} -> {anchor}')
+                        self.log.debug(f'[TT-PREDECL] emitted anchor for {normalized_det}')
 
             # ----------------------------------------------------------
             # Build section as ONE KeepTogether block containing:
@@ -134,7 +133,7 @@ class DebriefReportSection(BaseReportSection):
 
         # Build the PDF link (safe: appendix WILL contain this anchor)
         try:
-            det_anchor = self._anchor_for_det(det_label)
+            det_anchor = self._normalize_det_id(det_label)
             link = f'<link href="#{escape(det_anchor)}" color="blue">{escape(det_label)}</link>'
             return link
         except Exception:
@@ -264,10 +263,6 @@ class DebriefReportSection(BaseReportSection):
             # Safe text mode
             clean = [escape(str(s or '')) for s in (lines or [])]
         return '<br/>'.join(clean) or '—'
-
-    @staticmethod
-    def _anchor_for_det(det_id):
-        return (det_id or '').upper().replace('DET-', 'DET')
 
     def _normalize_det_id(self, det_id: str, fallback=None):
         if not det_id:

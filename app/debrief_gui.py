@@ -226,7 +226,7 @@ class DebriefGui(BaseWorld):
 
         story_obj = Story()
         story_obj.set_header_logo_path(header_logo_path)
-        story_obj.append(Spacer(1, 12), spacing=0)
+        story_obj.append(Spacer(1, 36))
         styles = getSampleStyleSheet()
 
         # Decide if Detections is the only section (controls first page orientation)
@@ -286,37 +286,6 @@ class DebriefGui(BaseWorld):
             for file in glob.glob('./plugins/debrief/downloads/*.svg'):
                 graph_files[os.path.basename(file).split('.')[0]] = file
 
-        # ---------------------------------------------------------
-        # PREDECLARE ALL DET ANCHORS BEFORE ANY SECTION BUILDS
-        # ---------------------------------------------------------
-        all_dets = set()
-
-        # Collect ALL DET IDs used by techniques in this report
-        for op in operations:
-            for link in getattr(op, 'chain', []):
-                tid = getattr(getattr(link, 'ability', None), 'technique_id', '')
-                if not tid:
-                    continue
-
-                # 1) normalize TID
-                tid = tid.strip().upper()
-                ptid = tid.split('.')[0]
-
-                # 2) get correct strategies: child first, same as tactic_technique_table
-                child_strats = self._a18.get_strategies(tid) or []
-                parent_strats = self._a18.get_strategies(ptid) or []
-                strategies = child_strats if child_strats else parent_strats
-
-                # 3) collect DET IDs
-                for s in strategies:
-                    det_id = s.get('det_id', '')
-                    if det_id:
-                        all_dets.add(det_id)
-
-        # Emit anchors now (before TTP table builds links)
-        for det in sorted(all_dets):
-            story_obj.append(Paragraph(f'<a name="{det}"></a>', styles['Normal']), spacing=0)
-            self.log.debug('[DET-PREDECLARE] created anchor for %s', det)
         try:
             # ---- COVER: ----
             cover_module = self.report_section_modules.get('main-summary')

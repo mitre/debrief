@@ -4,10 +4,10 @@ import logging
 
 from app.utility.base_world import BaseWorld
 from plugins.debrief.app.debrief_gui import DebriefGui
-from plugins.debrief.attack_mapper import load_attack18_map, CACHE_PATH
+from plugins.debrief.attack_mapper import fetch_and_cache, CACHE_PATH
 
 name = 'Debrief'
-description = 'some good bones'
+description = 'Operation debrief functionality'
 address = '/plugin/debrief/gui'
 access = BaseWorld.Access.RED
 log = logging.getLogger('debrief_hook')
@@ -16,11 +16,8 @@ log = logging.getLogger('debrief_hook')
 async def _init_attack18_cache():
     # Background init so UI isn't blocked
     async with aiohttp.ClientSession() as session:
-        async def _get(url: str):
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as resp:
-                return resp.status, await resp.text()
         try:
-            _ = await load_attack18_map(_get)   # fetch + write cache
+            await fetch_and_cache(session.get, path=CACHE_PATH)   # fetch + write cache
             log.info(f'ATT&CK v18 cache initialized at {CACHE_PATH}')
         except Exception as ex:
             log.warning(f'ATT&CK v18 cache not initialized: {ex}')

@@ -209,7 +209,7 @@ class DebriefGui(BaseWorld):
         return ' '.join(p.capitalize() for p in str(trait).replace('_', '.').split('.') if p)
 
     async def _build_pdf(self, operations, agents, filename, sections, header_logo_path):
-        self._landscape_locked = False
+        _landscape_locked = False
         pdf_buffer = BytesIO()
         doc = TemplateSwitchDoc(
             pdf_buffer,
@@ -223,7 +223,7 @@ class DebriefGui(BaseWorld):
 
         story_obj = Story()
         story_obj.set_header_logo_path(header_logo_path)
-        story_obj.append(Spacer(1, 36))
+        story_obj.append(Spacer(1, 12), spacing=0)
         styles = getSampleStyleSheet()
 
         # Decide if Detections is the only section (controls first page orientation)
@@ -267,7 +267,7 @@ class DebriefGui(BaseWorld):
                 portrait_tpl,
                 portrait_first_tpl,
             ])
-            story_obj.append(LockTemplateMarker('Landscape'))
+            story_obj.append(LockTemplateMarker('Landscape'), spacing=0)
         else:
             # Default is portrait; we'll switch to landscape only for the detections block
             doc.addPageTemplates([
@@ -314,7 +314,7 @@ class DebriefGui(BaseWorld):
 
         # Emit anchors now (before TTP table builds links)
         for det in sorted(all_dets):
-            story_obj.append(Paragraph(f'<a name="{det}"></a>', styles['Normal']))
+            story_obj.append(Paragraph(f'<a name="{det}"></a>', styles['Normal']), spacing=0)
             self.log.debug('[DET-PREDECLARE] created anchor for %s', det)
         try:
             # ---- COVER: ----
@@ -350,13 +350,13 @@ class DebriefGui(BaseWorld):
                     graph_files=graph_files,
                     selected_sections=sections
                 )
-                if section == 'ttps-detections' and not self._landscape_locked and not detections_only:
-                    story_obj.append(UseTemplateMarker('LandscapeFirst'))
-                    story_obj.append(PageBreak())
+                if section == 'ttps-detections' and not _landscape_locked and not detections_only:
+                    story_obj.append(UseTemplateMarker('LandscapeFirst'), spacing=0)
+                    story_obj.append(PageBreak(), spacing=0)
 
                     # lock landscape for the remainder of the doc
-                    story_obj.append(LockTemplateMarker('Landscape'))
-                    self._landscape_locked = True
+                    story_obj.append(LockTemplateMarker('Landscape'), spacing=0)
+                    _landscape_locked = True
 
                 for f in flowables:
                     story_obj.append(f)

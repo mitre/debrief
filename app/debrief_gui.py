@@ -42,7 +42,7 @@ class DebriefGui(BaseWorld):
         self.report_section_modules = dict()
         self.report_section_names = list()
         self.loaded_report_sections = False
-        self._a18 = get_attack18()  # lazy load Attack18Map
+        self._a18 = None
 
         rl_settings.trustedHosts = BaseWorld.get_config(prop='reportlab_trusted_hosts', name='debrief') or None
 
@@ -105,7 +105,6 @@ class DebriefGui(BaseWorld):
 
     async def download_pdf(self, request):
         data = dict(await request.json())
-        self.log.debug('PDF download request ops: ' + str(data['operations']))
         svg_data = data['graphs']
         header_logo_filename = data.get('header-logo')
         self._save_svgs(svg_data)
@@ -123,6 +122,7 @@ class DebriefGui(BaseWorld):
                 filename = f'{safe_op_name}_Debrief_{date_part}.pdf'
                 runtime_agents = self._get_runtime_agents(operations)
                 pdf_bytes = await self._build_pdf(operations, runtime_agents, filename, data['report-sections'], header_logo_path)
+                self.log.info('Generated PDF')
                 return web.json_response(dict(filename=filename, pdf_bytes=pdf_bytes))
             return web.json_response({'error': 'No operations selected'}, status=400)
         except Exception as e:
@@ -209,6 +209,9 @@ class DebriefGui(BaseWorld):
         return ' '.join(p.capitalize() for p in str(trait).replace('_', '.').split('.') if p)
 
     async def _build_pdf(self, operations, agents, filename, sections, header_logo_path):
+        if not self._a18:
+            self._a18 = get_attack18()  # lazy load Attack18Map
+
         _landscape_locked = False
         pdf_buffer = BytesIO()
         doc = TemplateSwitchDoc(
@@ -289,7 +292,6 @@ class DebriefGui(BaseWorld):
         all_dets = set()
 
         # Collect ALL DET IDs used by techniques in this report
-        self.log.debug('Building PDFs for operations: ' + str(operations))
         for op in operations:
             for link in getattr(op, 'chain', []):
                 tid = getattr(getattr(link, 'ability', None), 'technique_id', '')

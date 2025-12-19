@@ -255,14 +255,12 @@ class DebriefReportSection(BaseReportSection):
 
                 self.log.debug(f'  [DET] row det_id={a_row.get('det_id')} an_id={an_id} tech={a_row.get('technique_id')}')
 
-                row_det = a_row.get('det_id', '').strip()
-                row_det_norm = self._normalize_det_id(row_det, fallback=row_det)
-                det_norm = self._normalize_det_id(det_id, fallback=det_id)
+                row_det_id = a_row.get('det_id', '').strip()
 
                 # DET matching logic
-                if row_det:
-                    if row_det_norm != det_norm:
-                        self.log.warn(f'Mismatching analytic detection ID {row_det_norm} and referenced detection ID {det_norm}')
+                if row_det_id:
+                    if row_det_id != det_id:
+                        self.log.warn(f'Mismatching analytic detection ID {row_det_id} and referenced detection ID {det_id}')
                         continue
                 else:
                     self.log.warn(f'Did not find detection ID for analytic {an_id}')
@@ -335,7 +333,7 @@ class DebriefReportSection(BaseReportSection):
 
             refs = self._get_technique_detection_refs(tid)
             if not refs:
-                self.log.warn(f'[DET] No detection strategies found for TID {tid} or parent.')
+                self.log.warn(f'[DET] No detection strategies found for TID {tid} or parent)')
                 continue
 
             self.log.debug(f'[DET] Built {len(refs)} unique detection strategy references for TID {tid}')
@@ -345,9 +343,9 @@ class DebriefReportSection(BaseReportSection):
             # ------------------------------------------------------------------
             processed_refs = set()
             for ref in refs:
-                det_id = ref.get('det_id')
+                det_id = ref.get('det_id', '')
                 det_name = ref.get('det_name', '')
-                if det_id in processed_refs:
+                if not det_id or det_id in processed_refs:
                     continue
 
                 processed_refs.add(det_id)
@@ -360,8 +358,7 @@ class DebriefReportSection(BaseReportSection):
                 tbl.spaceBefore = 0
                 tbl.spaceAfter = 0
 
-                normalized_det_id = self._normalize_det_id(det_id)
-                flows.append(Paragraph(f'<a name="{normalized_det_id}"></a>', self.styles['Normal']))
+                flows.append(Paragraph(f'<a name="{det_id}"></a>', self.styles['Normal']))
                 hdr_block = self._build_det_header_block(det_id, det_name, sorted(an_ids))
                 flows.append(KeepTogether(hdr_block + [tbl]))
         return flows
@@ -575,20 +572,16 @@ class DebriefReportSection(BaseReportSection):
         out, seen = [], set()
         for s in strategies:
             det_id = s.get('det_id', '').strip()
-            if not det_id:
+            if not det_id or det_id in seen:
                 continue
 
-            normalized_det_id = self._normalize_det_id(det_id)
-            if normalized_det_id in seen:
-                continue
-
-            seen.add(normalized_det_id)
+            seen.add(det_id)
             ret_strat = dict(s)
-            ret_strat['det_id'] = normalized_det_id  # keep normalized id on the strategy (downstream checks rely on this)
+            ret_strat['det_id'] = det_id
             out.append({
                 'strategy': ret_strat,
-                'det_id': normalized_det_id,
-                'det_name': ret_strat.get('name', normalized_det_id),
+                'det_id': det_id,
+                'det_name': ret_strat.get('name', det_id),
                 'tid': tid
             })
         return out
@@ -605,14 +598,3 @@ class DebriefReportSection(BaseReportSection):
             uniq = sorted(set(filter(None, an_ids)))
             return f'Analytic ( {', '.join(uniq) if uniq else '—'} )'
         return f'Analytic ( AN{min(nums):04d} to AN{max(nums):04d} )'
-
-    def _normalize_det_id(self, det_id: str, fallback=None):
-        if not det_id:
-            return fallback
-
-        s = det_id.upper().replace('DET', '')
-        digits = ''.join(ch for ch in s if ch.isdigit())
-
-        if digits:
-            return f'DET{digits}'     # <-- NO DASH VERSION
-        return fallback

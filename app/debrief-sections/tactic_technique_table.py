@@ -55,13 +55,13 @@ class DebriefReportSection(BaseReportSection):
                     strategies = self._a18.get_strategies(tid) or []
 
                     for s in strategies:
-                        normalized_det = self._normalize_det_id(s.get('det_id') or '')
-                        if not normalized_det or normalized_det in predeclared:
+                        det_id = s.get('det_id', '')
+                        if not det_id or det_id in predeclared:
                             continue
 
-                        anchors.append(Paragraph(f'<a name="{normalized_det}"/>', styles['Normal']))
-                        predeclared.add(det)
-                        self.log.debug(f'[TT-PREDECL] emitted anchor for {normalized_det}')
+                        anchors.append(Paragraph(f'<a name="{det_id}"/>', styles['Normal']))
+                        predeclared.add(det_id)
+                        self.log.debug(f'[TT-PREDECL] emitted anchor for {det_id}')
 
             # ----------------------------------------------------------
             # Build section as ONE KeepTogether block containing:
@@ -100,7 +100,7 @@ class DebriefReportSection(BaseReportSection):
         # Collect allowed DETs from strategies (appendix will render only these)
         valid_strategy_dets = []
         for s in strategies:
-            det_id = self._normalize_det_id(s.get('det_id') or '')
+            det_id = s.get('det_id', '')
             if det_id:
                 valid_strategy_dets.append(det_id)
 
@@ -119,7 +119,7 @@ class DebriefReportSection(BaseReportSection):
 
         for det in valid_strategy_dets:
             for row in analytics:
-                row_det = self._normalize_det_id(row.get('det_id') or '')
+                row_det = row.get('det_id', '')
                 if row_det != det:
                     continue
                 child_hits.append(det)
@@ -133,8 +133,7 @@ class DebriefReportSection(BaseReportSection):
 
         # Build the PDF link (safe: appendix WILL contain this anchor)
         try:
-            det_anchor = self._normalize_det_id(det_label)
-            link = f'<link href="#{escape(det_anchor)}" color="blue">{escape(det_label)}</link>'
+            link = f'<link href="#{escape(det_label)}" color="blue">{escape(det_label)}</link>'
             return link
         except Exception:
             self.log.exception('[ERR-TTP-09] DET link building failed')
@@ -263,14 +262,3 @@ class DebriefReportSection(BaseReportSection):
             # Safe text mode
             clean = [escape(str(s or '')) for s in (lines or [])]
         return '<br/>'.join(clean) or '—'
-
-    def _normalize_det_id(self, det_id: str, fallback=None):
-        if not det_id:
-            return fallback
-
-        s = det_id.upper().replace('DET', '')
-        digits = ''.join(ch for ch in s if ch.isdigit())
-
-        if digits:
-            return f'DET{digits}'  # <-- NO DASH
-        return fallback

@@ -305,12 +305,11 @@ class DebriefGui(BaseWorld):
                 parent_strats = self._a18.get_strategies(ptid) or []
                 strategies = child_strats if child_strats else parent_strats
 
-                # 3) normalize DET IDs (remove dash)
+                # 3) collect DET IDs
                 for s in strategies:
-                    raw = s.get('det_id') or ''
-                    det = raw.upper().replace('DET-', '').replace('DET', '').strip()
-                    if det.isdigit():
-                        all_dets.add(f'DET{det}')
+                    det_id = s.get('det_id', '')
+                    if det_id:
+                        all_dets.add(det_id)
 
         # Emit anchors now (before TTP table builds links)
         for det in sorted(all_dets):

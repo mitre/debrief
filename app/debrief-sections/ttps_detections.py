@@ -335,7 +335,7 @@ class DebriefReportSection(BaseReportSection):
 
             refs = self._get_technique_detection_refs(tid)
             if not refs:
-                self.log.warn(f'[DET] No detection strategies found for TID {tid} or parent)')
+                self.log.warn(f'[DET] No detection strategies found for TID {tid} or parent.')
                 continue
 
             self.log.debug(f'[DET] Built {len(refs)} unique detection strategy references for TID {tid}')

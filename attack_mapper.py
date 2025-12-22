@@ -1,3 +1,4 @@
+import aiohttp
 import json
 import os
 import re
@@ -72,17 +73,16 @@ class NormalizeAnalyticException(Exception):
 # ----------------------------------------------------------------------------
 # Fetch & Cache
 # ----------------------------------------------------------------------------
-async def fetch_and_cache(session_get) -> Dict[str, Any]:
-    os.makedirs(os.path.dirname(CACHE_PATH), exist_ok=True)
-    if not os.path.exists(CACHE_PATH):
-        status, text = await session_get(DEFAULT_URL)
+async def fetch_and_cache(session_get, url=DEFAULT_URL, path=CACHE_PATH, timeout=aiohttp.ClientTimeout(total=30)) -> Dict[str, Any]:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    if not os.path.exists(path):
+        async with session_get(url, timeout=timeout) as resp:
+            status = resp.status
+            text = await resp.text()
         if status == 200 and text:
             with open(CACHE_PATH, "w", encoding="utf-8") as f:
                 f.write(text)
-            return json.loads(text)
-    if os.path.exists(CACHE_PATH):
-        with open(CACHE_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
+            return
     raise RuntimeError("ATT&CK JSON unavailable and no cache present")
 
 
@@ -288,11 +288,6 @@ def load_attack18_cache(path: str):
     return raw
 
 
-async def load_attack18_map(session_get) -> Attack18Map:
-    bundle = await fetch_and_cache(session_get)
-    return Attack18Map(index_bundle(bundle))
-
-
 # ----------------------------------------------------------------------------
 # Global single-source loader for ATT&CK v18
 # ----------------------------------------------------------------------------
@@ -313,14 +308,7 @@ def get_attack18() -> Attack18Map:
     if not os.path.exists(CACHE_PATH):
         raise FileNotFoundError(f"ATT&CK v18 cache missing: {CACHE_PATH}")
 
-    with open(CACHE_PATH, "r", encoding="utf-8") as f:
-        raw = json.load(f)
-
-    # 2: Normalize the cached JSON (list OR dict)
-    if isinstance(raw, list):
-        raw = {"type": "bundle", "objects": raw}
-    elif not isinstance(raw, dict):
-        raise TypeError(f"Invalid ATT&CK cache format: {type(raw).__name__}")
+    raw = load_attack18_cache(CACHE_PATH)
 
     # 3: Build the indexed map (canonical unified structure)
     _attack18_global = Attack18Map(index_bundle(raw))
@@ -396,4 +384,3 @@ def _normalize_analytic(
             })
 
     return row, dc_elements
-

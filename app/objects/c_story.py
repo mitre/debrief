@@ -11,9 +11,9 @@ class Story:
     def __init__(self):
         self.story_arr = []
 
-    def append(self, data):
+    def append(self, data, spacing=12):
         self.story_arr.append(data)
-        self.story_arr.append(Spacer(1, 12))
+        self.story_arr.append(Spacer(1, spacing))
 
     def append_text(self, text, style, space):
         self.story_arr.append(Paragraph(text, style))

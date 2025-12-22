@@ -80,10 +80,15 @@ async def fetch_and_cache(session_get, url=DEFAULT_URL, path=CACHE_PATH, timeout
         async with session_get(url, timeout=timeout) as resp:
             status = resp.status
             text = await resp.text()
-        if status == 200 and text:
-            with open(CACHE_PATH, 'w', encoding='utf-8') as f:
-                f.write(text)
-            return
+        if status == 200:
+            if text:
+                with open(CACHE_PATH, 'w', encoding='utf-8') as f:
+                    f.write(text)
+                return
+            else:
+                raise RuntimeError('Empty response - no JSON text found.')
+        else:
+            raise RuntimeError(f'Non-200 HTTP status code returned when fetching JSON blob from {url}: {status}.')
     raise RuntimeError('ATT&CK JSON unavailable and no cache present')
 
 
@@ -117,10 +122,8 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
             - collect analytics via x_mitre_analytic_refs
             - map strategy → techniques based on external_references containing T#### IDs
         6. Deduplicates all lists
-
-    A DEBUG block prints summary counts so you can diagnose empty detection tables.
     '''
-
+    # Skip revoked objects
     objs = [o for o in bundle.get('objects', []) if not o.get('revoked', False)]
 
     # ----------------------------------------------------------------------
@@ -144,7 +147,7 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
     # PASS 1 — Collect Techniques, Data Components, Strategies, Analytics, Relationships
     # ----------------------------------------------------------------------
     for o in objs:
-        typ = (o.get('type') or '').lower()
+        typ = o.get('type', '').lower()
 
         # Techniques (attack-pattern)
         if typ == 'attack-pattern':
@@ -176,13 +179,14 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
                 ext_id = er.get('external_id', '')
                 m = re.match(r'^DET-?(\d{4})$', str(ext_id).strip(), flags=re.IGNORECASE)
                 if m:
-                    det_id = f'DET{m.group(1)}'   # Normalize DET0012 → DET0012 (no dash)
+                    det_id = f'DET{m.group(1)}'   # Normalize DET-0012 → DET0012 (no dash)
                     break
 
-            strategies_by_id[o.get('id')] = {
-                'obj': o,
-                'det_id': det_id,
-            }
+            if det_id:
+                strategies_by_id[o.get('id')] = {
+                    'obj': o,
+                    'det_id': det_id,
+                }
 
         # Analytics SDO
         elif typ == 'x-mitre-analytic':
@@ -230,7 +234,7 @@ def index_bundle(bundle: Dict[str, Any]) -> Dict[str, Any]:
 
         # Technique mapping via external_references (preferred for ATT&CK v18)
         for rel in relationships_by_src.get(s_id, []):
-            if (rel.get('relationship_type') or '').lower() != 'detects':
+            if rel.get('relationship_type', '').lower() != 'detects':
                 continue
 
             target_ap = rel.get('target_ref')
@@ -382,7 +386,7 @@ def _normalize_analytic(
             dc_elements.append({
                 'name': log_ref.get('name', ''),  # e.g. 'wineventlog:security'
                 'channel': log_ref.get('channel', ''),  # channel only exists in the log ref
-                'data_component': dc.get('name', ''),  # <-- FIX: DC display (e.g., 'Process Creation')
+                'data_component': dc.get('name', ''),  # DC display (e.g., 'Process Creation')
             })
 
     return row, dc_elements

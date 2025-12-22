@@ -372,7 +372,7 @@ class DebriefReportSection(BaseReportSection):
         right_w = full_w * 0.5
         det_anchor = (det_id or '').replace(':', '-')
         flows.append(Paragraph(f'<a name="{det_anchor}"></a>', self.styles['Normal']))
-        left_title = Paragraph('Detection Strategy Elements', self.styles['HdrTitle'])
+        left_title = Paragraph('Detection Strategies', self.styles['HdrTitle'])
 
         # Right gray meta table (with white horizontal rules)
         meta_rows = [

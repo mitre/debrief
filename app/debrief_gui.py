@@ -198,7 +198,7 @@ class DebriefGui(BaseWorld):
                 if paw:
                     executed_paws.add(paw)
             for agent in op.agents:
-                if agent.paw not in added_paws:
+                if agent.paw not in added_paws and agent.paw in executed_paws:
                     runtime_agents.append(agent)
                     added_paws.add(agent.paw)
         return runtime_agents

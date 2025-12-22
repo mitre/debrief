@@ -561,7 +561,7 @@ class DebriefReportSection(BaseReportSection):
         Return a list of dicts for unique detection strategies relevant to `tid`.
         Each item in the returned list has:
         - 'strategy' : the source strategy dict (with s['det_id'] stamped)
-        - 'det_id'   : canonical DET-####
+        - 'det_id'   : canonical DET####
         - 'det_name' : strategy name or det_id
         - 'tid'      : the associated technique ID
         '''

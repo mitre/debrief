@@ -17,7 +17,7 @@ class DebriefReportSection(BaseReportSection):
     def __init__(self):
         super().__init__()
         self.id = 'ttps-detections'
-        self.display_name = 'TTPs & V18 Detections'
+        self.display_name = 'Detection Strategies'
         self.section_title = 'TTPs and V18 Detections for <font name=Courier-Bold size=17>%s</font>'
         self.description = 'Ordered steps (TTPs) from the operation with their associated ATT&CK v18 Detections.'
         self.log = logging.getLogger('DebriefTTPsDetectionsTable')

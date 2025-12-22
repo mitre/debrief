@@ -38,7 +38,6 @@ class DebriefReportSection(BaseReportSection):
 
         if 'operations' in kwargs:
             self.log.debug('Generating Tactic and Technique Table section')
-            self.log.debug(f'  - Operations count: {len(kwargs.get('operations', []))}')
 
             operations = kwargs.get('operations', [])
             ttps = DebriefService.generate_ttps(operations, key_by_tid=True) or {}
@@ -53,8 +52,6 @@ class DebriefReportSection(BaseReportSection):
 
     # Use child technique strategies first; fallback to parent strategies.
     # Only DETs present in ATT&CK strategies are allowed.
-    # Analytics guide choosing between multiple strategy DETs,
-    # but analytics do NOT create new DETs.
     def _generate_ttp_detection_info(self, tid, include_det_links):
         # --- Child technique strategies ---
         ptid = (tid or '').split('.')[0].strip().upper()

@@ -253,8 +253,7 @@ class DebriefReportSection(BaseReportSection):
                     self.log.warn(f'No analytic ID found for analytic object: {a_row.get('id')}')
                     continue
 
-                self.log.debug(f'  [DET] row det_id={a_row.get('det_id')} an_id={an_id} tech={a_row.get('technique_id')}')
-
+                self.log.debug(f'  [DET] row det_id={a_row.get('det_id')} an_id={an_id} tech={tid}')
                 row_det_id = a_row.get('det_id', '').strip()
 
                 # DET matching logic
@@ -285,21 +284,20 @@ class DebriefReportSection(BaseReportSection):
                 plat_cell = Paragraph(plat_disp, self.sty_cell_center)
 
                 dcs = a_row.get('dc_elements') or [{}]
-                tuns = a_row.get('tunables') or []
+                tuns = a_row.get('tunables') or [None]
 
-                for d in (dcs or [{}]):
+                for d in dcs:
                     dc_name = d.get('name', '')
                     dc_chan = d.get('channel', '')
                     dc_comp = d.get('data_component', '')
 
-                    tuns_iter = tuns if tuns else [None]
-                    for t in tuns_iter:
+                    for t in tuns:
                         if t is None:
                             field_val = ''
                             desc_val = ''
                         else:
-                            field_val = (t.get('field') or '').strip()
-                            desc_val = (t.get('description') or '').strip()
+                            field_val = t.get('field', '').strip()
+                            desc_val = t.get('description', '').strip()
 
                         key = (an_id, plat_disp, dc_name, field_val, dc_chan)
                         if key in seen_rows:
@@ -324,7 +322,7 @@ class DebriefReportSection(BaseReportSection):
 
         # For EACH (sub)technique, build DET appendix
         for tid in sorted(tids):
-            self.log.debug(f'Building DET appendix for technique {tid}')
+            self.log.debug(f'[DET] Building DET appendix for technique {tid}')
 
             # Determine platforms used for this technique
             observed_platforms = sorted(tid_to_platforms.get(tid, []))

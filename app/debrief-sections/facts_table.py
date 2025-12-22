@@ -73,7 +73,6 @@ class DebriefReportSection(BaseReportSection):
             source_cell = 'White Card'
         elif origin == 'IMPORTED':
             source_cell = 'Imported'
-
         else:
             # Runtime -> show PAWs that collected the fact
             paws = set(getattr(curr_fact, 'collected_by', []) or [])
@@ -86,19 +85,14 @@ class DebriefReportSection(BaseReportSection):
                             paws.add(lnk_paw)
             if paws:
                 paws = sorted(paws)
-                self.log.debug(f'[FACTS] runtime paws for trait {trait!r}: {paws}')
-
                 if include_agent_links:
                     # Define the destination anchor inline (safe even if Agents renders later)
                     source_cell = ', '.join(
                         f'<link href="#agent-{escape(p)}" color="blue">{escape(p)}</link>'
                         for p in paws
                     )
-                    self.log.debug(f'[FACTS] source_cell with links: {source_cell}')
                 else:
                     source_cell = ', '.join(escape(p) for p in paws)
-                    self.log.debug(f'[FACTS] source_cell without links: {source_cell}')
-
         if not source_cell:
             self.log.debug(f'[FACTS] no paws/whitecard/imported match; fallback to source id {fact_source_id}')
             src = fact_source_id

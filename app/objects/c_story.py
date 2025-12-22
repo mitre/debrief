@@ -11,9 +11,9 @@ class Story:
     def __init__(self):
         self.story_arr = []
 
-    def append(self, data):
+    def append(self, data, spacing=12):
         self.story_arr.append(data)
-        self.story_arr.append(Spacer(1, 12))
+        self.story_arr.append(Spacer(1, spacing))
 
     def append_text(self, text, style, space):
         self.story_arr.append(Paragraph(text, style))
@@ -109,14 +109,14 @@ class Story:
     @staticmethod
     def get_table_object(val):
         table = ParagraphStyle(name='Table', fontSize=8)
-        if type(val) == str:
+        if type(val) is str:
             return Paragraph(val, table)
-        elif type(val) == list:
+        elif type(val) is list:
             list_string = ''
             for list_item in val:
                 list_string += list_item + '<br/>'
             return Paragraph(list_string, table)
-        elif type(val) == dict:
+        elif type(val) is dict:
             dict_string = ''
             for k, v in val.items():
                 dict_string += '<font color=grey>' + k + '</font><br/>'

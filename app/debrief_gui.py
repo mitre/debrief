@@ -12,7 +12,7 @@ from io import BytesIO
 from reportlab import rl_settings
 from reportlab.lib.pagesizes import letter, landscape as to_landscape
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import SimpleDocTemplate, Spacer, PageTemplate, Frame, PageBreak, Flowable, Paragraph
+from reportlab.platypus import SimpleDocTemplate, Spacer, PageTemplate, Frame, PageBreak, Flowable
 
 from app.service.auth_svc import for_all_public_methods, check_authorization
 from app.utility.base_world import BaseWorld
@@ -42,7 +42,7 @@ class DebriefGui(BaseWorld):
         self.report_section_modules = dict()
         self.report_section_names = list()
         self.loaded_report_sections = False
-        self._a18 = get_attack18()  # lazy load Attack18Map
+        self._a18 = None
 
         rl_settings.trustedHosts = BaseWorld.get_config(prop='reportlab_trusted_hosts', name='debrief') or None
 
@@ -105,7 +105,6 @@ class DebriefGui(BaseWorld):
 
     async def download_pdf(self, request):
         data = dict(await request.json())
-        self.log.debug('PDF download request ops: ' + str(data['operations']))
         svg_data = data['graphs']
         header_logo_filename = data.get('header-logo')
         self._save_svgs(svg_data)
@@ -123,6 +122,7 @@ class DebriefGui(BaseWorld):
                 filename = f'{safe_op_name}_Debrief_{date_part}.pdf'
                 runtime_agents = self._get_runtime_agents(operations)
                 pdf_bytes = await self._build_pdf(operations, runtime_agents, filename, data['report-sections'], header_logo_path)
+                self.log.info('Generated PDF')
                 return web.json_response(dict(filename=filename, pdf_bytes=pdf_bytes))
             return web.json_response({'error': 'No operations selected'}, status=400)
         except Exception as e:
@@ -209,7 +209,10 @@ class DebriefGui(BaseWorld):
         return ' '.join(p.capitalize() for p in str(trait).replace('_', '.').split('.') if p)
 
     async def _build_pdf(self, operations, agents, filename, sections, header_logo_path):
-        self._landscape_locked = False
+        if not self._a18:
+            self._a18 = get_attack18()  # lazy load Attack18Map
+
+        _landscape_locked = False
         pdf_buffer = BytesIO()
         doc = TemplateSwitchDoc(
             pdf_buffer,
@@ -267,7 +270,7 @@ class DebriefGui(BaseWorld):
                 portrait_tpl,
                 portrait_first_tpl,
             ])
-            story_obj.append(LockTemplateMarker('Landscape'))
+            story_obj.append(LockTemplateMarker('Landscape'), spacing=0)
         else:
             # Default is portrait; we'll switch to landscape only for the detections block
             doc.addPageTemplates([
@@ -283,39 +286,6 @@ class DebriefGui(BaseWorld):
             for file in glob.glob('./plugins/debrief/downloads/*.svg'):
                 graph_files[os.path.basename(file).split('.')[0]] = file
 
-        # ---------------------------------------------------------
-        # PREDECLARE ALL DET ANCHORS BEFORE ANY SECTION BUILDS
-        # ---------------------------------------------------------
-        all_dets = set()
-
-        # Collect ALL DET IDs used by techniques in this report
-        self.log.debug('Building PDFs for operations: ' + str(operations))
-        for op in operations:
-            for link in getattr(op, 'chain', []):
-                tid = getattr(getattr(link, 'ability', None), 'technique_id', '')
-                if not tid:
-                    continue
-
-                # 1) normalize TID
-                tid = tid.strip().upper()
-                ptid = tid.split('.')[0]
-
-                # 2) get correct strategies: child first, same as tactic_technique_table
-                child_strats = self._a18.get_strategies(tid) or []
-                parent_strats = self._a18.get_strategies(ptid) or []
-                strategies = child_strats if child_strats else parent_strats
-
-                # 3) normalize DET IDs (remove dash)
-                for s in strategies:
-                    raw = s.get('det_id') or ''
-                    det = raw.upper().replace('DET-', '').replace('DET', '').strip()
-                    if det.isdigit():
-                        all_dets.add(f'DET{det}')
-
-        # Emit anchors now (before TTP table builds links)
-        for det in sorted(all_dets):
-            story_obj.append(Paragraph(f'<a name="{det}"></a>', styles['Normal']))
-            self.log.debug('[DET-PREDECLARE] created anchor for %s', det)
         try:
             # ---- COVER: ----
             cover_module = self.report_section_modules.get('main-summary')
@@ -350,13 +320,13 @@ class DebriefGui(BaseWorld):
                     graph_files=graph_files,
                     selected_sections=sections
                 )
-                if section == 'ttps-detections' and not self._landscape_locked and not detections_only:
-                    story_obj.append(UseTemplateMarker('LandscapeFirst'))
-                    story_obj.append(PageBreak())
+                if section == 'ttps-detections' and not _landscape_locked and not detections_only:
+                    story_obj.append(UseTemplateMarker('LandscapeFirst'), spacing=0)
+                    story_obj.append(PageBreak(), spacing=0)
 
                     # lock landscape for the remainder of the doc
-                    story_obj.append(LockTemplateMarker('Landscape'))
-                    self._landscape_locked = True
+                    story_obj.append(LockTemplateMarker('Landscape'), spacing=0)
+                    _landscape_locked = True
 
                 for f in flowables:
                     story_obj.append(f)

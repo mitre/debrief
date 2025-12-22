@@ -34,6 +34,7 @@ class DebriefReportSection(BaseReportSection):
 
         flowable_list = []
         self.styles = styles
+        include_det_links = 'ttps-detections' in kwargs.get('selected_sections', [])
 
         if 'operations' in kwargs:
             self.log.debug('Generating Tactic and Technique Table section')
@@ -41,41 +42,10 @@ class DebriefReportSection(BaseReportSection):
 
             operations = kwargs.get('operations', [])
             ttps = DebriefService.generate_ttps(operations, key_by_tid=True) or {}
-
-            # ----------------------------------------------------------
-            # PREDECLARE DET ANCHORS — must go INSIDE the KeepTogether block
-            # ----------------------------------------------------------
-            anchors = []
-            predeclared = set()
-
-            for tactic in ttps.values():
-                tech_map = tactic.get('techniques') or {}
-
-                for tid, tname in tech_map.items():
-                    strategies = self._a18.get_strategies(tid) or []
-
-                    for s in strategies:
-                        det = self._normalize_det_id(s.get('det_id') or '')
-                        if not det or det in predeclared:
-                            continue
-
-                        anchor = self._anchor_for_det(det)
-                        anchors.append(Paragraph(f'<a name="{anchor}"/>', styles['Normal']))
-                        predeclared.add(det)
-                        self.log.debug(f'[TT-PREDECL] emitted anchor for {det} -> {anchor}')
-
-            # ----------------------------------------------------------
-            # Build section as ONE KeepTogether block containing:
-            #   - anchors
-            #   - section title
-            #   - final table
-            # ----------------------------------------------------------
-            block = self.group_elements(
-                anchors + [
-                    Paragraph(self.section_title, styles['Heading2']),
-                    self._generate_ttps_table(ttps, operations)
-                ]
-            )
+            block = self.group_elements([
+                Paragraph(self.section_title, styles['Heading2']),
+                self._generate_ttps_table(ttps, operations, include_det_links)
+            ])
 
             flowable_list.append(block)
 
@@ -85,63 +55,51 @@ class DebriefReportSection(BaseReportSection):
     # Only DETs present in ATT&CK strategies are allowed.
     # Analytics guide choosing between multiple strategy DETs,
     # but analytics do NOT create new DETs.
-    def _generate_ttp_detection_link(self, tid):
+    def _generate_ttp_detection_info(self, tid, include_det_links):
         # --- Child technique strategies ---
         ptid = (tid or '').split('.')[0].strip().upper()
-        child_strats = self._a18.get_strategies(tid) or []
-        parent_strats = self._a18.get_strategies(ptid) or []
+        strategies = self._a18.get_strategies(tid) or []
+        parent_fallback = False
 
-        if child_strats:
-            strategies = child_strats
-            self.log.debug(f'[TTP-07] Using CHILD strategies for {tid}: {len(strategies)} found')
-        else:
-            strategies = parent_strats
-            self.log.debug(f'[TTP-07] Using PARENT strategies for {tid}: {len(strategies)} found')
+        if strategies:
+            self.log.debug(f'[TTP-07] Using detection strategies for EXACT technique {tid}: {len(strategies)} found')
+        elif ptid != tid:
+            strategies = self._a18.get_strategies(ptid) or []
+            parent_fallback = True
+            self.log.debug(f'[TTP-07] Using detection strategies for PARENT technique {tid}: {len(strategies)} found')
 
         # Collect allowed DETs from strategies (appendix will render only these)
         valid_strategy_dets = []
         for s in strategies:
-            det_id = self._normalize_det_id(s.get('det_id') or '')
+            det_id = s.get('det_id', '')
             if det_id:
                 valid_strategy_dets.append(det_id)
 
-        self.log.debug(f'[TTP-07] Strategy DETs: {valid_strategy_dets}')
-
         if not valid_strategy_dets:
-            self.log.warn(f'[TTP-08] No valid strategy DETs for {tid} — using placeholder')
-            return '—'
+            self.log.warn(f'[TTP-08] No valid DET IDs for {tid} or parent — using placeholder')
+            return ['—']
 
-        # Analytics: used only for ranking selection
-        analytics = self._a18.get_analytics(tid, platform=None) or []
-        self.log.debug(f'[TTP-07] Analytics loaded for {tid}: {len(analytics)} items')
+        self.log.debug(f'[TTP-07] Strategy DET IDs: {valid_strategy_dets}')
 
-        # Prefer DETs whose analytics match the exact sub-technique
-        child_hits = []
+        det_labels = []
 
-        for det in valid_strategy_dets:
-            for row in analytics:
-                row_det = self._normalize_det_id(row.get('det_id') or '')
-                if row_det != det:
-                    continue
-                child_hits.append(det)
-
-        if child_hits:
-            det_label = child_hits[0]
-            self.log.debug(f'[TTP-08] Choosing child-hit DET for {tid}: {det_label}')
-        else:
-            det_label = valid_strategy_dets[0]
-            self.log.debug(f'[TTP-08] No child-hit analytics; defaulting DET for {tid}: {det_label}')
-
-        # Build the PDF link (safe: appendix WILL contain this anchor)
+        # Build the PDF detection text (with links if including detections appendix)
         try:
-            det_anchor = self._anchor_for_det(det_label)
-            link = f'<link href="#{escape(det_anchor)}" color="blue">{escape(det_label)}</link>'
-            return link
+            for det_id in valid_strategy_dets:
+                escaped = escape(det_id)
+                label_text = escaped
+                if parent_fallback:
+                    label_text += f' ({escape(ptid)})'
+                if include_det_links:
+                    det_labels.append(f'<link href="#{escaped}" color="blue">{label_text}</link>')
+                else:
+                    det_labels.append(label_text)
+            return det_labels
         except Exception:
             self.log.exception('[ERR-TTP-09] DET link building failed')
             raise
 
-    def _generate_ttps_table(self, ttps, operations):
+    def _generate_ttps_table(self, ttps, operations, include_det_links):
         '''
         One row per TACTIC.
         - Techniques: stacked 'Txxxx: Name'
@@ -174,9 +132,9 @@ class DebriefReportSection(BaseReportSection):
                 # DETECTION SELECTION
                 # ------------------------------------------------------------------
                 try:
-                    link = self._generate_ttp_detection_link(tid)
-                    detect_lines.append(link)
-                    self.log.debug(f'[TTP-09] DET link built: {link}')
+                    det_lines = self._generate_ttp_detection_info(tid, include_det_links)
+                    detect_lines.extend(det_lines)
+                    self.log.debug(f'[TTP-09] DET info set: {det_lines}')
                 except Exception:
                     self.log.exception('[ERR-TTP-08] DET selection failed')
                     raise
@@ -264,18 +222,3 @@ class DebriefReportSection(BaseReportSection):
             # Safe text mode
             clean = [escape(str(s or '')) for s in (lines or [])]
         return '<br/>'.join(clean) or '—'
-
-    @staticmethod
-    def _anchor_for_det(det_id):
-        return (det_id or '').upper().replace('DET-', 'DET')
-
-    def _normalize_det_id(self, det_id: str, fallback=None):
-        if not det_id:
-            return fallback
-
-        s = det_id.upper().replace('DET', '')
-        digits = ''.join(ch for ch in s if ch.isdigit())
-
-        if digits:
-            return f'DET{digits}'  # <-- NO DASH
-        return fallback

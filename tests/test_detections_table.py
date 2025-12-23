@@ -11,7 +11,6 @@ from app.objects.c_adversary import Adversary
 from app.objects.c_agent import Agent
 from app.objects.c_operation import Operation
 from app.objects.secondclass.c_executor import Executor
-from app.objects.secondclass.c_fact import Fact
 from app.objects.secondclass.c_link import Link
 from app.utility.base_object import BaseObject
 
@@ -152,6 +151,7 @@ def link_T1560_001_linux(op_link, linux_agent, encode_command, parse_datestring)
                    collect=parse_datestring(LINK_COLLECT_TIME),
                    finish=LINK_FINISH_TIME)
 
+
 @pytest.fixture
 def link_library(link_T1083_windows, link_T1083_linux, link_T1547_001_windows,
                  link_T1560_001_windows, link_T1560_001_linux):
@@ -197,17 +197,23 @@ def compare_rows(a, b):
     if len(a) != len(b):
         return False
     for i, elem in enumerate(a):
-        if type(a) != type(b):
+        if type(elem) is not type(b[i]):
             return False
-        elif type(a) is Paragraph:
+        elif type(elem) is Paragraph:
             if not compare_paragraphs(elem, b[i]):
+                print(f'Unequal paragraphs: {str(elem)}, {str(b[i])}')
+                return False
+        else:
+            if elem != b[i]:
+                print(f'Unequal: {str(elem)}, {str(b[i])}')
                 return False
     return True
+
 
 class TestDetectionsTable:
     def test_report_section_fields(self, det_report_section):
         assert det_report_section.id == 'ttps-detections'
-        assert det_report_section.display_name == 'TTPs & V18 Detections'
+        assert det_report_section.display_name == 'Detection Strategies'
         assert det_report_section.description == 'Ordered steps (TTPs) from the operation with their associated ATT&CK v18 Detections.'
         assert type(det_report_section._a18) is Attack18Map
 
@@ -318,7 +324,7 @@ class TestDetectionsTable:
                 Paragraph("Execution of file enumeration commands (e.g., 'dir', 'tree') from non-standard processes or unusual user contexts, followed by recursive directory traversal or access to sensitive locations.", det_report_section.sty_cell_center),
                 Paragraph('WinEventLog:Security', det_report_section.cell_style),
                 Paragraph('EventCode=4688', det_report_section.cell_style),
-                Paragraph('File Creation', det_report_section.cell_style),
+                Paragraph('Process Creation', det_report_section.cell_style),
                 Paragraph('TimeWindow', det_report_section.cell_style),
                 Paragraph('Defines burst activity over short periods (e.g., &gt;50 directory queries in 30s)', det_report_section.cell_style),
             ],
@@ -348,7 +354,7 @@ class TestDetectionsTable:
                 Paragraph("Execution of file enumeration commands (e.g., 'dir', 'tree') from non-standard processes or unusual user contexts, followed by recursive directory traversal or access to sensitive locations.", det_report_section.sty_cell_center),
                 Paragraph('WinEventLog:Sysmon', det_report_section.cell_style),
                 Paragraph('EventCode=11', det_report_section.cell_style),
-                Paragraph('Process Creation', det_report_section.cell_style),
+                Paragraph('File Creation', det_report_section.cell_style),
                 Paragraph('TimeWindow', det_report_section.cell_style),
                 Paragraph('Defines burst activity over short periods (e.g., &gt;50 directory queries in 30s)', det_report_section.cell_style),
             ]
@@ -394,7 +400,7 @@ class TestDetectionsTable:
                 Paragraph('Linux', det_report_section.sty_cell_center),
                 Paragraph("Use of file enumeration commands (e.g., 'ls', 'find', 'locate') executed by suspicious users or scripts accessing broad file hierarchies or restricted directories.", det_report_section.sty_cell_center),
                 Paragraph('auditd:PATH', det_report_section.cell_style),
-                Paragraph('execve', det_report_section.cell_style),
+                Paragraph('PATH', det_report_section.cell_style),
                 Paragraph('File Access', det_report_section.cell_style),
                 Paragraph('FilePathDepth', det_report_section.cell_style),
                 Paragraph('Max depth of recursive access to tune noise vs anomaly', det_report_section.cell_style),
@@ -404,7 +410,7 @@ class TestDetectionsTable:
                 Paragraph('Linux', det_report_section.sty_cell_center),
                 Paragraph("Use of file enumeration commands (e.g., 'ls', 'find', 'locate') executed by suspicious users or scripts accessing broad file hierarchies or restricted directories.", det_report_section.sty_cell_center),
                 Paragraph('auditd:PATH', det_report_section.cell_style),
-                Paragraph('execve', det_report_section.cell_style),
+                Paragraph('PATH', det_report_section.cell_style),
                 Paragraph('File Access', det_report_section.cell_style),
                 Paragraph('UserContext', det_report_section.cell_style),
                 Paragraph('Helpful to exclude known scripts or automation accounts', det_report_section.cell_style),
@@ -435,7 +441,7 @@ class TestDetectionsTable:
                 Paragraph("Execution of file enumeration commands (e.g., 'dir', 'tree') from non-standard processes or unusual user contexts, followed by recursive directory traversal or access to sensitive locations.", det_report_section.sty_cell_center),
                 Paragraph('WinEventLog:Security', det_report_section.cell_style),
                 Paragraph('EventCode=4688', det_report_section.cell_style),
-                Paragraph('File Creation', det_report_section.cell_style),
+                Paragraph('Process Creation', det_report_section.cell_style),
                 Paragraph('TimeWindow', det_report_section.cell_style),
                 Paragraph('Defines burst activity over short periods (e.g., &gt;50 directory queries in 30s)', det_report_section.cell_style),
             ],
@@ -465,7 +471,7 @@ class TestDetectionsTable:
                 Paragraph("Execution of file enumeration commands (e.g., 'dir', 'tree') from non-standard processes or unusual user contexts, followed by recursive directory traversal or access to sensitive locations.", det_report_section.sty_cell_center),
                 Paragraph('WinEventLog:Sysmon', det_report_section.cell_style),
                 Paragraph('EventCode=11', det_report_section.cell_style),
-                Paragraph('Process Creation', det_report_section.cell_style),
+                Paragraph('File Creation', det_report_section.cell_style),
                 Paragraph('TimeWindow', det_report_section.cell_style),
                 Paragraph('Defines burst activity over short periods (e.g., &gt;50 directory queries in 30s)', det_report_section.cell_style),
             ]

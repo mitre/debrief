@@ -74,7 +74,7 @@ class NormalizeAnalyticException(Exception):
 # ----------------------------------------------------------------------------
 # Fetch & Cache
 # ----------------------------------------------------------------------------
-async def fetch_and_cache(session_get, url=DEFAULT_URL, path=CACHE_PATH, timeout=aiohttp.ClientTimeout(total=30)) -> Dict[str, Any]:
+async def fetch_and_cache(session_get, url=DEFAULT_URL, path=CACHE_PATH, timeout=aiohttp.ClientTimeout(total=30)):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     if not os.path.exists(path):
         async with session_get(url, timeout=timeout) as resp:
@@ -89,6 +89,8 @@ async def fetch_and_cache(session_get, url=DEFAULT_URL, path=CACHE_PATH, timeout
                 raise RuntimeError('Empty response - no JSON text found.')
         else:
             raise RuntimeError(f'Non-200 HTTP status code returned when fetching JSON blob from {url}: {status}.')
+    else:
+        return  # file already exists
     raise RuntimeError('ATT&CK JSON unavailable and no cache present')
 
 

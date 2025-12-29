@@ -330,7 +330,6 @@ export default {
         },
 
         uploadLogo(el) {
-            console.log(el);
             if (el.target.files.length === 0) return;
 
             let formData = new FormData()

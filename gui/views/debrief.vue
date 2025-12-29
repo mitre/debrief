@@ -330,10 +330,11 @@ export default {
         },
 
         uploadLogo(el) {
-            if (el.files.length === 0) return;
+            console.log(el);
+            if (el.target.files.length === 0) return;
 
             let formData = new FormData()
-            formData.append('header-logo', el.files[0])
+            formData.append('header-logo', el.target.files[0])
             this.$api.post('/plugin/debrief/logo', formData, false).then((data) => {
                 data = data.data;
                 this.logos.push(data.filename);
@@ -874,7 +875,7 @@ div
               .field
                 .file.is-dark.is-small.is-fullwidth
                   label.file-label
-                    input.file-input(type="file", name="userLogo", accept="image/*", v-on:change="uploadLogo($el)", ref="fileInput")
+                    input.file-input(type="file", name="userLogo", accept="image/*", v-on:change="uploadLogo", ref="fileInput")
                     span.file-cta
                       span.file-icon
                         i.fas.fa-upload

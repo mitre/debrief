@@ -1,5 +1,5 @@
 from reportlab.lib import colors
-from reportlab.platypus import Image, Paragraph, Table, TableStyle
+from reportlab.platypus import Image, Paragraph, Spacer, Table, TableStyle
 from reportlab.platypus.flowables import KeepTogetherSplitAtTop
 from svglib.svglib import svg2rlg
 
@@ -40,6 +40,7 @@ class BaseReportSection:
         return self.group_elements([
             Paragraph(self.section_title, styles['Heading2']),
             Paragraph(self.description, styles['Normal']),
+            Spacer(1, 10),
             self.generate_graph(graph_path, graph_width)
         ])
 

@@ -7,8 +7,11 @@ operations. It provides a centralized view of operation metadata, graphical disp
 the techniques and tactics used, and the facts discovered by the operation. The plugin additionally 
 supports the export of campaign information and analytics in PDF format.
 
-Example generated PDF: [Caldera Debrief Report](docs/debrief_2023-02-24_17-08-14.pdf)
+Example generated PDF for an operation with both successful and unsuccessful steps: [Caldera Debrief Report](docs/Demo-Operation_Debrief_Example.pdf)
 
-![plugin home](docs/debrief1.png)
-![plugin home](docs/debrief2.png)
-![plugin home](docs/debrief3.png)
+![Operation Overview](docs/DebriefOverview.png)
+![Attack Path Graph](docs/AttackPathGraph.png)
+![Tactics Graph](docs/TacticsGraph.png)
+![Steps Table](docs/StepsTable.png)
+![Tactics and Techniques Table](docs/TacticsAndTechniquesTable.png)
+![Facts Graph](docs/FactsGraph.png)

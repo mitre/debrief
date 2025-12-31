@@ -41,7 +41,7 @@ class DebriefService(BaseService):
                     graph_output['links'].append(dict(source=previous_link_graph_id, target=link_graph_id,
                                                       type='next_link'))
                 previous_link_graph_id = link_graph_id
-                
+
                 agent = next((a for a in agents), None)
                 if 'agent' + agent.paw not in id_store.keys():
                     id_store['agent' + agent.paw] = max(id_store.values()) + 1
@@ -167,32 +167,36 @@ class DebriefService(BaseService):
                 graph_output['links'].append(link)
 
     @staticmethod
-    def generate_ttps(operations):
+    def generate_ttps(operations, key_by_tid=False):
         ttps = dict()
         for op in operations:
             for link in op.chain:
                 if not link.cleanup:
                     tactic_name = link.ability.tactic
                     if tactic_name not in ttps.keys():
-                        ttps[tactic_name] = DebriefService._generate_new_tactic_entry(op, tactic_name, link)
+                        ttps[tactic_name] = DebriefService._generate_new_tactic_entry(op, tactic_name, link, key_by_tid=key_by_tid)
                     else:
-                        DebriefService._update_tactic_entry(ttps[tactic_name], op.name, link)
+                        DebriefService._update_tactic_entry(ttps[tactic_name], op.name, link, key_by_tid=key_by_tid)
         return dict(sorted(ttps.items()))
 
     @staticmethod
-    def _generate_new_tactic_entry(operation, tactic_name, link):
+    def _generate_new_tactic_entry(operation, tactic_name, link, key_by_tid=False):
+        exact_tid = link.ability.technique_id.strip().upper()
         return dict(
             name=tactic_name,
-            techniques={link.ability.technique_name: link.ability.technique_id},
+            techniques={exact_tid: link.ability.technique_name} if key_by_tid else {link.ability.technique_name: exact_tid},
             steps={operation.name: [link.ability.name]}
         )
 
     @staticmethod
-    def _update_tactic_entry(tactic_entry_dict, op_name, link):
+    def _update_tactic_entry(tactic_entry_dict, op_name, link, key_by_tid=False):
         technique_info = tactic_entry_dict['techniques']
         step_info = tactic_entry_dict['steps']
-        if link.ability.technique_name not in technique_info.keys():
-            technique_info[link.ability.technique_name] = link.ability.technique_id
+        exact_tid = link.ability.technique_id.strip().upper()
+        if not key_by_tid and link.ability.technique_name not in technique_info.keys():
+            technique_info[link.ability.technique_name] = exact_tid
+        if key_by_tid and exact_tid not in technique_info.keys():
+            technique_info[exact_tid] = link.ability.technique_name
         if op_name not in step_info.keys():
             step_info[op_name] = [link.ability.name]
         elif link.ability.name not in step_info[op_name]:

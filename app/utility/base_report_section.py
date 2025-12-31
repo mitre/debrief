@@ -1,9 +1,10 @@
 from reportlab.lib import colors
-from reportlab.platypus import Image, Paragraph, Table, TableStyle
+from reportlab.platypus import Image, Paragraph, Spacer, Table, TableStyle
 from reportlab.platypus.flowables import KeepTogetherSplitAtTop
 from svglib.svglib import svg2rlg
 
 from plugins.debrief.app.objects.c_story import Story
+from plugins.debrief.attack_mapper import get_attack18
 
 
 class BaseReportSection:
@@ -22,6 +23,7 @@ class BaseReportSection:
         self.display_name = 'Base Section Template'
         self.description = 'Base class for debrief report section'
         self.section_title = 'BASE SECTION HEADER'
+        self._a18 = get_attack18()  # lazy-loaded ATT&CK v18 index
 
     def generate_section_title_and_description(self, styles):
         """Return grouped flowable containing section title and description."""
@@ -38,6 +40,7 @@ class BaseReportSection:
         return self.group_elements([
             Paragraph(self.section_title, styles['Heading2']),
             Paragraph(self.description, styles['Normal']),
+            Spacer(1, 10),
             self.generate_graph(graph_path, graph_width)
         ])
 

@@ -19,14 +19,24 @@ class DebriefService(BaseService):
 
         operations = []
         for op_id in operation_ids:
-            operations.append((await self.data_svc.locate('operations', match=dict(id=op_id)))[0])
-
-        agents = [x for xs in map(lambda o: o.agents, operations) for x in xs]
-        self._add_agents_to_d3(agents, id_store, graph_output)
+            matches = await self.data_svc.locate('operations', match=dict(id=op_id))
+            if matches:
+                operations.append(matches[0])
 
         for operation in operations:
+            # Add operation node
             graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation',
                                               timestamp=self._format_timestamp(operation.created)))
+
+            # Add agents for this operation
+            agents = [x for x in operation.agents if x]
+            self._add_agents_to_d3(agents, id_store, graph_output)
+            for agent in agents:
+                graph_output['links'].append(dict(source=op_id,
+                                                  target=id_store['agent' + agent.unique],
+                                                  type='has_agent'))
+
+            # Add steps
             previous_link_graph_id = None
             for link in operation.chain:
                 link_graph_id = id_store['link' + link.unique] = max(id_store.values()) + 1
@@ -42,16 +52,14 @@ class DebriefService(BaseService):
                                                       type='next_link'))
                 previous_link_graph_id = link_graph_id
 
-                agent = next((a for a in agents), None)
-                if 'agent' + agent.paw not in id_store.keys():
-                    id_store['agent' + agent.paw] = max(id_store.values()) + 1
-                graph_output['links'].append(dict(source=id_store['agent' + agent.paw], target=link_graph_id,
+                # Link the step to the corresponding agent
+                for agent in agents:
+                    if agent.paw == link.paw:
+                        if 'agent' + agent.unique not in id_store.keys():
+                            id_store['agent' + agent.unique] = max(id_store.values()) + 1
+                        graph_output['links'].append(dict(source=id_store['agent' + agent.unique], target=link_graph_id,
                                                   type='next_link'))
 
-            for agent in operation.agents:
-                graph_output['links'].append(dict(source=op_id,
-                                                  target=id_store['agent' + agent.paw],
-                                                  type='has_agent'))
         return graph_output
 
     async def build_attackpath_d3(self, operation_ids):
@@ -158,9 +166,9 @@ class DebriefService(BaseService):
         for agent in agents:
             if 'agent' + agent.unique not in id_store.keys():
                 id_store['agent' + agent.unique] = max(id_store.values()) + 1
-                node = dict(name=agent.display_name, id=id_store['agent' + agent.unique], group=agent.group,
+                node = dict(name=f'{agent.paw} ({agent.display_name})', id=id_store['agent' + agent.unique], group=agent.group,
                             type='agent', img=agent.platform, timestamp=agent.created.strftime('%Y-%m-%dT%H:%M:%S'),
-                            attrs=dict(host=agent.host, group=agent.group, platform=agent.platform))
+                            attrs=dict(host=agent.host, group=agent.group, platform=agent.platform, paw=agent.paw))
                 graph_output['nodes'].append(node)
 
                 link = dict(source=0, target=id_store['agent' + agent.unique], type='agent_contact')

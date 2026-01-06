@@ -28,7 +28,7 @@ class DebriefService(BaseService):
             graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation',
                                               timestamp=self._format_timestamp(operation.created)))
 
-            # Add agents for this operation 
+            # Add agents for this operation
             agents = [x for x in operation.agents if x]
             self._add_agents_to_d3(agents, id_store, graph_output)
             for agent in agents:
@@ -57,7 +57,7 @@ class DebriefService(BaseService):
                 for agent in agents:
                     if agent.paw == link.paw:
                         graph_output['links'].append(dict(source=id_store['agent' + agent.unique], target=link_graph_id,
-                                                  type='next_link'))
+                                                          type='next_link'))
 
         return graph_output
 

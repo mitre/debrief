@@ -62,8 +62,8 @@ class BaseReportSection:
         return Image(graph, width=width, height=(width * aspect))
 
     @staticmethod
-    def generate_table(data, col_widths):
-        data[1:] = [[Story.get_table_object(val) for val in row] for row in data[1:]]
+    def generate_table(data, col_widths, escape_html=True):
+        data[1:] = [[Story.get_table_object(val, escape_html=escape_html) for val in row] for row in data[1:]]
         tbl = Table(data, colWidths=col_widths, repeatRows=1)
         style_cmds = [
             ('BACKGROUND', (0, 0), (-1, 0), colors.maroon),

@@ -33,7 +33,7 @@ class DebriefReportSection(BaseReportSection):
             for o in operations:
                 flowable_list.append(
                     KeepTogetherSplitAtTop([
-                        Paragraph(self.section_title % o.name.upper(), styles['Heading2']),
+                        Paragraph(self.section_title % escape(o.name.upper()), styles['Heading2']),
                         Paragraph(self.description, styles['Normal'])
                     ])
                 )
@@ -55,7 +55,7 @@ class DebriefReportSection(BaseReportSection):
                     commands.add(lnk.decode_bytes(lnk.command))
                 except Exception:
                     commands.add(str(lnk.command))
-        return '<br />'.join(sorted(c for c in commands if c)) if commands else f'No Command ({origin or "UNKNOWN"})'
+        return '<br />'.join(sorted(escape(c) for c in commands if c)) if commands else f'No Command ({origin or "UNKNOWN"})'
 
     def _generate_fact_source_cell(self, curr_fact, include_agent_links, link_by_id, op_source_id, trait, white_traits):
         source_cell = None
@@ -95,14 +95,14 @@ class DebriefReportSection(BaseReportSection):
                     source_cell = ', '.join(escape(p) for p in paws)
         if not source_cell:
             self.log.debug(f'[FACTS] no paws/whitecard/imported match; fallback to source id {fact_source_id}')
-            src = fact_source_id
+            src = escape(fact_source_id)
             source_cell = (f'{src[:3]}..{src[-3:]}' if len(src) >= 6 else (src or '—'))
 
         return source_cell
 
-    def _generate_fact_table_row(self, curr_fact, include_agent_links, link_by_id, op_source_id, valid_agent_paws, white_traits):
+    def _generate_fact_table_row(self, curr_fact, include_agent_links, link_by_id, op_source_id, white_traits):
         # --- fields ---
-        trait = (getattr(curr_fact, 'trait', '') or '').replace('\n', '').replace('\r', '')
+        trait = escape((getattr(curr_fact, 'trait', '') or '').replace('\n', '').replace('\r', ''))
         raw_value = getattr(curr_fact, 'value', '')
         score = getattr(curr_fact, 'score', 0)
 
@@ -111,23 +111,17 @@ class DebriefReportSection(BaseReportSection):
 
         # --- value truncation for layout ---
         if isinstance(raw_value, str):
+            raw_value = escape(raw_value)
             val_cell = raw_value if len(raw_value) < TABLE_CHAR_LIMIT else (raw_value[:TABLE_CHAR_LIMIT] + EXCEEDS_MSG)
         else:
-            sval = str(raw_value) if raw_value is not None else ''
+            sval = escape(str(raw_value)) if raw_value is not None else ''
             val_cell = sval if len(sval) < TABLE_CHAR_LIMIT else (sval[:TABLE_CHAR_LIMIT] + EXCEEDS_MSG)
 
-        return [trait, val_cell, str(score), source_cell, command_value]
+        return [trait, val_cell, escape(str(score)), source_cell, command_value]
 
     async def _generate_facts_table(self, operation, selected_sections, whitecard_metrics=None):
         include_agent_links = ('agents' in (selected_sections or []))
         self.log.debug(f'[FACTS] include_agent_links={include_agent_links} selected_sections={list(selected_sections or [])}')
-
-        # Build the set of agent Paws that will actually have anchors in the Agents section
-        valid_agent_paws = {
-            getattr(a, 'paw') for a in (getattr(operation, 'agents', []) or [])
-            if getattr(a, 'paw', None)
-        }
-        self.log.debug(f'[FACTS] valid_agent_paws (from operation.agents)={sorted(valid_agent_paws)}')
 
         # Header
         fact_data = [['Trait', 'Value', 'Score', 'Source', 'Command Run']]
@@ -144,8 +138,8 @@ class DebriefReportSection(BaseReportSection):
         facts = await operation.all_facts()
 
         for f in facts:
-            fact_table_row = self._generate_fact_table_row(f, include_agent_links, link_by_id, op_source_id, valid_agent_paws, white_traits)
+            fact_table_row = self._generate_fact_table_row(f, include_agent_links, link_by_id, op_source_id, white_traits)
             fact_data.append(fact_table_row)
 
         # Slightly wider Source/Command columns
-        return self.generate_table(fact_data, [1*inch, 1.8*inch, .6*inch, 1.3*inch, 2.3*inch])
+        return self.generate_table(fact_data, [1*inch, 1.8*inch, .6*inch, 1.3*inch, 2.3*inch], escape_html=False)

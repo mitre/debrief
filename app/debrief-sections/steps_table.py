@@ -1,3 +1,5 @@
+from html import escape
+
 from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph
 from reportlab.platypus.flowables import KeepTogetherSplitAtTop
@@ -21,7 +23,7 @@ class DebriefReportSection(BaseReportSection):
             for o in operations:
                 flowable_list.append(
                     KeepTogetherSplitAtTop([
-                        Paragraph(self.section_title % o.name.upper(), styles['Heading2']),
+                        Paragraph(self.section_title % escape(o.name.upper()), styles['Heading2']),
                         Paragraph(self.description, styles['Normal'])
                     ])
                 )

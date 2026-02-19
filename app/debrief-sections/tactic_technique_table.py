@@ -160,7 +160,7 @@ class DebriefReportSection(BaseReportSection):
             d_para = Paragraph(self._stacked(detect_lines, html=True), d_style)
 
             tac_style = ParagraphStyle('tt-tactic', parent=self.tt_body, alignment=1)
-            tac_name = (tactic.get('name') or '').title()
+            tac_name = escape((tactic.get('name') or '').title())
             # Split hyphenated names onto separate lines (e.g., "Lateral-Movement")
             tac_name = tac_name.replace('-', '-<br/>')
             tac_para = Paragraph(tac_name, tac_style)

@@ -2,6 +2,7 @@ import logging
 import re
 
 from collections import defaultdict, OrderedDict
+from html import escape
 from reportlab.lib import colors
 
 from reportlab.lib.units import inch
@@ -66,13 +67,7 @@ class DebriefReportSection(BaseReportSection):
         return band
 
     def _p(self, text: str):
-        text = str(text or '')
-
-        # Light escape to avoid accidental tag parsing
-        text = (text
-                .replace('&', '&amp;')
-                .replace('<', '&lt;')
-                .replace('>', '&gt;'))
+        text = escape(str(text or ''))
         return Paragraph(text, self.cell_style)
 
     def _ensure_styles(self):
@@ -155,7 +150,7 @@ class DebriefReportSection(BaseReportSection):
         if not operations:
             return flows
 
-        op_name = (getattr(operations[0], 'name', None) or 'Operation').strip()
+        op_name = escape(getattr(operations[0], 'name', 'Operation')).strip()
         flows.append(self._section_band(f'Detections for {op_name}'))
 
         # Add the intro paragraph here (not per DET)
@@ -193,11 +188,11 @@ class DebriefReportSection(BaseReportSection):
             if getattr(link, 'cleanup', False):
                 continue
 
-            tid = getattr(getattr(link, 'ability', None), 'technique_id', '').strip().upper()
+            tid = escape(getattr(getattr(link, 'ability', None), 'technique_id', '').strip().upper())
             if not tid:
                 continue
 
-            plat = paw_to_platform.get(getattr(link, 'paw', None), '').lower()
+            plat = escape(paw_to_platform.get(getattr(link, 'paw', None), '').lower())
 
             if plat:
                 tid_to_platforms[tid].add(plat)

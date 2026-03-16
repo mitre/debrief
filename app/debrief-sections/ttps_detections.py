@@ -6,7 +6,7 @@ from reportlab.lib import colors
 
 from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph, PageBreak, Table, TableStyle
-from reportlab.platypus.flowables import KeepTogether
+from reportlab.platypus.flowables import KeepTogetherSplitAtTop
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
 
@@ -358,7 +358,11 @@ class DebriefReportSection(BaseReportSection):
 
                 flows.append(Paragraph(f'<a name="{det_id}"></a>', self.styles['Normal']))
                 hdr_block = self._build_det_header_block(det_id, det_name, sorted(an_ids))
-                flows.append(KeepTogether(hdr_block + [tbl]))
+                # Combine header and table into one flowable so there's no gap.
+                # KeepTogetherSplitAtTop keeps the header with the top of the
+                # table, and splitByRow + splitInRow on the Table allow the data
+                # rows to break across pages.
+                flows.append(KeepTogetherSplitAtTop(hdr_block + [tbl]))
         return flows
 
     def _build_det_header_block(self, det_id: str, det_name: str, an_ids: list[str]):
@@ -435,68 +439,13 @@ class DebriefReportSection(BaseReportSection):
         flows.append(hdr)
         return flows
 
-    def _build_det_table(self, rows, span_cmds=None):
+    def _build_det_table(self, rows):
+        '''Build the 8-column detections table with MITRE-style formatting.
+
+        Row-spanning for repeated AN/Platform/Statement values is intentionally
+        not used — row spans prevent ReportLab from splitting the table across
+        pages, causing LayoutError for large detection tables.
         '''
-        Build the 8-column detections table with MITRE-style formatting.
-
-        Enhancements over default ReportLab tables:
-        --------------------------------------------------------------
-        • Automatically collapses repeated values in the first three
-          columns (AN, Platform, Detection Statement) by applying
-          vertical row-spans. This matches historical ATT&CK PDF
-          formatting and prevents excessive repetition.
-
-        • Header rows (0-1) are preserved; row-spanning starts from
-          the first data row (index 2).
-
-        • `span_cmds` allows additional external SPAN rules, but the
-          function now auto-generates the crucial row-spans needed
-          for a clean table layout.
-
-        Arguments:
-        -----------
-        rows : list[list]
-            Full table row data including 2 header rows.
-        span_cmds : list[tuple] | None
-            Additional ReportLab TableStyle SPAN directives.
-
-        Returns:
-        --------
-        Table
-            Styled ReportLab Table instance ready to insert into PDF.
-        '''
-        span_cmds = span_cmds or []
-
-        # ------------------------------------------------------------------
-        # AUTO-GENERATE ROW SPANS FOR IDENTICAL CELL VALUES
-        # ------------------------------------------------------------------
-        start = 2                     # row 0–1 = header rows
-        end = len(rows)
-        valign_cmds = []              # stores ('VALIGN', (col,r1),(col,r2),'MIDDLE')
-
-        def _add_spans_for_column(col_idx):
-            '''
-            Detect consecutive identical values in rows[col_idx],
-            SPAN them, and emit a VALIGN rule to center vertically.
-            '''
-            r = start
-            while r < end:
-                r_start = r
-                cell = rows[r][col_idx]
-
-                # Find the consecutive matching block
-                while r + 1 < end and rows[r + 1][col_idx] == cell:
-                    r += 1
-
-                if r > r_start:  # spanning required
-                    span_cmds.append(('SPAN', (col_idx, r_start), (col_idx, r)))
-                    valign_cmds.append(('VALIGN', (col_idx, r_start), (col_idx, r), 'MIDDLE'))
-                r += 1
-
-        # Spanning for AN / Platform / Statement
-        _add_spans_for_column(0)
-        _add_spans_for_column(1)
-        _add_spans_for_column(2)
 
         # ------------------------------------------------------------------
         # BUILD TABLE
@@ -505,6 +454,8 @@ class DebriefReportSection(BaseReportSection):
             rows,
             colWidths=self.DATA_COL_WIDTHS,
             repeatRows=2,
+            splitByRow=True,
+            splitInRow=True,
             hAlign='CENTER'
         )
 
@@ -547,9 +498,7 @@ class DebriefReportSection(BaseReportSection):
             ('BOTTOMPADDING', (0, 0), (7, -1), 2),
         ]
 
-        # Insert generated spans + valign rules
-        base_style.extend(span_cmds)
-        base_style.extend(valign_cmds)
+
 
         tbl.setStyle(TableStyle(base_style))
         tbl.spaceBefore = 0

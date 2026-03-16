@@ -53,20 +53,23 @@ class Story:
 
         page_w, page_h = canvas._pagesize
         lm, rm, tm, bm = Story._page_margins(canvas, doc)
+        is_landscape = page_w > page_h
 
-        # Header
-        caldera_logo = "./plugins/debrief/static/img/caldera.png"
-        im = Image(caldera_logo, 1.5 * inch, 1 * inch)
-        header_y = page_h - tm
-        im.drawOn(canvas, lm, header_y - im.drawHeight / 2)
+        # Header — landscape pages have only 18pt margin, too narrow for
+        # the 1-inch logo; skip header entirely on landscape first pages.
+        if not is_landscape:
+            caldera_logo = "./plugins/debrief/static/img/caldera.png"
+            im = Image(caldera_logo, 1.5 * inch, 1 * inch)
+            header_y = page_h - tm
+            im.drawOn(canvas, lm, header_y - im.drawHeight / 2)
 
-        if Story._header_logo_path:
-            Story.draw_header_logo(canvas, doc, Story._header_logo_path)
+            if Story._header_logo_path:
+                Story.draw_header_logo(canvas, doc, Story._header_logo_path)
 
-        canvas.setStrokeColor(colors.maroon)
-        canvas.setLineWidth(4)
-        canvas.line(lm + im.drawWidth + 5, header_y,
-                    page_w - rm, header_y)
+            canvas.setStrokeColor(colors.maroon)
+            canvas.setLineWidth(4)
+            canvas.line(lm + im.drawWidth + 5, header_y,
+                        page_w - rm, header_y)
 
         # Footer
         page_num = canvas.getPageNumber()

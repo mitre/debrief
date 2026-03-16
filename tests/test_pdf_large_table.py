@@ -99,13 +99,19 @@ class TestLargeTablePdfGeneration:
         # There should be flowables generated
         assert len(flowables) > 0
 
-        # Verify detection data tables exist (not just the section-band header).
-        # Detection tables have 8 columns (AN, Platform, Statement, Name,
-        # Channel, Data Component, Field, Description).
+        # Verify detection data tables exist.  Detection tables have 8 columns
+        # (AN, Platform, Statement, Name, Channel, Data Component, Field,
+        # Description) and are wrapped inside KeepTogetherSplitAtTop flowables.
         from reportlab.platypus import Table
-        det_tables = [f for f in flowables
-                      if isinstance(f, Table) and len(f._argW) == 8]
-        assert len(det_tables) > 0, "Expected at least one 8-column detection Table"
+        from reportlab.platypus.flowables import KeepTogetherSplitAtTop
+
+        det_tables = []
+        for f in flowables:
+            if isinstance(f, KeepTogetherSplitAtTop):
+                for child in f._flowables:
+                    if isinstance(child, Table) and len(child._rowHeights) > 2:
+                        det_tables.append(child)
+        assert len(det_tables) > 0, "Expected at least one detection Table inside KeepTogetherSplitAtTop"
 
         # Build an actual PDF in a landscape frame matching debrief_gui.py
         buf = io.BytesIO()

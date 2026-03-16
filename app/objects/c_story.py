@@ -87,16 +87,8 @@ class Story:
             Story.draw_header_logo(canvas, doc, Story._header_logo_path)
 
         is_landscape = page_w > page_h
-        if is_landscape:
-            # Compact header: thin maroon line at the very top of the frame
-            frame_top = page_h - tm
-            canvas.setStrokeColor(colors.maroon)
-            canvas.setLineWidth(2)
-            canvas.line(lm, frame_top + tm - 4, page_w - rm, frame_top + tm - 4)
-            canvas.setFillColor(colors.maroon)
-            canvas.setFont('Helvetica-Bold', 8)
-            canvas.drawString(lm, frame_top + tm - 3 + 2, 'OPERATIONS DEBRIEF')
-        else:
+        if not is_landscape:
+            # Portrait pages have room for the full header
             header_y = page_h - tm * 0.75
             canvas.setFillColor(colors.maroon)
             canvas.setFont('Helvetica-Bold', 18)
@@ -104,6 +96,7 @@ class Story:
             canvas.setStrokeColor(colors.maroon)
             canvas.setLineWidth(4)
             canvas.line(lm, header_y - 5, page_w - rm, header_y - 5)
+        # Landscape pages: skip header — 18pt margin is too narrow
 
         # Footer
         canvas.setFillColor(colors.black)

@@ -25,14 +25,14 @@ class DebriefService(BaseService):
 
         for operation in operations:
             # Add operation node
-            graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation',
+            graph_output['nodes'].append(dict(name=operation.name, type='operation', id=operation.id, img='operation',
                                               timestamp=self._format_timestamp(operation.created)))
 
             # Add agents for this operation
             agents = [x for x in operation.agents if x]
             self._add_agents_to_d3(agents, id_store, graph_output)
             for agent in agents:
-                graph_output['links'].append(dict(source=op_id,
+                graph_output['links'].append(dict(source=operation.id,
                                                   target=id_store['agent' + agent.unique],
                                                   type='has_agent'))
 
@@ -42,12 +42,12 @@ class DebriefService(BaseService):
                 link_graph_id = id_store['link' + link.unique] = max(id_store.values()) + 1
                 display_name = link.ability.name + (' (cleanup)' if link.cleanup else '')
                 graph_output['nodes'].append(dict(type='link', name='link:'+link.unique, id=link_graph_id,
-                                                  status=link.status, operation=op_id, img=link.ability.tactic,
+                                                  status=link.status, operation=operation.id, img=link.ability.tactic,
                                                   attrs=dict(status=link.status, name=display_name),
                                                   timestamp=self._format_timestamp(link.created)))
 
                 if not previous_link_graph_id:
-                    graph_output['links'].append(dict(source=op_id, target=link_graph_id, type='next_link'))
+                    graph_output['links'].append(dict(source=operation.id, target=link_graph_id, type='next_link'))
                 else:
                     graph_output['links'].append(dict(source=previous_link_graph_id, target=link_graph_id,
                                                       type='next_link'))

@@ -202,7 +202,7 @@ class TestFactsTableHelpers:
             source='src', links=[], collected_by=[])
         row = section._generate_fact_table_row(
             fact, False, {}, 'src', set(), set())
-        assert 'character limit' in row[1].lower() or len(row[1]) < len(long_val)
+        assert len(row[1]) < len(long_val), "Long values should be truncated"
 
 
 # ===========================================================================
@@ -425,7 +425,7 @@ class TestTacticTechniqueTableSection:
         section.styles = styles
         section.tt_body = MagicMock()
         result = section._generate_ttp_detection_info('T1082', include_det_links=True)
-        assert 'link' in result[0].lower() or 'href' in result[0].lower()
+        assert 'href' in result[0].lower(), "Detection info with links should contain href attributes"
 
     def test_parent_fallback(self, styles):
         section = _mock_section(tactic_technique_mod)

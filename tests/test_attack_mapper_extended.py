@@ -278,6 +278,12 @@ class TestIndexBundle:
         idx = index_bundle(bundle)
         # DET-0012 should be normalized to DET0012
         assert idx is not None
+        all_det_ids = [
+            s.get('det_id', '') for strats in idx.get('strategies_by_tid', {}).values() for s in strats
+        ]
+        assert any('DET0012' in d for d in all_det_ids), (
+            f"Expected normalized DET0012 in strategies, got: {all_det_ids}"
+        )
 
     def test_full_strategy_to_technique_mapping(self):
         bundle = self._make_bundle([

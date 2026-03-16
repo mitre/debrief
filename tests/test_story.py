@@ -14,8 +14,8 @@ class TestStoryInit:
         assert s.story_arr == []
 
     def test_header_logo_path_default(self):
-        s = Story()
-        assert Story._header_logo_path is not None or Story._header_logo_path is None
+        Story.set_header_logo_path(None)  # reset to known state
+        assert Story._header_logo_path is None
 
 
 class TestStoryAppend:

@@ -126,15 +126,14 @@ class TestSvgOperations:
         encoded = base64.b64encode(svg_content).decode()
         save_dir = str(tmp_path) + '/'
 
-        with patch('builtins.open', MagicMock()) as mock_open:
-            # Monkey-patch save location
-            svgs = {'test_graph': encoded}
-            with patch('plugins.debrief.app.debrief_gui.DebriefGui._save_svgs') as _:
-                # Test the static method directly
-                import base64 as b64mod
-                for filename, svg_bytes in svgs.items():
-                    decoded = b64mod.b64decode(svg_bytes)
-                    assert decoded == svg_content
+        svgs = {'test_graph': encoded}
+        with patch('plugins.debrief.app.debrief_gui.open', create=True) as mock_open:
+            mock_fh = MagicMock()
+            mock_open.return_value.__enter__ = MagicMock(return_value=mock_fh)
+            mock_open.return_value.__exit__ = MagicMock(return_value=False)
+            DebriefGui._save_svgs(svgs)
+            mock_open.assert_called_once()
+            mock_fh.write.assert_called_once_with(base64.b64decode(encoded))
 
     def test_clean_downloads(self, tmp_path):
         # Create test files

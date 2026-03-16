@@ -358,11 +358,11 @@ class DebriefReportSection(BaseReportSection):
 
                 flows.append(Paragraph(f'<a name="{det_id}"></a>', self.styles['Normal']))
                 hdr_block = self._build_det_header_block(det_id, det_name, sorted(an_ids))
-                # Keep the header together but let the table split freely across pages.
-                # Wrapping both in KeepTogetherSplitAtTop caused LayoutError when the
-                # combined height exceeded the frame (e.g., 14+ technique SMB adversary).
-                flows.append(KeepTogetherSplitAtTop(hdr_block))
-                flows.append(tbl)
+                # Combine header and table into one flowable so there's no gap.
+                # KeepTogetherSplitAtTop keeps the header with the top of the
+                # table, and splitByRow + splitInRow on the Table allow the data
+                # rows to break across pages.
+                flows.append(KeepTogetherSplitAtTop(hdr_block + [tbl]))
         return flows
 
     def _build_det_header_block(self, det_id: str, det_name: str, an_ids: list[str]):

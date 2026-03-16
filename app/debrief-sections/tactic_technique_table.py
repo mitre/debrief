@@ -159,9 +159,12 @@ class DebriefReportSection(BaseReportSection):
             d_style = ParagraphStyle('tt-body-center', parent=self.tt_body, alignment=1)
             d_para = Paragraph(self._stacked(detect_lines, html=True), d_style)
 
+            tac_style = ParagraphStyle('tt-tactic', parent=self.tt_body, alignment=1,
+                                       wordWrap='CJK')
+            tac_name = (tactic.get('name') or '').capitalize()
+            tac_para = Paragraph(escape(tac_name), tac_style)
             ttp_data.append([
-                (tactic.get('name') or '').capitalize(),
-                t_para, a_para, d_para
+                tac_para, t_para, a_para, d_para
             ])
 
         # --------------------------------------------------------------------------
@@ -170,8 +173,8 @@ class DebriefReportSection(BaseReportSection):
         tbl = Table(
             ttp_data,
             colWidths=[
-                0.75*inch,  # Tactics
-                2.85*inch,  # Techniques
+                1.10*inch,  # Tactics
+                2.50*inch,  # Techniques
                 1.75*inch,  # Abilities
                 0.90*inch   # Detections
             ],

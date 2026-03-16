@@ -30,70 +30,77 @@ class Story:
         Story._header_logo_path = header_logo_path
 
     @staticmethod
+    def _page_margins(canvas, doc):
+        """Return (left, right, top, bottom) margins appropriate for the current page.
+
+        Landscape pages use the frame margins (18pt) rather than the doc-level
+        portrait margins (72/84pt).
+        """
+        page_w, page_h = canvas._pagesize
+        if page_w > page_h:  # landscape
+            frame = doc.frame if hasattr(doc, 'frame') else None
+            if frame:
+                lm = frame._x1
+                bm = frame._y1
+                rm = page_w - frame._x1 - frame._width
+                tm = page_h - frame._y1 - frame._height
+                return lm, rm, tm, bm
+        return doc.leftMargin, doc.rightMargin, doc.topMargin, doc.bottomMargin
+
+    @staticmethod
     def header_footer_first(canvas, doc):
-        # Save the state of our canvas so we can draw on it
         canvas.saveState()
 
-        # Use actual page dimensions so landscape pages render correctly
         page_w, page_h = canvas._pagesize
-        usable_w = page_w - doc.leftMargin - doc.rightMargin
-        usable_h = page_h - doc.topMargin - doc.bottomMargin
+        lm, rm, tm, bm = Story._page_margins(canvas, doc)
 
         # Header
         caldera_logo = "./plugins/debrief/static/img/caldera.png"
         im = Image(caldera_logo, 1.5 * inch, 1 * inch)
-        im.drawOn(canvas, doc.leftMargin, usable_h + doc.topMargin - im.drawHeight / 2)
+        header_y = page_h - tm
+        im.drawOn(canvas, lm, header_y - im.drawHeight / 2)
 
         if Story._header_logo_path:
             Story.draw_header_logo(canvas, doc, Story._header_logo_path)
 
         canvas.setStrokeColor(colors.maroon)
         canvas.setLineWidth(4)
-        canvas.line(doc.leftMargin + im.drawWidth + 5,
-                    usable_h + doc.topMargin,
-                    usable_w + doc.leftMargin,
-                    usable_h + doc.topMargin)
+        canvas.line(lm + im.drawWidth + 5, header_y,
+                    page_w - rm, header_y)
 
         # Footer
         page_num = canvas.getPageNumber()
         text = "Page %s" % page_num
-        canvas.drawRightString(usable_w + doc.rightMargin * 1.5, doc.bottomMargin / 2, text)
+        canvas.drawRightString(page_w - rm, bm / 2, text)
 
-        # Release the canvas
         canvas.restoreState()
 
     @staticmethod
     def header_footer_rest(canvas, doc):
-        # Save the state of our canvas so we can draw on it
         canvas.saveState()
 
-        # Use actual page dimensions so landscape pages render correctly
         page_w, page_h = canvas._pagesize
-        usable_w = page_w - doc.leftMargin - doc.rightMargin
-        usable_h = page_h - doc.topMargin - doc.bottomMargin
+        lm, rm, tm, bm = Story._page_margins(canvas, doc)
 
         # Header
         if Story._header_logo_path:
             Story.draw_header_logo(canvas, doc, Story._header_logo_path)
 
+        header_y = page_h - tm * 0.4
         canvas.setFillColor(colors.maroon)
         canvas.setFont('Helvetica-Bold', 18)
-        canvas.drawString(doc.leftMargin, usable_h + doc.topMargin * 1.25, 'OPERATIONS DEBRIEF')
+        canvas.drawString(lm, header_y, 'OPERATIONS DEBRIEF')
         canvas.setStrokeColor(colors.maroon)
         canvas.setLineWidth(4)
-        canvas.line(doc.leftMargin,
-                    usable_h + doc.topMargin * 1.25 - 5,
-                    usable_w + doc.leftMargin,
-                    usable_h + doc.topMargin * 1.25 - 5)
+        canvas.line(lm, header_y - 5, page_w - rm, header_y - 5)
 
         # Footer
         canvas.setFillColor(colors.black)
         canvas.setFont('Helvetica', 10)
         page_num = canvas.getPageNumber()
         text = "Page %s" % page_num
-        canvas.drawRightString(usable_w + doc.rightMargin * 1.5, doc.bottomMargin / 2, text)
+        canvas.drawRightString(page_w - rm, bm / 2, text)
 
-        # Release the canvas
         canvas.restoreState()
 
     @staticmethod

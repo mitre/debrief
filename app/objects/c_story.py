@@ -99,12 +99,16 @@ class Story:
         for icon_svg in svg.getroot().iter("{http://www.w3.org/2000/svg}svg"):
             if icon_svg.get('id') == 'copy-svg':
                 continue
-            viewbox = [int(float(val)) for val in icon_svg.get('viewBox').split()]
+            viewbox_attr = icon_svg.get('viewBox')
+            if not viewbox_attr:
+                continue
+            viewbox = [int(float(val)) for val in viewbox_attr.split()]
             aspect = viewbox[2] / viewbox[3]
             icon_svg.set('width', str(round(float(icon_svg.get('height')) * aspect)))
             if not icon_svg.get('id') or 'legend' not in icon_svg.get('id'):
                 icon_svg.set('x', '-' + str(int(icon_svg.get('width')) / 2))
-        svg.write(open(path, 'wb'))
+        with open(path, 'wb') as f:
+            svg.write(f)
 
     @staticmethod
     def get_table_object(val):

@@ -11,12 +11,10 @@ import pytest
 
 from base64 import b64encode
 from datetime import datetime
-from unittest.mock import MagicMock, patch
 
 from reportlab.lib.pagesizes import letter, landscape as to_landscape
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, PageBreak, Frame, PageTemplate
+from reportlab.platypus import SimpleDocTemplate
 
 from app.objects.c_ability import Ability
 from app.objects.c_adversary import Adversary
@@ -91,8 +89,6 @@ class TestLargeTablePdfGeneration:
         op, agent = large_operation
         section = TTP_DET_MODULE.DebriefReportSection()
         styles = getSampleStyleSheet()
-
-        paw_to_platform = {agent.paw: agent.platform}
 
         flowables = await section.generate_section_elements(
             styles,

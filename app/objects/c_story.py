@@ -60,8 +60,9 @@ class Story:
         if not is_landscape:
             caldera_logo = "./plugins/debrief/static/img/caldera.png"
             im = Image(caldera_logo, 1.5 * inch, 1 * inch)
-            header_y = page_h - tm
-            im.drawOn(canvas, lm, header_y - im.drawHeight / 2)
+            # Position header above the content frame (in the top margin area)
+            header_y = page_h - tm + im.drawHeight / 2
+            im.drawOn(canvas, lm, page_h - tm)
 
             if Story._header_logo_path:
                 Story.draw_header_logo(canvas, doc, Story._header_logo_path)
@@ -85,12 +86,11 @@ class Story:
         page_w, page_h = canvas._pagesize
         lm, rm, tm, bm = Story._page_margins(canvas, doc)
 
-        # Header
-        if Story._header_logo_path:
-            Story.draw_header_logo(canvas, doc, Story._header_logo_path)
-
+        # Header — skip entirely on landscape pages (18pt margin too narrow)
         is_landscape = page_w > page_h
         if not is_landscape:
+            if Story._header_logo_path:
+                Story.draw_header_logo(canvas, doc, Story._header_logo_path)
             # Portrait pages have room for the full header
             header_y = page_h - tm * 0.75
             canvas.setFillColor(colors.maroon)

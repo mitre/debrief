@@ -395,6 +395,9 @@ test.describe('Debrief error states', () => {
       '**/api/v2/operations': (route) => route.abort('timedout'),
     });
     await navigateToDebrief(page);
+    // Page should not crash — heading still visible and no operations loaded
     await expect(page.locator('h2', { hasText: 'Debrief' })).toBeVisible();
+    const options = page.locator('select option:not([disabled])');
+    await expect(options).toHaveCount(0);
   });
 });

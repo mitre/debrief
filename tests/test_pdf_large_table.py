@@ -111,6 +111,20 @@ class TestLargeTablePdfGeneration:
         buf = io.BytesIO()
         lw, lh = to_landscape(letter)
         margin = 18
+        avail_width = lw - 2 * margin
+        avail_height = lh - 2 * margin
+
+        # Precondition: at least one detection table must exceed the available
+        # frame height so that we actually exercise the page-split code path.
+        max_table_h = max(
+            t.wrap(avail_width, avail_height)[1] for t in det_tables
+        )
+        assert max_table_h > avail_height, (
+            f"Test precondition failed: tallest detection table ({max_table_h:.0f}pt) "
+            f"does not exceed frame height ({avail_height:.0f}pt), so the "
+            f"LayoutError regression would not be exercised"
+        )
+
         doc = SimpleDocTemplate(buf, pagesize=(lw, lh),
                                 leftMargin=margin, rightMargin=margin,
                                 topMargin=margin, bottomMargin=margin)

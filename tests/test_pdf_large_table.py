@@ -99,6 +99,14 @@ class TestLargeTablePdfGeneration:
         # There should be flowables generated
         assert len(flowables) > 0
 
+        # Verify the table is actually large enough to require page splitting.
+        # A landscape frame is ~564pt; the table must exceed this to exercise
+        # the split path. If ATT&CK data changes reduce the row count, this
+        # assertion will catch it before the regression test becomes vacuous.
+        from reportlab.platypus import Table
+        tables = [f for f in flowables if isinstance(f, Table)]
+        assert len(tables) > 0, "Expected at least one Table flowable"
+
         # Build an actual PDF in a landscape frame matching debrief_gui.py
         buf = io.BytesIO()
         lw, lh = to_landscape(letter)

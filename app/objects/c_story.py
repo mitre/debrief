@@ -34,10 +34,15 @@ class Story:
         # Save the state of our canvas so we can draw on it
         canvas.saveState()
 
+        # Use actual page dimensions so landscape pages render correctly
+        page_w, page_h = canvas._pagesize
+        usable_w = page_w - doc.leftMargin - doc.rightMargin
+        usable_h = page_h - doc.topMargin - doc.bottomMargin
+
         # Header
         caldera_logo = "./plugins/debrief/static/img/caldera.png"
         im = Image(caldera_logo, 1.5 * inch, 1 * inch)
-        im.drawOn(canvas, doc.leftMargin, doc.height + doc.topMargin - im.drawHeight / 2)
+        im.drawOn(canvas, doc.leftMargin, usable_h + doc.topMargin - im.drawHeight / 2)
 
         if Story._header_logo_path:
             Story.draw_header_logo(canvas, doc, Story._header_logo_path)
@@ -45,14 +50,14 @@ class Story:
         canvas.setStrokeColor(colors.maroon)
         canvas.setLineWidth(4)
         canvas.line(doc.leftMargin + im.drawWidth + 5,
-                    doc.height + doc.topMargin,
-                    doc.width + doc.leftMargin,
-                    doc.height + doc.topMargin)
+                    usable_h + doc.topMargin,
+                    usable_w + doc.leftMargin,
+                    usable_h + doc.topMargin)
 
         # Footer
         page_num = canvas.getPageNumber()
         text = "Page %s" % page_num
-        canvas.drawRightString(doc.width + doc.rightMargin * 1.5, doc.bottomMargin / 2, text)
+        canvas.drawRightString(usable_w + doc.rightMargin * 1.5, doc.bottomMargin / 2, text)
 
         # Release the canvas
         canvas.restoreState()
@@ -62,35 +67,41 @@ class Story:
         # Save the state of our canvas so we can draw on it
         canvas.saveState()
 
+        # Use actual page dimensions so landscape pages render correctly
+        page_w, page_h = canvas._pagesize
+        usable_w = page_w - doc.leftMargin - doc.rightMargin
+        usable_h = page_h - doc.topMargin - doc.bottomMargin
+
         # Header
         if Story._header_logo_path:
             Story.draw_header_logo(canvas, doc, Story._header_logo_path)
 
         canvas.setFillColor(colors.maroon)
         canvas.setFont('Helvetica-Bold', 18)
-        canvas.drawString(doc.leftMargin, doc.height + doc.topMargin * 1.25, 'OPERATIONS DEBRIEF')
+        canvas.drawString(doc.leftMargin, usable_h + doc.topMargin * 1.25, 'OPERATIONS DEBRIEF')
         canvas.setStrokeColor(colors.maroon)
         canvas.setLineWidth(4)
         canvas.line(doc.leftMargin,
-                    doc.height + doc.topMargin * 1.25 - 5,
-                    doc.width + doc.leftMargin,
-                    doc.height + doc.topMargin * 1.25 - 5)
+                    usable_h + doc.topMargin * 1.25 - 5,
+                    usable_w + doc.leftMargin,
+                    usable_h + doc.topMargin * 1.25 - 5)
 
         # Footer
         canvas.setFillColor(colors.black)
         canvas.setFont('Helvetica', 10)
         page_num = canvas.getPageNumber()
         text = "Page %s" % page_num
-        canvas.drawRightString(doc.width + doc.rightMargin * 1.5, doc.bottomMargin / 2, text)
+        canvas.drawRightString(usable_w + doc.rightMargin * 1.5, doc.bottomMargin / 2, text)
 
         # Release the canvas
         canvas.restoreState()
 
     @staticmethod
     def draw_header_logo(canvas, doc, logo_path):
+        page_w, page_h = canvas._pagesize
         im = Image(logo_path, 2.5 * inch, 0.75 * inch)
-        im.drawOn(canvas, doc.width + doc.leftMargin + doc.rightMargin - im.drawWidth - 10,
-                  doc.height + doc.topMargin + doc.bottomMargin - im.drawHeight - 10)
+        im.drawOn(canvas, page_w - im.drawWidth - 10,
+                  page_h - im.drawHeight - 10)
 
     @staticmethod
     def adjust_icon_svgs(path):

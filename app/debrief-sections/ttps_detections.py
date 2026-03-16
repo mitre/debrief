@@ -6,7 +6,7 @@ from reportlab.lib import colors
 
 from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph, PageBreak, Table, TableStyle
-from reportlab.platypus.flowables import KeepTogether
+from reportlab.platypus.flowables import KeepTogetherSplitAtTop
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
 
@@ -358,7 +358,7 @@ class DebriefReportSection(BaseReportSection):
 
                 flows.append(Paragraph(f'<a name="{det_id}"></a>', self.styles['Normal']))
                 hdr_block = self._build_det_header_block(det_id, det_name, sorted(an_ids))
-                flows.append(KeepTogether(hdr_block + [tbl]))
+                flows.append(KeepTogetherSplitAtTop(hdr_block + [tbl]))
         return flows
 
     def _build_det_header_block(self, det_id: str, det_name: str, an_ids: list[str]):

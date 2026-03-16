@@ -358,7 +358,11 @@ class DebriefReportSection(BaseReportSection):
 
                 flows.append(Paragraph(f'<a name="{det_id}"></a>', self.styles['Normal']))
                 hdr_block = self._build_det_header_block(det_id, det_name, sorted(an_ids))
-                flows.append(KeepTogetherSplitAtTop(hdr_block + [tbl]))
+                # Keep the header together but let the table split freely across pages.
+                # Wrapping both in KeepTogetherSplitAtTop caused LayoutError when the
+                # combined height exceeded the frame (e.g., 14+ technique SMB adversary).
+                flows.append(KeepTogetherSplitAtTop(hdr_block))
+                flows.append(tbl)
         return flows
 
     def _build_det_header_block(self, det_id: str, det_name: str, an_ids: list[str]):
@@ -493,10 +497,10 @@ class DebriefReportSection(BaseReportSection):
                     valign_cmds.append(('VALIGN', (col_idx, r_start), (col_idx, r), 'MIDDLE'))
                 r += 1
 
-        # Spanning for AN / Platform / Statement
-        _add_spans_for_column(0)
-        _add_spans_for_column(1)
-        _add_spans_for_column(2)
+        # NOTE: Row-spanning for AN/Platform/Statement columns is intentionally
+        # disabled. Row spans prevent ReportLab from splitting the table across
+        # pages, causing LayoutError for detection tables with many rows.
+        # The table uses repeatRows=2 and splitByRow=True to allow page breaks.
 
         # ------------------------------------------------------------------
         # BUILD TABLE
@@ -505,6 +509,8 @@ class DebriefReportSection(BaseReportSection):
             rows,
             colWidths=self.DATA_COL_WIDTHS,
             repeatRows=2,
+            splitByRow=True,
+            splitInRow=True,
             hAlign='CENTER'
         )
 

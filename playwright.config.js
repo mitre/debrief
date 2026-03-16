@@ -2,6 +2,12 @@
 const { defineConfig, devices } = require('@playwright/test');
 
 const CALDERA_URL = process.env.CALDERA_URL || 'http://localhost:8888';
+const CALDERA_USER = process.env.CALDERA_USER || (process.env.CI ? undefined : 'admin');
+const CALDERA_PASS = process.env.CALDERA_PASS || (process.env.CI ? undefined : 'admin');
+
+if (process.env.CI && (!CALDERA_USER || !CALDERA_PASS)) {
+  throw new Error('CALDERA_USER and CALDERA_PASS must be set in CI');
+}
 
 module.exports = defineConfig({
   testDir: './tests/e2e',
@@ -17,8 +23,8 @@ module.exports = defineConfig({
     screenshot: 'only-on-failure',
     headless: true,
     httpCredentials: {
-      username: process.env.CALDERA_USER || 'admin',
-      password: process.env.CALDERA_PASS || 'admin',
+      username: CALDERA_USER,
+      password: CALDERA_PASS,
     },
   },
   projects: [

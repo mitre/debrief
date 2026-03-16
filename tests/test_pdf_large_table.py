@@ -108,7 +108,7 @@ class TestLargeTablePdfGeneration:
         det_tables = []
         for f in flowables:
             if isinstance(f, KeepTogetherSplitAtTop):
-                for child in f._flowables:
+                for child in f._content:
                     if isinstance(child, Table) and len(child._rowHeights) > 2:
                         det_tables.append(child)
         assert len(det_tables) > 0, "Expected at least one detection Table inside KeepTogetherSplitAtTop"

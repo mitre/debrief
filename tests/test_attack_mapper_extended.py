@@ -267,10 +267,15 @@ class TestIndexBundle:
 
     def test_strategy_det_id_normalization(self):
         bundle = self._make_bundle([
+            {'type': 'attack-pattern', 'id': 'ap-1', 'name': 'Test Technique',
+             'external_references': [{'source_name': 'mitre-attack', 'external_id': 'T1082'}]},
             {'type': 'x-mitre-detection-strategy', 'id': 'ds-1',
              'name': 'Test Strat',
              'external_references': [{'external_id': 'DET-0012'}],
              'x_mitre_analytic_refs': []},
+            {'type': 'relationship', 'id': 'rel-1',
+             'relationship_type': 'detects',
+             'source_ref': 'ds-1', 'target_ref': 'ap-1'},
             {'type': 'x-mitre-analytic', 'id': 'an-1',
              'name': 'Analytic 0001',
              'external_references': [{'external_id': 'AN0001'}]},

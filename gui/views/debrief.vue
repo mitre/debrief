@@ -601,10 +601,13 @@ export default {
                   window.addEventListener('resize', moveLegend);
                 }
 
-                // While the debrief tab is open, keep checking for new/killed agents
-                setInterval(async () => {
-                  this.refreshOperations();
-                }, "3000");
+                // Refresh operations periodically, with backoff on failure
+                if (!this._refreshTimer) {
+                  this._refreshFailCount = 0;
+                  this._refreshTimer = setInterval(() => {
+                    this.refreshOperations();
+                  }, 5000);
+                }
             }).catch((error) => {
                 console.error(error);
                 toast({
@@ -622,17 +625,13 @@ export default {
         refreshOperations() {
           this.$api.get('/api/v2/operations').then((operations) => {
                 this.operations = operations.data;
-            }).catch((error) => {
-                console.error(error);
-          toast({
-            message:
-            "Error refreshing operations",
-            type: "is-danger",
-            dismissible: true,
-            pauseOnHover: true,
-            duration: 2000,
-            position: "bottom-right",
-          });
+                this._refreshFailCount = 0;
+            }).catch(() => {
+                this._refreshFailCount = (this._refreshFailCount || 0) + 1;
+                if (this._refreshFailCount > 3 && this._refreshTimer) {
+                    clearInterval(this._refreshTimer);
+                    this._refreshTimer = null;
+                }
             });
         },
 
@@ -1421,13 +1420,13 @@ export default {
 
         // Dynamic icon scale: fewer hosts = larger, more = smaller, with hard cap
         topoIconRadius() {
-            if (!this.topoData) return 14;
+            if (!this.topoData) return 16;
             const hostCount = Object.keys(this.topoData.hosts || {}).length;
-            if (hostCount <= 2) return 12;    // hard cap — don't go huge
-            if (hostCount <= 5) return 14;
-            if (hostCount <= 10) return 12;
-            if (hostCount <= 20) return 10;
-            return 8;                          // many hosts = tiny
+            if (hostCount <= 2) return 14;    // hard cap — don't go huge
+            if (hostCount <= 5) return 16;
+            if (hostCount <= 10) return 14;
+            if (hostCount <= 20) return 12;
+            return 10;                         // many hosts
         },
 
         topoIconImgSize() {

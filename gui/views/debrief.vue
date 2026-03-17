@@ -1246,7 +1246,7 @@ export default {
             this.topoStepCounts = { ...this.topoStepCounts };
             this.topoStepCounts[paw] = (this.topoStepCounts[paw] || 0) + 1;
 
-            // If this is a newly revealed host, show the edge
+            // If this is a newly revealed host, show the edge + batch-reveal discovered hosts
             this.topoNewestEdge = -1;
             this.topoBeaconEdge = -1;
             if (!wasRevealed) {
@@ -1254,6 +1254,28 @@ export default {
                 if (edgeIdx >= 0) {
                     this.topoRevealedHosts.add(this.topoEdges[edgeIdx].source);
                     this.topoNewestEdge = edgeIdx;
+                }
+                // Batch-reveal discovered hosts in the same subnet(s) as this agent
+                if (this.topoData) {
+                    const agentHost = (this.topoData.hosts || {})[paw];
+                    if (agentHost) {
+                        const agentSubnets = new Set((agentHost.ips || []).map(ip => {
+                            const p = ip.split('.');
+                            return p.length === 4 ? `${p[0]}.${p[1]}.${p[2]}.0/24` : null;
+                        }).filter(Boolean));
+                        // Find all discovered hosts in those subnets
+                        for (const [hid, host] of Object.entries(this.topoData.hosts || {})) {
+                            if (host.compromised || this.topoRevealedHosts.has(hid)) continue;
+                            for (const ip of (host.ips || [])) {
+                                const p = ip.split('.');
+                                const cidr = p.length === 4 ? `${p[0]}.${p[1]}.${p[2]}.0/24` : null;
+                                if (cidr && agentSubnets.has(cidr)) {
+                                    this.topoRevealedHosts.add(hid);
+                                    break;
+                                }
+                            }
+                        }
+                    }
                 }
             }
         },
@@ -1464,15 +1486,15 @@ export default {
             return `0 0 ${w} ${h}`;
         },
 
-        // Dynamic icon scale
+        // Dynamic icon scale (+15%)
         topoIconRadius() {
-            if (!this.topoData) return 28;
+            if (!this.topoData) return 32;
             const hostCount = Object.keys(this.topoData.hosts || {}).length;
-            if (hostCount <= 3) return 28;
-            if (hostCount <= 6) return 28;
-            if (hostCount <= 12) return 26;
-            if (hostCount <= 20) return 24;
-            return 22;
+            if (hostCount <= 3) return 32;
+            if (hostCount <= 6) return 32;
+            if (hostCount <= 12) return 30;
+            if (hostCount <= 20) return 28;
+            return 25;
         },
 
         topoIconImgSize() {

@@ -381,20 +381,37 @@ class DebriefService(BaseService):
                         hosts[hid]['intel'].append(dict(trait=trait, value=value))
 
         # --- Build subnets from IPs ---
+        # Each host goes in ONE subnet only (its primary/first non-docker IP).
+        # Docker bridge IPs (172.17-31.x.x) are deprioritized.
         subnet_map = {}  # cidr -> set of host_ids
+        assigned_hosts = set()
+
         for host_id, host in hosts.items():
             if host_id == 'c2':
                 continue
-            for ip in (host.get('ips') or []):
+            ips = host.get('ips') or []
+            # Pick best IP: prefer non-172.1x (non-Docker bridge) IPs
+            primary_ip = None
+            for ip in ips:
                 subnet = self._ip_to_subnet(ip)
-                if subnet:
-                    subnet_map.setdefault(subnet, set()).add(host_id)
+                if subnet and not ip.startswith('172.'):
+                    primary_ip = ip
+                    break
+            if not primary_ip:
+                for ip in ips:
+                    subnet = self._ip_to_subnet(ip)
+                    if subnet:
+                        primary_ip = ip
+                        break
+            if primary_ip:
+                subnet_cidr = self._ip_to_subnet(primary_ip)
+                subnet_map.setdefault(subnet_cidr, set()).add(host_id)
+                assigned_hosts.add(host_id)
+                # Store primary IP on host for display
+                host['primary_ip'] = primary_ip
 
-        # Hosts with no IP go to "Unknown" subnet
-        hosts_with_subnet = set()
-        for hids in subnet_map.values():
-            hosts_with_subnet.update(hids)
-        ungrouped = [hid for hid in hosts if hid != 'c2' and hid not in hosts_with_subnet]
+        # Hosts with no valid IP go to "Unknown" subnet
+        ungrouped = [hid for hid in hosts if hid != 'c2' and hid not in assigned_hosts]
         if ungrouped:
             subnet_map['Unknown'] = set(ungrouped)
 

@@ -1023,16 +1023,17 @@ export default {
         topoSubnets() {
             if (!this.topoData) return [];
             const subnets = this.topoData.subnets || [];
-            const padding = 20;
-            const bandH = 100;
-            const hostSpacing = 120;
+            const padding = 30;
+            const bandH = 80;
+            const hostSpacing = 100;
+            const c2Height = 70; // space reserved for C2 node above bands
             return subnets.map((s, si) => {
                 const hostCount = Math.max(s.hosts.length, 1);
-                const w = Math.max(hostCount * hostSpacing + padding * 2, 300);
+                const w = Math.max(hostCount * hostSpacing + 80, 250);
                 return {
                     cidr: s.cidr,
                     x: padding,
-                    y: padding + si * (bandH + 20),
+                    y: c2Height + padding + si * (bandH + 16),
                     w: w,
                     h: bandH,
                     hosts: s.hosts,
@@ -1044,23 +1045,25 @@ export default {
             if (!this.topoData) return [];
             const hosts = this.topoData.hosts || {};
             const result = [];
-            const hostSpacing = 120;
-            const padding = 20;
-            // Position hosts within their subnet bands
+            const hostSpacing = 100;
+            // Position hosts centered within their subnet bands
             const hostPositions = {};
             this.topoSubnets.forEach((subnet) => {
+                const totalW = subnet.hosts.length * hostSpacing;
+                const startX = subnet.x + (subnet.w - totalW) / 2 + hostSpacing / 2;
                 subnet.hosts.forEach((hid, hi) => {
-                    const x = subnet.x + padding + 40 + hi * hostSpacing;
-                    const y = subnet.y + subnet.h / 2;
-                    hostPositions[hid] = { x, y };
+                    hostPositions[hid] = {
+                        x: startX + hi * hostSpacing,
+                        y: subnet.y + subnet.h / 2,
+                    };
                 });
             });
-            // C2 node at top center
+            // C2 node centered above all bands
             const svgW = this.topoSvgWidth;
-            hostPositions['c2'] = { x: svgW / 2, y: 30 };
+            hostPositions['c2'] = { x: svgW / 2, y: 35 };
 
             Object.entries(hosts).forEach(([id, host]) => {
-                const pos = hostPositions[id] || { x: 100, y: 50 };
+                const pos = hostPositions[id] || { x: svgW / 2, y: 35 };
                 result.push({ ...host, x: pos.x, y: pos.y });
             });
             return result;
@@ -1075,11 +1078,12 @@ export default {
                 const src = hostMap[e.source];
                 const tgt = hostMap[e.target];
                 if (!src || !tgt) return { ...e, path: '' };
+                // Gentle curve — control point offset perpendicular to the line
+                const mx = (src.x + tgt.x) / 2;
+                const my = (src.y + tgt.y) / 2;
                 const dx = tgt.x - src.x;
-                const dy = tgt.y - src.y;
-                const cx = src.x + dx * 0.5;
-                const cy = src.y + dy * 0.5 - Math.abs(dx) * 0.15;
-                const path = `M ${src.x} ${src.y} Q ${cx} ${cy} ${tgt.x} ${tgt.y}`;
+                const curveOffset = Math.min(Math.abs(dx) * 0.2, 30);
+                const path = `M ${src.x} ${src.y} Q ${mx + curveOffset} ${my} ${tgt.x} ${tgt.y}`;
                 return { ...e, path };
             });
         },
@@ -1088,15 +1092,15 @@ export default {
             const w = this.topoSvgWidth;
             const subnets = this.topoSubnets;
             const lastSubnet = subnets[subnets.length - 1];
-            const h = lastSubnet ? lastSubnet.y + lastSubnet.h + 40 : 300;
-            return `0 0 ${w} ${Math.max(h, 200)}`;
+            const h = lastSubnet ? lastSubnet.y + lastSubnet.h + 30 : 200;
+            return `0 0 ${w} ${Math.max(h, 180)}`;
         },
 
         topoSvgWidth() {
-            if (!this.topoData) return 800;
+            if (!this.topoData) return 600;
             const subnets = this.topoSubnets;
-            const maxW = subnets.reduce((max, s) => Math.max(max, s.w + 40), 0);
-            return Math.max(maxW, 600);
+            const maxW = subnets.reduce((max, s) => Math.max(max, s.x + s.w + 30), 0);
+            return Math.max(maxW, 400);
         },
 
         topoHostSteps() {

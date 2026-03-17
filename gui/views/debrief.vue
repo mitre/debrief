@@ -977,7 +977,7 @@ export default {
                 return step.command || 'N/A';
             }
         },
-  },
+
         // ==================== TOPOLOGY METHODS ====================
 
         replayUpdateTopo() {
@@ -1018,7 +1018,7 @@ export default {
             ];
             return colors[index % colors.length];
         },
-
+  },
   computed: {
         topoSubnets() {
             if (!this.topoData) return [];

@@ -852,8 +852,8 @@ export default {
             this.topoActiveHost = null;
             this.topoActiveEdge = -1;
             // Fetch topology data
-            if (this.selectedOperationIds.length) {
-                this.$api.get(`/plugin/debrief/topology?operations=${this.selectedOperationIds.join(',')}`).then((data) => {
+            if (this.selectedOperationId.length) {
+                this.$api.get(`/plugin/debrief/topology?operations=${this.selectedOperationId}`).then((data) => {
                     this.topoData = data.data;
                 }).catch((err) => {
                     console.error('Topology fetch failed:', err);

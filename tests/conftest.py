@@ -72,7 +72,8 @@ def _make_link(paw='paw1', ability=None, status=0, cleanup=0, unique='link1',
 def _make_agent(paw='paw1', platform='windows', host='WORKSTATION', group='red',
                 display_name='Agent1', unique='agent1', username='user1',
                 privilege='User', exe_name='agent.exe',
-                created=None, origin_link_id=None):
+                created=None, origin_link_id=None, host_ip_addrs=None,
+                architecture='amd64'):
     if created is None:
         created = datetime(2021, 1, 1, 8, 0, 0)
     return SimpleNamespace(
@@ -87,6 +88,8 @@ def _make_agent(paw='paw1', platform='windows', host='WORKSTATION', group='red',
         exe_name=exe_name,
         created=created,
         origin_link_id=origin_link_id,
+        host_ip_addrs=host_ip_addrs or [],
+        architecture=architecture,
     )
 
 

@@ -1670,7 +1670,7 @@ div
                     image.topo-host-icon(:href="topoPlatformSvg(host.platform)", :x="-topoIconImgSize/2", :y="-topoIconImgSize/2", :width="topoIconImgSize", :height="topoIconImgSize")
                     //- Pivot indicator: dashed orange ring
                     circle.topo-pivot-ring(v-if="host.isPivot", :r="topoIconRadius + 4", fill="none", stroke="#FFB000", stroke-width="1.5", stroke-dasharray="4 3")
-                    text.topo-host-label(:y="topoIconRadius + 10", text-anchor="middle") {{ host.hostname }}
+                    text.topo-host-label(:y="topoIconRadius + 18", text-anchor="middle") {{ host.hostname }}
                     g.topo-badge(v-if="host.compromised && topoHostCurrentSteps(host.id) > 0")
                       circle(:cx="topoIconRadius - 4", :cy="-topoIconRadius + 4", r="7", fill="#4c0089")
                       text(:x="topoIconRadius - 4", :y="-topoIconRadius + 4", text-anchor="middle", dominant-baseline="central", fill="white", font-size="8") {{ topoHostCurrentSteps(host.id) }}

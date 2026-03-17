@@ -15,6 +15,15 @@ subnet grouping, pivot point indicators, and discovered host enumeration.
 
 ![Topology Replay](docs/TopologyReplay.png)
 
+## PDF Report Generation
+
+Export campaign analytics as a comprehensive PDF including campaign metrics, agent details,
+tactics & techniques with ATT&CK v18 detection strategy mapping, and step output.
+
+![PDF Report Preview](docs/PDFReportPreview.png)
+
+[View full example PDF](docs/Demo-Operation_Debrief_Example.pdf)
+
 ## Features
 
 - **Network Topology Canvas** — Horizontal subnet columns with OS-specific host icons, pivot indicators, and discovered host visualization

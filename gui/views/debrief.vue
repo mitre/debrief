@@ -253,6 +253,11 @@ div.d3-tooltip {
     filter: drop-shadow(0 0 4px rgba(68, 170, 153, 0.8));
 }
 
+.topo-beacon-js {
+    filter: drop-shadow(0 0 6px rgba(68, 170, 153, 0.9));
+    pointer-events: none;
+}
+
 .topo-pivot-ring {
     pointer-events: none;
 }
@@ -531,7 +536,10 @@ export default {
         topoVisitedHosts: new Set(),
         topoRevealedHosts: new Set(),
         topoNewestEdge: -1,
-        topoBeaconEdge: -1,   // edge index for green beacon traveling back to C2
+        topoBeaconEdge: -1,
+        topoBeaconX: 0,
+        topoBeaconY: 0,
+        topoBeaconVisible: false,
         topoExpandedStep: null,
         topoStepCounts: {},
         topoShowAll: false,    // true = static full view, false = progressive replay
@@ -1221,26 +1229,46 @@ export default {
             }
         },
 
-        // Animate green beacon through full path back to C2
+        // Animate green beacon through full path back to C2 using JS interpolation
         async replayBeaconToC2(paw) {
             if (!this.topoData || !this.topoData.path_to_c2) return;
-            const path = this.topoData.path_to_c2[paw];
-            if (!path || path.length < 2) return;
-            // path = [host, parent, grandparent, ..., c2]
-            // Animate beacon along each edge in the path
-            for (let i = 0; i < path.length - 1; i++) {
-                const from = path[i];
-                const to = path[i + 1];
-                // Find the edge index for this hop
-                const edgeIdx = this.topoEdges.findIndex(e =>
-                    (e.source === to && e.target === from) || (e.source === from && e.target === to)
-                );
-                if (edgeIdx >= 0) {
-                    this.topoBeaconEdge = edgeIdx;
-                    await this.sleep(600);  // beacon travel time per hop
-                }
+            const pathHosts = this.topoData.path_to_c2[paw];
+            if (!pathHosts || pathHosts.length < 2) return;
+
+            const hostMap = {};
+            this.topoHosts.forEach(h => { hostMap[h.id] = h; });
+
+            this.topoBeaconVisible = true;
+
+            // Walk each hop: from current host back to C2
+            for (let i = 0; i < pathHosts.length - 1; i++) {
+                if (!this.replayPlaying && i > 0) break;
+                const fromHost = hostMap[pathHosts[i]];
+                const toHost = hostMap[pathHosts[i + 1]];
+                if (!fromHost || !toHost) continue;
+
+                // Animate from fromHost to toHost in ~500ms using requestAnimationFrame
+                const duration = 500;
+                const startTime = performance.now();
+                await new Promise(resolve => {
+                    const animate = (now) => {
+                        const elapsed = now - startTime;
+                        const t = Math.min(elapsed / duration, 1);
+                        // Ease-out cubic
+                        const eased = 1 - Math.pow(1 - t, 3);
+                        this.topoBeaconX = fromHost.x + (toHost.x - fromHost.x) * eased;
+                        this.topoBeaconY = fromHost.y + (toHost.y - fromHost.y) * eased;
+                        if (t < 1) {
+                            requestAnimationFrame(animate);
+                        } else {
+                            resolve();
+                        }
+                    };
+                    requestAnimationFrame(animate);
+                });
             }
-            this.topoBeaconEdge = -1;
+
+            this.topoBeaconVisible = false;
         },
 
         topoSelectHost(host) {
@@ -1522,9 +1550,7 @@ div
                     //- Red pulse: edge appearing (forward direction)
                     circle.topo-pulse(v-if="topoNewestEdge === ei", r="2", fill="#cc3311")
                       animateMotion(dur="0.5s", repeatCount="1", :path="edge.path")
-                    //- Green beacon: travels BACK along the edge (target → source)
-                    circle.topo-beacon(v-if="topoBeaconEdge === ei", r="3", fill="#44AA99")
-                      animateMotion(dur="1.0s", repeatCount="1", keyPoints="1;0", keyTimes="0;1", calcMode="linear", fill="freeze", :path="edge.path")
+                    //- (beacon is rendered as a separate element below, JS-driven)
               //- Host icons
               g.topo-hosts
                 template(v-for="host in topoHosts", :key="host.id")
@@ -1549,6 +1575,13 @@ div
                       rect(x="-60", y="-36", width="120", height="24", rx="3", fill="#1a1a2e", stroke="#555")
                       text(x="0", y="-28", text-anchor="middle", fill="#aaa", font-size="8") {{ host.ips.join(', ') || 'No IP' }}
                       text(x="0", y="-18", text-anchor="middle", fill="#ccc", font-size="8") {{ host.platform }}
+
+              //- Green beacon (JS-driven position)
+              circle.topo-beacon-js(
+                v-if="topoBeaconVisible",
+                :cx="topoBeaconX", :cy="topoBeaconY",
+                r="5", fill="#44AA99"
+              )
 
             .has-text-centered.py-4(v-if="!topoData && selectedOperationId.length")
               p.has-text-grey.is-size-7 Loading topology...

@@ -148,4 +148,4 @@ class DebriefReportSection(BaseReportSection):
             fact_data.append(fact_table_row)
 
         # Slightly wider Source/Command columns
-        return self.generate_table(fact_data, [1*inch, 2*inch, .6*inch, 1.25*inch, 2.5*inch])
+        return self.generate_table(fact_data, [1*inch, 1.5*inch, .6*inch, 1.25*inch, 2*inch])

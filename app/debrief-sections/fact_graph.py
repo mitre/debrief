@@ -1,6 +1,4 @@
-from reportlab.lib.units import inch
-
-from plugins.debrief.app.utility.base_report_section import BaseReportSection
+from plugins.debrief.app.utility.base_report_section import BaseReportSection, PORTRAIT_CONTENT_WIDTH
 
 
 class DebriefReportSection(BaseReportSection):
@@ -19,6 +17,6 @@ class DebriefReportSection(BaseReportSection):
         path = kwargs.get('graph_files', {}).get('fact')
         if path:
             # Keep the title, description, and graph grouped together to avoid page break in the middle.
-            flowable_list.append(self.generate_grouped_graph_section_flowables(styles, path, 4*inch))
+            flowable_list.append(self.generate_grouped_graph_section_flowables(styles, path, PORTRAIT_CONTENT_WIDTH))
 
         return flowable_list

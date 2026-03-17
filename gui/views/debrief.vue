@@ -262,22 +262,22 @@ div.d3-tooltip {
 .topo-legend-row {
     display: flex;
     justify-content: flex-end;
-    gap: 14px;
-    padding: 4px 8px;
+    gap: 16px;
+    padding: 6px 12px;
     margin-bottom: 4px;
 }
 
 .topo-legend-item {
     display: flex;
     align-items: center;
-    gap: 5px;
-    font-size: 0.65rem;
-    color: #888;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: #aaa;
 }
 
 .topo-legend-dot {
-    width: 8px;
-    height: 8px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
     display: inline-block;
 }
@@ -296,10 +296,12 @@ div.d3-tooltip {
 
 .topo-host-icon {
     pointer-events: none;
+    filter: invert(1) brightness(2);  /* make black SVGs white */
 }
 
 .topo-host.is-discovered .topo-host-icon {
     opacity: 0.4;
+    filter: invert(1) brightness(1.5);
 }
 
 .topo-host-label {
@@ -1319,6 +1321,26 @@ export default {
             return subnet.hosts.some(hid => this.topoRevealedHosts.has(hid));
         },
 
+        topoSubnetVisible(subnet) {
+            // Show if it has a revealed host
+            if (subnet.hosts.some(hid => this.topoRevealedHosts.has(hid))) return true;
+            // Show empty subnets only when an agent that can see that network is revealed
+            if (subnet.hosts.length === 0 && this.topoData) {
+                // Check if any revealed agent has an IP in this subnet
+                for (const [hid, host] of Object.entries(this.topoData.hosts || {})) {
+                    if (!this.topoRevealedHosts.has(hid)) continue;
+                    for (const ip of (host.ips || [])) {
+                        const parts = ip.split('.');
+                        if (parts.length === 4) {
+                            const cidr = `${parts[0]}.${parts[1]}.${parts[2]}.0/24`;
+                            if (cidr === subnet.cidr) return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        },
+
         topoPlatformSvg(platform) {
             const map = {
                 linux: '/debrief/img/linux.svg',
@@ -1345,9 +1367,9 @@ export default {
             if (!this.topoData) return [];
             const subnets = this.topoData.subnets || [];
             const padding = 16;
-            const bandW = 180;
-            const hostSpacing = 70;
-            const c2Width = 80;
+            const bandW = 120;
+            const hostSpacing = 65;
+            const c2Width = 70;
             return subnets.map((s, si) => {
                 const hostCount = Math.max(s.hosts.length, 1);
                 const h = Math.max(hostCount * hostSpacing + 40, 100);
@@ -1418,15 +1440,15 @@ export default {
             return `0 0 ${w} ${h}`;
         },
 
-        // Dynamic icon scale: fewer hosts = larger, more = smaller, with hard cap
+        // Dynamic icon scale — doubled minimums
         topoIconRadius() {
-            if (!this.topoData) return 16;
+            if (!this.topoData) return 22;
             const hostCount = Object.keys(this.topoData.hosts || {}).length;
-            if (hostCount <= 2) return 14;    // hard cap — don't go huge
-            if (hostCount <= 5) return 16;
-            if (hostCount <= 10) return 14;
-            if (hostCount <= 20) return 12;
-            return 10;                         // many hosts
+            if (hostCount <= 2) return 22;
+            if (hostCount <= 5) return 22;
+            if (hostCount <= 10) return 20;
+            if (hostCount <= 20) return 18;
+            return 16;
         },
 
         topoIconImgSize() {
@@ -1577,16 +1599,17 @@ div
               preserveAspectRatio="xMidYMid meet",
               xmlns="http://www.w3.org/2000/svg"
             )
-              //- Subnet zone bands — show when any host is revealed OR empty subnets visible
+              //- Subnet zone bands — only show when a host in the subnet is revealed
+              //- Empty subnets (networks seen but no agents) appear when their parent agent is revealed
               g.topo-subnets
                 template(v-for="(subnet, si) in topoSubnets", :key="si")
-                  template(v-if="topoSubnetRevealed(subnet) || (subnet.hosts.length === 0 && topoRevealedHosts.size > 1)")
+                  template(v-if="topoSubnetVisible(subnet)")
                     rect.topo-zone(
                       :x="subnet.x", :y="subnet.y",
                       :width="subnet.w", :height="subnet.h",
                       :fill="topoZoneColor(si)", rx="6"
                     )
-                    text.topo-zone-label(:x="subnet.x + 6", :y="subnet.y + 12") {{ subnet.cidr }}
+                    text.topo-zone-label(:x="subnet.x + subnet.w / 2", :y="subnet.y + 14", text-anchor="middle") {{ subnet.cidr }}
               //- Edges
               g.topo-edges
                 template(v-for="(edge, ei) in topoEdges", :key="ei")

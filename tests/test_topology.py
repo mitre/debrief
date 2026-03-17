@@ -190,9 +190,11 @@ class TestBuildTopologySubnets:
 class TestBuildTopologyEdges:
     @pytest.mark.asyncio
     async def test_initial_access_edge(self):
+        """First agent in chain gets a C2 → agent initial_access edge."""
         svc = _svc()
         agent = _make_agent('paw1', 'web01', ips=['10.0.1.5'])
-        op = _make_operation(agents=[agent], chain=[])
+        link = _make_link('paw1', link_id='step-1')
+        op = _make_operation(agents=[agent], chain=[link])
         svc.data_svc.locate = AsyncMock(return_value=[op])
 
         result = await svc.build_topology(['op-1'])

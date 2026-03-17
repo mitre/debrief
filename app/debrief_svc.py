@@ -295,27 +295,24 @@ class DebriefService(BaseService):
             origin_agent=None,
         )
 
-        # --- Steps by host + edges from initial access ---
+        # --- Steps by host ---
+        # Also build an ordered list of (step_index, paw, step_data) for replay sequencing
+        replay_sequence = []  # ordered list of {paw, step, index}
+
         for op in operations:
             for agent in (op.agents or []):
                 paw = agent.paw
                 if paw not in steps_by_host:
                     steps_by_host[paw] = []
 
-                # Initial access edge (C2 → agent)
-                if not agent.origin_link_id:
-                    edges.append(dict(
-                        source='c2', target=paw,
-                        type='initial_access', technique='Initial Access',
-                    ))
-
+            step_idx = 0
             for link in (op.chain or []):
                 if link.cleanup:
                     continue
                 paw = link.paw
                 if paw not in steps_by_host:
                     steps_by_host[paw] = []
-                steps_by_host[paw].append(dict(
+                step_data = dict(
                     id=str(link.id),
                     ability_name=link.ability.name,
                     tactic=link.ability.tactic,
@@ -325,11 +322,16 @@ class DebriefService(BaseService):
                     finish=link.finish or '',
                     facts_count=len([f for f in link.facts if f.score > 0]),
                     command=link.command,
-                ))
+                )
+                steps_by_host[paw].append(step_data)
+                replay_sequence.append(dict(paw=paw, step=step_data, index=step_idx))
+                step_idx += 1
                 if paw in hosts:
                     hosts[paw]['step_count'] = len(steps_by_host[paw])
 
-        # --- Lateral movement edges (origin_link_id) ---
+        # --- Build edges from chain order + origin_link_id ---
+        # First: explicit lateral movement via origin_link_id
+        agents_with_origin = set()
         for op in operations:
             for agent in (op.agents or []):
                 if agent.origin_link_id:
@@ -343,6 +345,32 @@ class DebriefService(BaseService):
                                 type='lateral_movement',
                                 technique=f'{origin_link.ability.technique_id} {origin_link.ability.technique_name}',
                             ))
+                            agents_with_origin.add(agent.paw)
+
+        # Second: derive edges from chain order for agents without origin_link_id
+        # When the chain switches from agent A to agent B, that implies a hop A→B
+        seen_paws = set()
+        edge_pairs = set()  # avoid duplicate edges
+        prev_paw = None
+        for item in replay_sequence:
+            paw = item['paw']
+            if paw not in seen_paws:
+                if prev_paw is None:
+                    # First agent seen → C2 edge
+                    edge_pair = ('c2', paw)
+                    if edge_pair not in edge_pairs:
+                        edges.append(dict(source='c2', target=paw,
+                                          type='initial_access', technique='Initial Access'))
+                        edge_pairs.add(edge_pair)
+                elif paw not in agents_with_origin:
+                    # New agent without explicit origin → infer hop from previous agent
+                    edge_pair = (prev_paw, paw)
+                    if edge_pair not in edge_pairs:
+                        edges.append(dict(source=prev_paw, target=paw,
+                                          type='lateral_movement', technique='Inferred from chain order'))
+                        edge_pairs.add(edge_pair)
+                seen_paws.add(paw)
+            prev_paw = paw
 
         # --- Discovered hosts (from facts) ---
         discovered_ips = set()
@@ -425,6 +453,7 @@ class DebriefService(BaseService):
             hosts=hosts,
             edges=edges,
             steps_by_host=steps_by_host,
+            replay_sequence=replay_sequence,
         )
 
     @staticmethod

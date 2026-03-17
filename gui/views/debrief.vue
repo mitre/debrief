@@ -142,7 +142,7 @@ div.d3-tooltip {
     transition: stroke 0.3s;
 }
 
-.topo-edge.is-active {
+.topo-edge.is-newest {
     stroke: #cc3311;
     stroke-width: 2.5;
     stroke-dasharray: none;
@@ -358,8 +358,10 @@ export default {
         topoHoverHost: null,
         topoActiveHost: null,
         topoVisitedHosts: new Set(),
+        topoRevealedHosts: new Set(),
+        topoNewestEdge: -1,
         topoExpandedStep: null,
-        topoActiveEdge: -1,
+        topoStepCounts: {},  // paw -> count of steps revealed so far
     };
   },
   created() {
@@ -843,16 +845,22 @@ export default {
 
         initReplay() {
             this.replayPause();
-            this.replayCursor = this.replaySteps.length ? this.replaySteps.length - 1 : -1;
+            this.replayCursor = -1;
             this.replayExpandedIdx = -1;
             this.topoSelectedHost = null;
             this.topoVisitedHosts = new Set();
+            this.topoRevealedHosts = new Set();
             this.topoActiveHost = null;
-            this.topoActiveEdge = -1;
+            this.topoNewestEdge = -1;
+            this.topoStepCounts = {};
+            // C2 is always visible
+            this.topoRevealedHosts.add('c2');
             // Fetch topology data
             if (this.selectedOperationId.length) {
                 this.$api.get(`/plugin/debrief/topology?operations=${this.selectedOperationId}`).then((data) => {
                     this.topoData = data.data;
+                    // If we have replay_sequence, set cursor to show nothing (press play to start)
+                    this.replayCursor = -1;
                 }).catch((err) => {
                     console.error('Topology fetch failed:', err);
                     this.topoData = null;
@@ -864,9 +872,13 @@ export default {
             if (!this.replaySteps.length) return;
             this.replayPlaying = true;
             if (this.replayCursor >= this.replaySteps.length - 1) {
+                // Restart from beginning
                 this.replayCursor = -1;
+                this.topoRevealedHosts = new Set(['c2']);
                 this.topoVisitedHosts = new Set();
                 this.topoActiveHost = null;
+                this.topoNewestEdge = -1;
+                this.topoStepCounts = {};
             }
             this.replayInterval = setInterval(() => {
                 if (this.replayCursor < this.replaySteps.length - 1) {
@@ -902,11 +914,29 @@ export default {
 
         replayJumpToStart() {
             this.replayPause();
-            this.replayCursor = 0;
+            this.replayCursor = -1;
+            this.topoRevealedHosts = new Set(['c2']);
+            this.topoVisitedHosts = new Set();
+            this.topoActiveHost = null;
+            this.topoNewestEdge = -1;
+            this.topoStepCounts = {};
         },
 
         replayJumpToEnd() {
             this.replayPause();
+            if (!this.topoData) return;
+            // Reveal all hosts and count all steps
+            const allHosts = new Set(Object.keys(this.topoData.hosts || {}));
+            allHosts.add('c2');
+            this.topoRevealedHosts = allHosts;
+            this.topoVisitedHosts = new Set(allHosts);
+            this.topoActiveHost = null;
+            this.topoNewestEdge = -1;
+            // Set step counts from full data
+            this.topoStepCounts = {};
+            for (const [paw, steps] of Object.entries(this.topoData.steps_by_host || {})) {
+                this.topoStepCounts[paw] = steps.length;
+            }
             this.replayCursor = this.replaySteps.length - 1;
         },
 
@@ -980,22 +1010,43 @@ export default {
 
         replayUpdateTopo() {
             if (!this.topoData || this.replayCursor < 0) return;
-            const step = this.replaySteps[this.replayCursor];
-            if (!step) return;
-            const paw = step.paw;
+            const seq = this.topoData.replay_sequence || [];
+            const item = seq[this.replayCursor];
+            if (!item) return;
+
+            const paw = item.paw;
+            const wasRevealed = this.topoRevealedHosts.has(paw);
+
+            // Reveal this host
+            this.topoRevealedHosts = new Set(this.topoRevealedHosts);
+            this.topoRevealedHosts.add(paw);
             this.topoActiveHost = paw;
+            this.topoVisitedHosts = new Set(this.topoVisitedHosts);
             this.topoVisitedHosts.add(paw);
-            // Find edge that leads to this host's agent
-            const edgeIdx = (this.topoData.edges || []).findIndex(e => e.target === paw);
-            this.topoActiveEdge = edgeIdx >= 0 ? edgeIdx : -1;
+
+            // Update step count for this host
+            this.topoStepCounts = { ...this.topoStepCounts };
+            this.topoStepCounts[paw] = (this.topoStepCounts[paw] || 0) + 1;
+
+            // If this is a newly revealed host, find and activate the edge that leads to it
+            if (!wasRevealed) {
+                const edgeIdx = this.topoEdges.findIndex(e => e.target === paw);
+                if (edgeIdx >= 0) {
+                    // Also reveal the source of that edge
+                    this.topoRevealedHosts.add(this.topoEdges[edgeIdx].source);
+                    this.topoNewestEdge = edgeIdx;
+                }
+            } else {
+                this.topoNewestEdge = -1;
+            }
         },
 
         topoSelectHost(host) {
             this.topoSelectedHost = host.compromised ? this.topoData.hosts[host.id] : host;
         },
 
-        topoEdgeActive(edgeIdx) {
-            return this.topoActiveEdge === edgeIdx;
+        topoHostCurrentSteps(hostId) {
+            return this.topoStepCounts[hostId] || 0;
         },
 
         topoPlatformSvg(platform) {
@@ -1344,7 +1395,7 @@ div
 
         //- TOPOLOGY CANVAS + DETAIL PANEL
         .topo-split
-          //- SVG CANVAS
+          //- SVG CANVAS — progressive reveal
           .topo-canvas(ref="topoCanvas")
             svg.topo-svg(
               v-if="topoData",
@@ -1352,7 +1403,7 @@ div
               preserveAspectRatio="xMidYMid meet",
               xmlns="http://www.w3.org/2000/svg"
             )
-              //- Subnet zone bands
+              //- Subnet zone bands (always visible as background)
               g.topo-subnets
                 template(v-for="(subnet, si) in topoSubnets", :key="si")
                   rect.topo-zone(
@@ -1362,25 +1413,24 @@ div
                   )
                   text.topo-zone-label(:x="subnet.x + 12", :y="subnet.y + 18") {{ subnet.cidr }}
 
-              //- Connection edges (curved dotted)
+              //- Connection edges — only show edges to revealed hosts
               g.topo-edges
                 template(v-for="(edge, ei) in topoEdges", :key="ei")
-                  path.topo-edge(
-                    :d="edge.path",
-                    :class="{ 'is-active': topoEdgeActive(ei), 'is-lateral': edge.type === 'lateral_movement' }",
-                    fill="none"
-                  )
-                  //- Animated pulse circle
-                  circle.topo-pulse(
-                    v-if="topoEdgeActive(ei)",
-                    r="4", fill="#cc3311"
-                  )
-                    animateMotion(dur="0.8s", repeatCount="1", :path="edge.path")
+                  template(v-if="topoRevealedHosts.has(edge.source) && topoRevealedHosts.has(edge.target)")
+                    path.topo-edge(
+                      :d="edge.path",
+                      :class="{ 'is-newest': topoNewestEdge === ei, 'is-lateral': edge.type === 'lateral_movement' }",
+                      fill="none"
+                    )
+                    //- Animated pulse on newest edge
+                    circle.topo-pulse(v-if="topoNewestEdge === ei", r="4", fill="#cc3311")
+                      animateMotion(dur="0.8s", repeatCount="1", :path="edge.path")
 
-              //- Host icons
+              //- Host icons — only show revealed hosts
               g.topo-hosts
                 template(v-for="host in topoHosts", :key="host.id")
                   g.topo-host(
+                    v-show="topoRevealedHosts.has(host.id)",
                     :transform="`translate(${host.x}, ${host.y})`",
                     :class="{ 'is-compromised': host.compromised, 'is-discovered': !host.compromised, 'is-active': topoActiveHost === host.id, 'is-visited': topoVisitedHosts.has(host.id) }",
                     @click="topoSelectHost(host)",
@@ -1391,17 +1441,17 @@ div
                     circle.topo-glow(r="28", v-if="topoActiveHost === host.id")
                     //- Host circle background
                     circle.topo-host-bg(r="20")
-                    //- Platform icon (SVG image from debrief static assets)
+                    //- Platform icon
                     image.topo-host-icon(
                       :href="topoPlatformSvg(host.platform)",
                       x="-12", y="-12", width="24", height="24"
                     )
                     //- Hostname label
                     text.topo-host-label(y="32", text-anchor="middle") {{ host.hostname }}
-                    //- Step count badge
-                    g.topo-badge(v-if="host.compromised && host.step_count > 0")
+                    //- Step count badge (shows current count during replay)
+                    g.topo-badge(v-if="host.compromised && topoHostCurrentSteps(host.id) > 0")
                       circle(cx="16", cy="-16", r="8", fill="#750b20")
-                      text(x="16", y="-16", text-anchor="middle", dominant-baseline="central", fill="white", font-size="9") {{ host.step_count }}
+                      text(x="16", y="-16", text-anchor="middle", dominant-baseline="central", fill="white", font-size="9") {{ topoHostCurrentSteps(host.id) }}
                     //- Hover tooltip
                     g.topo-tooltip(v-if="topoHoverHost === host.id")
                       rect(x="-80", y="-60", width="160", height="40", rx="4", fill="#1a1a2e", stroke="#555")

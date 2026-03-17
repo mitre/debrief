@@ -1400,8 +1400,8 @@ export default {
             if (!this.topoData) return [];
             const subnets = this.topoData.subnets || [];
             const padding = 16;
-            const bandW = 140;
-            const hostSpacing = 80;
+            const bandW = 160;
+            const hostSpacing = 100;
             const c2Width = 70;
             return subnets.map((s, si) => {
                 const hosts_data = this.topoData.hosts || {};
@@ -1427,7 +1427,7 @@ export default {
             if (!this.topoData) return [];
             const hosts = this.topoData.hosts || {};
             const result = [];
-            const hostSpacing = 80;
+            const hostSpacing = 100;
             const stackSpacing = 20;  // tight spacing for stacked discovered hosts
             const hostPositions = {};
 
@@ -1497,15 +1497,16 @@ export default {
             return `0 0 ${w} ${h}`;
         },
 
-        // Dynamic icon scale (+15%)
+        // Dynamic icon scale — min 36, max 48
         topoIconRadius() {
-            if (!this.topoData) return 32;
+            if (!this.topoData) return 42;
             const hostCount = Object.keys(this.topoData.hosts || {}).length;
-            if (hostCount <= 3) return 32;
-            if (hostCount <= 6) return 32;
-            if (hostCount <= 12) return 30;
-            if (hostCount <= 20) return 28;
-            return 25;
+            if (hostCount <= 3) return 48;
+            if (hostCount <= 6) return 44;
+            if (hostCount <= 12) return 40;
+            if (hostCount <= 20) return 38;
+            if (hostCount <= 35) return 36;
+            return 34;
         },
 
         topoIconImgSize() {
@@ -1646,6 +1647,9 @@ div
           span.topo-legend-item
             span.topo-legend-dot.topo-legend-filled(style="background:#44AA99")
             span Beacon
+          span.topo-legend-item
+            span.topo-legend-dot(style="border: 2px solid #555; color:#555; font-size:10px; display:flex; align-items:center; justify-content:center; width:14px; height:14px") ?
+            span Discovered
 
         //- Topology canvas + slide-out
         .topo-split

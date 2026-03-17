@@ -51,9 +51,24 @@ def create_op(s, name):
     return op['id']
 
 
+def delete_all_ops(s):
+    """Delete all existing operations."""
+    ops = s.get(f'{BASE}/api/v2/operations').json()
+    if ops:
+        print(f'Deleting {len(ops)} existing operations...')
+        for op in ops:
+            s.delete(f'{BASE}/api/v2/operations/{op["id"]}')
+            print(f'  Deleted: {op["name"]} ({op["id"]})')
+    else:
+        print('No existing operations.')
+
+
 def main():
     s = login()
     print('Connected.\n')
+
+    delete_all_ops(s)
+    print()
 
     # === Operation 1: Corporate Pentest ===
     print('=== Corporate Pentest ===')

@@ -1367,8 +1367,8 @@ export default {
             if (!this.topoData) return [];
             const subnets = this.topoData.subnets || [];
             const padding = 16;
-            const bandW = 120;
-            const hostSpacing = 65;
+            const bandW = 140;
+            const hostSpacing = 80;
             const c2Width = 70;
             return subnets.map((s, si) => {
                 const hostCount = Math.max(s.hosts.length, 1);
@@ -1388,7 +1388,7 @@ export default {
             if (!this.topoData) return [];
             const hosts = this.topoData.hosts || {};
             const result = [];
-            const hostSpacing = 70;
+            const hostSpacing = 80;
             // Position hosts vertically centered within their subnet columns
             const hostPositions = {};
             this.topoSubnets.forEach((subnet) => {
@@ -1440,15 +1440,15 @@ export default {
             return `0 0 ${w} ${h}`;
         },
 
-        // Dynamic icon scale — doubled minimums
+        // Dynamic icon scale
         topoIconRadius() {
-            if (!this.topoData) return 22;
+            if (!this.topoData) return 28;
             const hostCount = Object.keys(this.topoData.hosts || {}).length;
-            if (hostCount <= 2) return 22;
-            if (hostCount <= 5) return 22;
-            if (hostCount <= 10) return 20;
-            if (hostCount <= 20) return 18;
-            return 16;
+            if (hostCount <= 3) return 28;
+            if (hostCount <= 6) return 28;
+            if (hostCount <= 12) return 26;
+            if (hostCount <= 20) return 24;
+            return 22;
         },
 
         topoIconImgSize() {

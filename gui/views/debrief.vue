@@ -258,18 +258,13 @@ div.d3-tooltip {
     pointer-events: none;
 }
 
-/* Legend as HTML overlay */
-.topo-legend-box {
+/* Legend row above canvas */
+.topo-legend-row {
     display: flex;
+    justify-content: flex-end;
     gap: 14px;
-    padding: 4px 10px;
-    background: #1a1a2e;
-    border: 1px solid #333;
-    border-radius: 4px;
-    position: absolute;
-    bottom: 8px;
-    right: 8px;
-    z-index: 10;
+    padding: 4px 8px;
+    margin-bottom: 4px;
 }
 
 .topo-legend-item {
@@ -1424,6 +1419,21 @@ export default {
             return `0 0 ${w} ${h}`;
         },
 
+        // Dynamic icon scale: fewer hosts = larger, more = smaller, with hard cap
+        topoIconRadius() {
+            if (!this.topoData) return 14;
+            const hostCount = Object.keys(this.topoData.hosts || {}).length;
+            if (hostCount <= 2) return 12;    // hard cap — don't go huge
+            if (hostCount <= 5) return 14;
+            if (hostCount <= 10) return 12;
+            if (hostCount <= 20) return 10;
+            return 8;                          // many hosts = tiny
+        },
+
+        topoIconImgSize() {
+            return Math.round(this.topoIconRadius * 1.3);
+        },
+
         topoSvgWidth() {
             if (!this.topoData) return 800;
             const subnets = this.topoSubnets;
@@ -1547,7 +1557,19 @@ div
           .has-text-centered.mt-1
             span.is-size-7.has-text-grey Step {{ Math.max(replayCursor + 1, 0) }} / {{ replaySteps.length }}
 
-        //- Topology canvas + legend + slide-out
+        //- Legend (outside canvas)
+        .topo-legend-row(v-if="topoData")
+          span.topo-legend-item
+            span.topo-legend-dot(style="border: 2px solid #cc3311")
+            span Path
+          span.topo-legend-item
+            span.topo-legend-dot(style="border: 2px dashed #FFB000")
+            span Pivot
+          span.topo-legend-item
+            span.topo-legend-dot.topo-legend-filled(style="background:#44AA99")
+            span Beacon
+
+        //- Topology canvas + slide-out
         .topo-split
           .topo-canvas(ref="topoMainCanvas")
             svg.topo-svg(
@@ -1597,15 +1619,15 @@ div
                     @mouseenter="topoHoverHost = host.id",
                     @mouseleave="topoHoverHost = null"
                   )
-                    circle.topo-glow(r="24", v-if="topoActiveHost === host.id")
-                    circle.topo-host-bg(r="18")
-                    image.topo-host-icon(:href="topoPlatformSvg(host.platform)", x="-12", y="-12", width="24", height="24")
+                    circle.topo-glow(:r="topoIconRadius + 6", v-if="topoActiveHost === host.id")
+                    circle.topo-host-bg(:r="topoIconRadius")
+                    image.topo-host-icon(:href="topoPlatformSvg(host.platform)", :x="-topoIconImgSize/2", :y="-topoIconImgSize/2", :width="topoIconImgSize", :height="topoIconImgSize")
                     //- Pivot indicator: dashed orange ring
-                    circle.topo-pivot-ring(v-if="host.isPivot", r="22", fill="none", stroke="#FFB000", stroke-width="1.5", stroke-dasharray="4 3")
-                    text.topo-host-label(y="28", text-anchor="middle") {{ host.hostname }}
+                    circle.topo-pivot-ring(v-if="host.isPivot", :r="topoIconRadius + 4", fill="none", stroke="#FFB000", stroke-width="1.5", stroke-dasharray="4 3")
+                    text.topo-host-label(:y="topoIconRadius + 10", text-anchor="middle") {{ host.hostname }}
                     g.topo-badge(v-if="host.compromised && topoHostCurrentSteps(host.id) > 0")
-                      circle(cx="14", cy="-12", r="7", fill="#4c0089")
-                      text(x="14", y="-12", text-anchor="middle", dominant-baseline="central", fill="white", font-size="8") {{ topoHostCurrentSteps(host.id) }}
+                      circle(:cx="topoIconRadius - 4", :cy="-topoIconRadius + 4", r="7", fill="#4c0089")
+                      text(:x="topoIconRadius - 4", :y="-topoIconRadius + 4", text-anchor="middle", dominant-baseline="central", fill="white", font-size="8") {{ topoHostCurrentSteps(host.id) }}
                     g.topo-tooltip(v-if="topoHoverHost === host.id")
                       rect(x="-60", y="-36", width="120", height="24", rx="3", fill="#1a1a2e", stroke="#555")
                       text(x="0", y="-28", text-anchor="middle", fill="#aaa", font-size="8") {{ host.ips.join(', ') || 'No IP' }}
@@ -1616,17 +1638,7 @@ div
             .has-text-centered.py-4(v-if="!topoData && selectedOperationId.length")
               p.has-text-grey.is-size-7 Loading topology...
 
-          //- Legend key (outside SVG)
-          .topo-legend-box
-            .topo-legend-item
-              span.topo-legend-dot(style="border: 2px solid #cc3311")
-              span Path
-            .topo-legend-item
-              span.topo-legend-dot(style="border: 2px dashed #FFB000")
-              span Pivot
-            .topo-legend-item
-              span.topo-legend-dot.topo-legend-filled(style="background:#44AA99")
-              span Beacon
+          //- (legend moved outside topo-split)
 
           //- Slide-out detail panel (click a host)
           .topo-detail(v-if="topoSelectedHost")

@@ -372,6 +372,36 @@ class DebriefService(BaseService):
                 seen_paws.add(paw)
             prev_paw = paw
 
+        # Third: fallback — if no chain at all, create edges from agent order
+        # This handles fabricated operations where agents exist but no steps ran
+        if not replay_sequence and not edges:
+            agent_paws = [paw for paw in hosts if paw != 'c2']
+            if agent_paws:
+                # C2 → first agent
+                edges.append(dict(source='c2', target=agent_paws[0],
+                                  type='initial_access', technique='Initial Access'))
+                # Chain remaining agents sequentially
+                for i in range(1, len(agent_paws)):
+                    edges.append(dict(source=agent_paws[i-1], target=agent_paws[i],
+                                      type='lateral_movement', technique='Inferred from agent order'))
+                # Also generate a synthetic replay_sequence so play button works
+                for i, paw in enumerate(agent_paws):
+                    replay_sequence.append(dict(
+                        paw=paw,
+                        step=dict(
+                            id=f'synthetic-{i}',
+                            ability_name=f'Agent on {hosts[paw]["hostname"]}',
+                            tactic='initial-access' if i == 0 else 'lateral-movement',
+                            technique_id='',
+                            technique_name='',
+                            status=0,
+                            finish='',
+                            facts_count=0,
+                            command='',
+                        ),
+                        index=i,
+                    ))
+
         # --- Discovered hosts (from facts) ---
         discovered_ips = set()
         for op in operations:

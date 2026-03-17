@@ -1281,8 +1281,7 @@ div
                 )
                   circle.topo-glow(r="18", v-if="topoActiveHost === host.id")
                   circle.topo-host-bg(r="14")
-                  foreignObject(x="-7", y="-7", width="14", height="14", overflow="hidden")
-                    img(:src="topoPlatformSvg(host.platform)", style="width:14px;height:14px;", xmlns="http://www.w3.org/1999/xhtml")
+                  image.topo-host-icon(:href="topoPlatformSvg(host.platform)", x="-8", y="-8", width="16", height="16")
                   text.topo-host-label(y="22", text-anchor="middle") {{ host.hostname }}
                   g.topo-badge(v-if="host.compromised && topoHostCurrentSteps(host.id) > 0")
                     circle(cx="10", cy="-10", r="6", fill="#750b20")

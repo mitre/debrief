@@ -51,6 +51,22 @@ def create_op(s, name):
     return op['id']
 
 
+def add_discovered_hosts(s, hosts):
+    """Add remote.host.ip facts for discovered (not compromised) hosts."""
+    source_id = 'ed32b9c3-9593-4c33-b0db-e2007315096b'
+    for ip, hostname in hosts:
+        s.post(f'{BASE}/api/v2/facts', json={
+            'trait': 'remote.host.ip', 'value': ip,
+            'source': source_id, 'score': 1,
+        })
+        if hostname:
+            s.post(f'{BASE}/api/v2/facts', json={
+                'trait': 'remote.host.fqdn', 'value': hostname,
+                'source': source_id, 'score': 1,
+            })
+    print(f'    Added {len(hosts)} discovered hosts as facts')
+
+
 def delete_all_ops(s):
     """Delete all existing operations."""
     ops = s.get(f'{BASE}/api/v2/operations').json()
@@ -84,6 +100,16 @@ def main():
     create_agent(s, 'sql01', 'SQLPROD01', 'linux', ['172.16.10.20'],
                  username='postgres', privilege='User')
     op1 = create_op(s, 'Corporate Pentest')
+    print('  Discovered hosts:')
+    add_discovered_hosts(s, [
+        ('10.10.1.2', 'EXTFW01.corp.local'),
+        ('10.10.1.3', 'IDSENSOR01.corp.local'),
+        ('172.16.5.20', 'YOURPRINT01.corp.local'),
+        ('172.16.5.25', 'YOURWS001.corp.local'),
+        ('172.16.5.30', 'YOURWS002.corp.local'),
+        ('172.16.10.5', 'YOURBKUP01.corp.local'),
+        ('172.16.10.10', 'YOURAPP01.corp.local'),
+    ])
     print(f'  Op: {op1}\n')
 
     # === Operation 2: Enterprise Red Team ===
@@ -124,6 +150,25 @@ def main():
                  username='backup', privilege='User')
 
     op2 = create_op(s, 'Enterprise Red Team')
+    print('  Discovered hosts:')
+    add_discovered_hosts(s, [
+        # DMZ — seen from EXTWEBSRV01
+        ('10.50.1.1', 'EXTFW01.corp.local'),
+        ('10.50.1.2', 'IDSNODE01.corp.local'),
+        ('10.50.1.50', 'VPNGW01.corp.local'),
+        # Corporate — seen from YOURJMPBOX01 / DC scans
+        ('172.20.5.15', 'YOURPRINT01.corp.local'),
+        ('172.20.5.20', 'YOURVOIP01.corp.local'),
+        ('172.20.5.55', 'YOURWS003.corp.local'),
+        ('172.20.5.60', 'YOURWS004.corp.local'),
+        ('172.20.5.65', 'YOURWS005.corp.local'),
+        ('172.20.5.70', 'YOURWS006.corp.local'),
+        ('172.20.5.80', 'YOURHVAC01.corp.local'),
+        # Servers — seen from YOURAPP01
+        ('172.20.10.5', 'YOURBKUP02.corp.local'),
+        ('172.20.10.80', 'YOURLOG01.corp.local'),
+        ('172.20.10.90', 'YOURDNS01.corp.local'),
+    ])
     print(f'  Op: {op2}\n')
 
     print(f'Done. Select operations in Debrief and press Play.')

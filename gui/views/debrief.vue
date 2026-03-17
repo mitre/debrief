@@ -1371,8 +1371,14 @@ export default {
             const hostSpacing = 80;
             const c2Width = 70;
             return subnets.map((s, si) => {
-                const hostCount = Math.max(s.hosts.length, 1);
-                const h = Math.max(hostCount * hostSpacing + 40, 100);
+                const hosts_data = this.topoData.hosts || {};
+                const comp = s.hosts.filter(h => hosts_data[h] && hosts_data[h].compromised);
+                const disc = s.hosts.filter(h => hosts_data[h] && !hosts_data[h].compromised);
+                const discSpacing = disc.length > 5 ? 20 : hostSpacing * 0.6;
+                const h = Math.max(
+                    comp.length * hostSpacing + disc.length * discSpacing + 50,
+                    hostSpacing + 40
+                );
                 return {
                     cidr: s.cidr,
                     x: c2Width + padding + si * (bandW + 12),
@@ -1389,25 +1395,43 @@ export default {
             const hosts = this.topoData.hosts || {};
             const result = [];
             const hostSpacing = 80;
-            // Position hosts vertically centered within their subnet columns
+            const stackSpacing = 20;  // tight spacing for stacked discovered hosts
             const hostPositions = {};
+
             this.topoSubnets.forEach((subnet) => {
-                const totalH = subnet.hosts.length * hostSpacing;
-                const startY = subnet.y + (subnet.h - totalH) / 2 + hostSpacing / 2;
-                subnet.hosts.forEach((hid, hi) => {
+                // Separate compromised and discovered hosts
+                const compromised = subnet.hosts.filter(hid => hosts[hid] && hosts[hid].compromised);
+                const discovered = subnet.hosts.filter(hid => hosts[hid] && !hosts[hid].compromised);
+
+                // Position compromised hosts with full spacing
+                const compH = compromised.length * hostSpacing;
+                const compStartY = subnet.y + 24;
+                compromised.forEach((hid, hi) => {
                     hostPositions[hid] = {
                         x: subnet.x + subnet.w / 2,
-                        y: startY + hi * hostSpacing,
+                        y: compStartY + hi * hostSpacing + hostSpacing / 2,
+                    };
+                });
+
+                // Position discovered hosts — stacked tightly below compromised
+                const discStartY = compStartY + compH + (compromised.length ? 10 : 0);
+                const discSpacing = discovered.length > 5 ? stackSpacing : hostSpacing * 0.6;
+                discovered.forEach((hid, hi) => {
+                    // Offset x slightly for stacking effect when >5
+                    const xOff = discovered.length > 5 ? (hi % 2 === 0 ? -8 : 8) : 0;
+                    hostPositions[hid] = {
+                        x: subnet.x + subnet.w / 2 + xOff,
+                        y: discStartY + hi * discSpacing + discSpacing / 2,
                     };
                 });
             });
+
             // C2 node on the left
             const svgH = this.topoSvgHeight;
             hostPositions['c2'] = { x: 30, y: svgH / 2 };
 
             Object.entries(hosts).forEach(([id, host]) => {
-                const pos = hostPositions[id] || { x: svgW / 2, y: 35 };
-                // Pivot = agent has proxy_receivers (P2P enabled)
+                const pos = hostPositions[id] || { x: 50, y: svgH / 2 };
                 const isPivot = host.is_pivot || false;
                 result.push({ ...host, x: pos.x, y: pos.y, isPivot });
             });

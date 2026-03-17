@@ -82,6 +82,16 @@ class DebriefGui(BaseWorld):
         ttps = DebriefService.generate_ttps(operations)
         return web.json_response(dict(operations=op_displays, ttps=ttps))
 
+    async def topology(self, request):
+        try:
+            operations = request.rel_url.query.get('operations', '')
+            op_ids = [o for o in operations.split(',') if o]
+            topo = await self.debrief_svc.build_topology(op_ids)
+            return web.json_response(topo)
+        except Exception as e:
+            self.log.error(repr(e), exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
+
     async def graph(self, request):
         graphs = {
             'steps': self.debrief_svc.build_steps_d3,

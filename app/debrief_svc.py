@@ -242,3 +242,181 @@ class DebriefService(BaseService):
             if not target_links:
                 d3_link = dict(source=op_id, target=n['id'], type='relationship')
                 op_links.append(d3_link)
+
+    async def build_topology(self, operation_ids):
+        """Build network topology data: hosts, subnets, edges, steps grouped by host."""
+        operations = []
+        for op_id in operation_ids:
+            matches = await self.data_svc.locate('operations', match=dict(id=op_id))
+            if matches:
+                operations.append(matches[0])
+
+        hosts = {}       # keyed by agent paw or discovered-ip
+        edges = []
+        steps_by_host = {}
+        all_ips = {}     # ip -> host_id mapping for subnet grouping
+
+        # --- Compromised hosts (agents) ---
+        paw_to_host = {}
+        for op in operations:
+            for agent in (op.agents or []):
+                paw = agent.paw
+                if paw in hosts:
+                    continue
+                ips = list(getattr(agent, 'host_ip_addrs', []) or [])
+                hosts[paw] = dict(
+                    id=paw,
+                    hostname=agent.host,
+                    ips=ips,
+                    platform=agent.platform,
+                    compromised=True,
+                    agent_paw=paw,
+                    privilege=getattr(agent, 'privilege', ''),
+                    username=getattr(agent, 'username', ''),
+                    step_count=0,
+                    origin_agent=None,
+                )
+                paw_to_host[paw] = paw
+                for ip in ips:
+                    all_ips[ip] = paw
+
+        # --- C2 node ---
+        c2_config = {k: v for k, v in self.get_config().items() if k.startswith('app.')}
+        hosts['c2'] = dict(
+            id='c2',
+            hostname='C2 Server',
+            ips=[c2_config.get('app.contact.http', '')],
+            platform='server',
+            compromised=True,
+            agent_paw=None,
+            privilege='',
+            username='',
+            step_count=0,
+            origin_agent=None,
+        )
+
+        # --- Steps by host + edges from initial access ---
+        for op in operations:
+            for agent in (op.agents or []):
+                paw = agent.paw
+                if paw not in steps_by_host:
+                    steps_by_host[paw] = []
+
+                # Initial access edge (C2 → agent)
+                if not agent.origin_link_id:
+                    edges.append(dict(
+                        source='c2', target=paw,
+                        type='initial_access', technique='Initial Access',
+                    ))
+
+            for link in (op.chain or []):
+                if link.cleanup:
+                    continue
+                paw = link.paw
+                if paw not in steps_by_host:
+                    steps_by_host[paw] = []
+                steps_by_host[paw].append(dict(
+                    id=str(link.id),
+                    ability_name=link.ability.name,
+                    tactic=link.ability.tactic,
+                    technique_id=link.ability.technique_id,
+                    technique_name=link.ability.technique_name,
+                    status=link.status,
+                    finish=link.finish or '',
+                    facts_count=len([f for f in link.facts if f.score > 0]),
+                    command=link.command,
+                ))
+                if paw in hosts:
+                    hosts[paw]['step_count'] = len(steps_by_host[paw])
+
+        # --- Lateral movement edges (origin_link_id) ---
+        for op in operations:
+            for agent in (op.agents or []):
+                if agent.origin_link_id:
+                    origin_link = next((lnk for lnk in op.chain if lnk.id == agent.origin_link_id), None)
+                    if origin_link:
+                        source_paw = origin_link.paw
+                        if source_paw in hosts:
+                            hosts[agent.paw]['origin_agent'] = source_paw
+                            edges.append(dict(
+                                source=source_paw, target=agent.paw,
+                                type='lateral_movement',
+                                technique=f'{origin_link.ability.technique_id} {origin_link.ability.technique_name}',
+                            ))
+
+        # --- Discovered hosts (from facts) ---
+        discovered_ips = set()
+        for op in operations:
+            all_facts = await op.all_facts()
+            for fact in all_facts:
+                trait = getattr(fact, 'trait', '') or ''
+                value = str(getattr(fact, 'value', '') or '')
+                if not value:
+                    continue
+
+                # remote.host.ip or remote.host.fqdn → discovered host
+                if trait == 'remote.host.ip' and value not in all_ips and value not in discovered_ips:
+                    discovered_ips.add(value)
+                    host_id = f'discovered-{value}'
+                    hosts[host_id] = dict(
+                        id=host_id,
+                        hostname=value,
+                        ips=[value],
+                        platform='unknown',
+                        compromised=False,
+                        agent_paw=None,
+                        privilege='',
+                        username='',
+                        step_count=0,
+                        origin_agent=None,
+                        discovered_by=list(getattr(fact, 'collected_by', []) or []),
+                        intel=[],
+                    )
+                    all_ips[value] = host_id
+
+                # Collect intel for discovered hosts
+                if trait.startswith('remote.host.') and value in all_ips:
+                    hid = all_ips[value]
+                    if hid.startswith('discovered-') and 'intel' in hosts.get(hid, {}):
+                        hosts[hid]['intel'].append(dict(trait=trait, value=value))
+
+        # --- Build subnets from IPs ---
+        subnet_map = {}  # cidr -> set of host_ids
+        for host_id, host in hosts.items():
+            if host_id == 'c2':
+                continue
+            for ip in (host.get('ips') or []):
+                subnet = self._ip_to_subnet(ip)
+                if subnet:
+                    subnet_map.setdefault(subnet, set()).add(host_id)
+
+        # Hosts with no IP go to "Unknown" subnet
+        hosts_with_subnet = set()
+        for hids in subnet_map.values():
+            hosts_with_subnet.update(hids)
+        ungrouped = [hid for hid in hosts if hid != 'c2' and hid not in hosts_with_subnet]
+        if ungrouped:
+            subnet_map['Unknown'] = set(ungrouped)
+
+        subnets = [
+            dict(cidr=cidr, label=cidr, hosts=sorted(hids))
+            for cidr, hids in sorted(subnet_map.items())
+        ]
+
+        return dict(
+            subnets=subnets,
+            hosts=hosts,
+            edges=edges,
+            steps_by_host=steps_by_host,
+        )
+
+    @staticmethod
+    def _ip_to_subnet(ip_str):
+        """Convert an IP string to a /24 subnet string."""
+        try:
+            parts = ip_str.strip().split('.')
+            if len(parts) == 4 and all(p.isdigit() and 0 <= int(p) <= 255 for p in parts):
+                return f'{parts[0]}.{parts[1]}.{parts[2]}.0/24'
+        except (ValueError, AttributeError):
+            pass
+        return None

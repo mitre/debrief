@@ -91,256 +91,207 @@ div.d3-tooltip {
     background-color: #121212;
 }
 
-/* ==================== REPLAY TAB ==================== */
+/* ==================== TOPOLOGY REPLAY ==================== */
 
-.replay-container {
-    max-width: 100%;
-    margin: 0 auto;
+.topo-wrapper {
+    width: 100%;
 }
 
-.replay-controls {
+.topo-controls {
     padding: 8px 0 2px;
 }
 
-/* Timeline strip */
-.replay-timeline {
-    position: relative;
-    padding: 0 16px 12px;
+.topo-split {
+    display: flex;
+    gap: 0;
+    min-height: 450px;
 }
 
-.replay-timeline-track {
-    position: relative;
-    height: 4px;
-    background: #363636;
-    border-radius: 2px;
-    margin: 24px 0 0;
-}
-
-.replay-timeline-progress {
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    background: linear-gradient(90deg, #750b20, #cc3311);
-    border-radius: 2px;
-    transition: width 0.3s ease;
-}
-
-.replay-timeline-marker {
-    position: absolute;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    cursor: pointer;
-    z-index: 2;
-}
-
-.replay-marker-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: #555;
-    border: 2px solid #363636;
-    transition: all 0.3s ease;
-}
-
-.replay-timeline-marker.is-past .replay-marker-dot {
-    background: #750b20;
-    border-color: #750b20;
-}
-
-.replay-timeline-marker.is-active .replay-marker-dot {
-    background: #cc3311;
-    border-color: #fff;
-    width: 16px;
-    height: 16px;
-    box-shadow: 0 0 8px rgba(204, 51, 17, 0.6);
-}
-
-.replay-marker-label {
-    display: none;
-    position: absolute;
-    bottom: 18px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 0.6rem;
-    white-space: nowrap;
-    color: #aaa;
-    max-width: 80px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.replay-timeline-marker.is-active .replay-marker-label,
-.replay-timeline-marker:hover .replay-marker-label {
-    display: block;
-    color: #fff;
-}
-
-/* Hover popover */
-.replay-popover {
-    position: absolute;
-    bottom: 28px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #1a1a2e;
-    border: 1px solid #444;
+.topo-canvas {
+    flex: 1;
+    background: #121212;
     border-radius: 6px;
-    padding: 10px 14px;
-    min-width: 220px;
-    max-width: 320px;
-    z-index: 100;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    overflow: auto;
+    min-height: 400px;
+    border: 1px solid #2a2a3e;
+}
+
+.topo-svg {
+    width: 100%;
+    height: 100%;
+    min-height: 400px;
+}
+
+/* Zone bands */
+.topo-zone {
+    stroke: #333;
+    stroke-width: 1;
+}
+
+.topo-zone-label {
+    fill: #666;
+    font-size: 11px;
+    font-family: monospace;
+}
+
+/* Edges */
+.topo-edge {
+    stroke: #444;
+    stroke-width: 1.5;
+    stroke-dasharray: 6 4;
+    transition: stroke 0.3s;
+}
+
+.topo-edge.is-active {
+    stroke: #cc3311;
+    stroke-width: 2.5;
+    stroke-dasharray: none;
+    filter: drop-shadow(0 0 4px rgba(204, 51, 17, 0.5));
+}
+
+.topo-edge.is-lateral {
+    stroke-dasharray: 8 4;
+}
+
+/* Host nodes */
+.topo-host {
+    cursor: pointer;
+    transition: opacity 0.3s;
+}
+
+.topo-host.is-discovered {
+    opacity: 0.3;
+}
+
+.topo-host.is-discovered:hover {
+    opacity: 0.6;
+}
+
+.topo-host-bg {
+    fill: #1a1a2e;
+    stroke: #555;
+    stroke-width: 1.5;
+    transition: all 0.3s;
+}
+
+.topo-host.is-compromised .topo-host-bg {
+    fill: #1e1e32;
+    stroke: #888;
+}
+
+.topo-host.is-active .topo-host-bg {
+    stroke: #cc3311;
+    stroke-width: 2.5;
+}
+
+.topo-host.is-visited .topo-host-bg {
+    stroke: #750b20;
+    stroke-width: 2;
+}
+
+.topo-host.is-discovered .topo-host-bg {
+    stroke-dasharray: 4 3;
+    stroke: #555;
+}
+
+.topo-glow {
+    fill: none;
+    stroke: #cc3311;
+    stroke-width: 2;
+    opacity: 0.5;
+    animation: topoGlow 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes topoGlow {
+    from { opacity: 0.3; r: 26; }
+    to { opacity: 0.7; r: 30; }
+}
+
+.topo-host-icon {
+    font-size: 20px;
+    fill: white;
     pointer-events: none;
 }
 
-.replay-popover-header {
-    display: flex;
-    align-items: center;
-    margin-bottom: 6px;
-    padding-bottom: 6px;
+.topo-host.is-discovered .topo-host-icon {
+    fill: #666;
+}
+
+.topo-host-label {
+    fill: #aaa;
+    font-size: 9px;
+    pointer-events: none;
+}
+
+.topo-badge circle {
+    transition: fill 0.2s;
+}
+
+.topo-tooltip rect {
+    pointer-events: none;
+}
+
+.topo-tooltip text {
+    pointer-events: none;
+}
+
+/* Slide-out detail panel */
+.topo-detail {
+    width: 320px;
+    flex-shrink: 0;
+    background: #1a1a2e;
+    border-left: 1px solid #333;
+    border-radius: 0 6px 6px 0;
+    padding: 12px;
+    overflow-y: auto;
+    max-height: 500px;
+}
+
+.topo-detail-header {
+    padding-bottom: 8px;
+    margin-bottom: 8px;
     border-bottom: 1px solid #333;
 }
 
-.replay-popover-body p {
-    margin: 2px 0;
+.topo-detail-section {
+    margin-top: 10px;
 }
 
-/* Event feed — compact rows, not tall cards */
-.replay-feed {
-    max-height: 400px;
-    overflow-y: auto;
-    padding: 4px 0;
-    scroll-behavior: smooth;
-}
-
-.replay-card {
-    display: flex;
-    margin-bottom: 1px;
-    opacity: 0;
-    transform: translateX(-8px);
-    animation: replayFadeIn 0.25s ease forwards;
-    cursor: pointer;
-    transition: opacity 0.15s;
-}
-
-.replay-card.is-past {
-    animation: none;
-    opacity: 0.5;
-    transform: none;
-}
-
-.replay-card.is-active {
-    opacity: 1;
-}
-
-@keyframes replayFadeIn {
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-/* Timeline dots on cards — thin left rail */
-.replay-card-timeline {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 20px;
-    flex-shrink: 0;
-    padding-top: 8px;
-}
-
-.replay-card-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #555;
-    flex-shrink: 0;
-}
-
-.replay-card-dot.is-success { background: #44AA99; }
-.replay-card-dot.is-danger { background: #CC3311; }
-.replay-card-dot.is-info { background: cornflowerblue; }
-.replay-card-dot.is-dark { background: #333; }
-.replay-card-dot.is-warning { background: #FFB000; }
-.replay-card-dot.is-light { background: #ddd; }
-
-.replay-card-line {
-    width: 1px;
-    flex-grow: 1;
-    background: #2a2a3e;
-    min-height: 4px;
-}
-
-/* Card content — compact single-line rows */
-.replay-card-content {
-    flex: 1;
-    background: #1a1a2e;
+.topo-step {
+    padding: 4px 8px;
+    margin-bottom: 2px;
     border-radius: 4px;
-    padding: 5px 10px;
-    margin-left: 4px;
-    border: 1px solid transparent;
-    transition: border-color 0.15s, background 0.15s;
-    min-height: 0;
+    background: #121212;
+    cursor: pointer;
+    transition: background 0.15s;
 }
 
-.replay-card.is-active .replay-card-content {
-    border-color: #750b20;
+.topo-step:hover {
     background: #1e1e32;
 }
 
-.replay-card:hover .replay-card-content {
-    border-color: #444;
-}
-
-/* Single-line header: status | icon+agent | ability | tactic/technique | time */
-.replay-card-header {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 0;
-    line-height: 1.4;
-}
-
-.replay-card-meta {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+.topo-step-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
     flex-shrink: 0;
 }
 
-.replay-agent-badge {
-    font-size: 0.7rem;
-    color: #aaa;
-    background: #2a2a3e;
-    padding: 0 6px;
-    border-radius: 3px;
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    line-height: 1.6;
+.topo-step-dot.is-success { background: #44AA99; }
+.topo-step-dot.is-danger { background: #CC3311; }
+.topo-step-dot.is-info { background: cornflowerblue; }
+.topo-step-dot.is-dark { background: #333; }
+.topo-step-dot.is-warning { background: #FFB000; }
+
+.topo-step-detail {
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px solid #222;
 }
 
-/* Force FA icons inside badges to be tiny */
-.replay-agent-badge svg {
-    width: 12px !important;
-    height: 12px !important;
-}
-
-.replay-card-title {
-    font-size: 0.8rem;
-    margin-left: 8px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex: 1;
-    min-width: 0;
-}
-
-.replay-card-detail {
-    margin-top: 6px;
-    padding-top: 6px;
-    border-top: 1px solid #333;
+.topo-intel {
+    padding: 2px 0;
 }
 
 .replay-pre {
@@ -402,6 +353,15 @@ export default {
         replayInterval: null,
         replayExpandedIdx: -1,
         replayHoverIdx: -1,
+
+        // Topology
+        topoData: null,
+        topoSelectedHost: null,
+        topoHoverHost: null,
+        topoActiveHost: null,
+        topoVisitedHosts: new Set(),
+        topoExpandedStep: null,
+        topoActiveEdge: -1,
     };
   },
   created() {
@@ -887,6 +847,19 @@ export default {
             this.replayPause();
             this.replayCursor = this.replaySteps.length ? this.replaySteps.length - 1 : -1;
             this.replayExpandedIdx = -1;
+            this.topoSelectedHost = null;
+            this.topoVisitedHosts = new Set();
+            this.topoActiveHost = null;
+            this.topoActiveEdge = -1;
+            // Fetch topology data
+            if (this.selectedOperationIds.length) {
+                this.$api.get(`/plugin/debrief/topology?operations=${this.selectedOperationIds.join(',')}`).then((data) => {
+                    this.topoData = data.data;
+                }).catch((err) => {
+                    console.error('Topology fetch failed:', err);
+                    this.topoData = null;
+                });
+            }
         },
 
         replayPlay() {
@@ -894,11 +867,13 @@ export default {
             this.replayPlaying = true;
             if (this.replayCursor >= this.replaySteps.length - 1) {
                 this.replayCursor = -1;
+                this.topoVisitedHosts = new Set();
+                this.topoActiveHost = null;
             }
             this.replayInterval = setInterval(() => {
                 if (this.replayCursor < this.replaySteps.length - 1) {
                     this.replayCursor++;
-                    this.replayScrollToActive();
+                    this.replayUpdateTopo();
                 } else {
                     this.replayPause();
                 }
@@ -1003,7 +978,133 @@ export default {
             }
         },
   },
+        // ==================== TOPOLOGY METHODS ====================
+
+        replayUpdateTopo() {
+            if (!this.topoData || this.replayCursor < 0) return;
+            const step = this.replaySteps[this.replayCursor];
+            if (!step) return;
+            const paw = step.paw;
+            this.topoActiveHost = paw;
+            this.topoVisitedHosts.add(paw);
+            // Find edge that leads to this host's agent
+            const edgeIdx = (this.topoData.edges || []).findIndex(e => e.target === paw);
+            this.topoActiveEdge = edgeIdx >= 0 ? edgeIdx : -1;
+        },
+
+        topoSelectHost(host) {
+            this.topoSelectedHost = host.compromised ? this.topoData.hosts[host.id] : host;
+        },
+
+        topoEdgeActive(edgeIdx) {
+            return this.topoActiveEdge === edgeIdx;
+        },
+
+        topoPlatformEmoji(platform) {
+            if (platform === 'linux') return '\ud83d\udc27';
+            if (platform === 'windows') return '\ud83e\ude9f';
+            if (platform === 'darwin') return '\ud83c\udf4e';
+            if (platform === 'server') return '\u2601';
+            return '\ud83d\udcbb';
+        },
+
+        topoZoneColor(index) {
+            const colors = [
+                'rgba(117, 11, 32, 0.10)',
+                'rgba(30, 30, 100, 0.12)',
+                'rgba(30, 100, 30, 0.10)',
+                'rgba(100, 80, 20, 0.10)',
+                'rgba(60, 60, 60, 0.12)',
+            ];
+            return colors[index % colors.length];
+        },
+
   computed: {
+        topoSubnets() {
+            if (!this.topoData) return [];
+            const subnets = this.topoData.subnets || [];
+            const padding = 20;
+            const bandH = 100;
+            const hostSpacing = 120;
+            return subnets.map((s, si) => {
+                const hostCount = Math.max(s.hosts.length, 1);
+                const w = Math.max(hostCount * hostSpacing + padding * 2, 300);
+                return {
+                    cidr: s.cidr,
+                    x: padding,
+                    y: padding + si * (bandH + 20),
+                    w: w,
+                    h: bandH,
+                    hosts: s.hosts,
+                };
+            });
+        },
+
+        topoHosts() {
+            if (!this.topoData) return [];
+            const hosts = this.topoData.hosts || {};
+            const result = [];
+            const hostSpacing = 120;
+            const padding = 20;
+            // Position hosts within their subnet bands
+            const hostPositions = {};
+            this.topoSubnets.forEach((subnet) => {
+                subnet.hosts.forEach((hid, hi) => {
+                    const x = subnet.x + padding + 40 + hi * hostSpacing;
+                    const y = subnet.y + subnet.h / 2;
+                    hostPositions[hid] = { x, y };
+                });
+            });
+            // C2 node at top center
+            const svgW = this.topoSvgWidth;
+            hostPositions['c2'] = { x: svgW / 2, y: 30 };
+
+            Object.entries(hosts).forEach(([id, host]) => {
+                const pos = hostPositions[id] || { x: 100, y: 50 };
+                result.push({ ...host, x: pos.x, y: pos.y });
+            });
+            return result;
+        },
+
+        topoEdges() {
+            if (!this.topoData) return [];
+            const edges = this.topoData.edges || [];
+            const hostMap = {};
+            this.topoHosts.forEach(h => { hostMap[h.id] = h; });
+            return edges.map(e => {
+                const src = hostMap[e.source];
+                const tgt = hostMap[e.target];
+                if (!src || !tgt) return { ...e, path: '' };
+                const dx = tgt.x - src.x;
+                const dy = tgt.y - src.y;
+                const cx = src.x + dx * 0.5;
+                const cy = src.y + dy * 0.5 - Math.abs(dx) * 0.15;
+                const path = `M ${src.x} ${src.y} Q ${cx} ${cy} ${tgt.x} ${tgt.y}`;
+                return { ...e, path };
+            });
+        },
+
+        topoViewBox() {
+            const w = this.topoSvgWidth;
+            const subnets = this.topoSubnets;
+            const lastSubnet = subnets[subnets.length - 1];
+            const h = lastSubnet ? lastSubnet.y + lastSubnet.h + 40 : 300;
+            return `0 0 ${w} ${Math.max(h, 200)}`;
+        },
+
+        topoSvgWidth() {
+            if (!this.topoData) return 800;
+            const subnets = this.topoSubnets;
+            const maxW = subnets.reduce((max, s) => Math.max(max, s.w + 40), 0);
+            return Math.max(maxW, 600);
+        },
+
+        topoHostSteps() {
+            if (!this.topoSelectedHost || !this.topoData) return [];
+            const paw = this.topoSelectedHost.agent_paw || this.topoSelectedHost.id;
+            return (this.topoData.steps_by_host || {})[paw] || [];
+        },
+
         replaySteps() {
             if (!this.steps || !this.steps.length) return [];
             return [...this.steps].sort((a, b) => {
@@ -1206,10 +1307,10 @@ div
 
     //- ==================== REPLAY TAB ====================
     div(v-show="activeTab === 'replay'")
-      .replay-container
+      .topo-wrapper
 
         //- PLAYBACK CONTROLS
-        .replay-controls
+        .topo-controls
           .buttons.has-addons.is-centered.mb-0
             button.button.is-small.is-dark(@click="replayJumpToStart", :disabled="!replaySteps.length")
               span.icon
@@ -1229,7 +1330,7 @@ div
             button.button.is-small.is-dark(@click="replayJumpToEnd", :disabled="!replaySteps.length")
               span.icon
                 font-awesome-icon(icon="fas fa-fast-forward")
-          .is-flex.is-justify-content-center.is-align-items-center.mt-1.mb-3
+          .is-flex.is-justify-content-center.is-align-items-center.mt-1.mb-2
             span.is-size-7.has-text-grey.mr-3 Speed:
             .buttons.has-addons.mb-0
               button.button.is-tiny(:class="replaySpeed === 500 ? 'is-primary' : 'is-dark'", @click="replaySpeed = 500", style="font-size:0.65rem;padding:2px 8px;height:22px") 2x
@@ -1237,77 +1338,106 @@ div
               button.button.is-tiny(:class="replaySpeed === 2000 ? 'is-primary' : 'is-dark'", @click="replaySpeed = 2000", style="font-size:0.65rem;padding:2px 8px;height:22px") 0.5x
             span.is-size-7.has-text-grey.ml-3 Step {{ replayCursor + 1 }} / {{ replaySteps.length }}
 
-        //- TIMELINE STRIP
-        .replay-timeline(v-if="replaySteps.length")
-          .replay-timeline-track
-            .replay-timeline-progress(:style="{ width: replayProgressPct + '%' }")
-            .replay-timeline-marker(
-              v-for="(step, idx) in replaySteps",
-              :key="idx",
-              :style="{ left: replayMarkerPct(idx) + '%' }",
-              :class="replayMarkerClass(idx)",
-              @click="replayCursor = idx",
-              @mouseenter="replayHoverIdx = idx",
-              @mouseleave="replayHoverIdx = -1"
+        //- TOPOLOGY CANVAS + DETAIL PANEL
+        .topo-split
+          //- SVG CANVAS
+          .topo-canvas(ref="topoCanvas")
+            svg.topo-svg(
+              v-if="topoData",
+              :viewBox="topoViewBox",
+              preserveAspectRatio="xMidYMid meet",
+              xmlns="http://www.w3.org/2000/svg"
             )
-              .replay-marker-dot
-              .replay-marker-label {{ step.ability.name }}
-              //- Hover popover
-              .replay-popover(v-if="replayHoverIdx === idx")
-                .replay-popover-header
-                  span.tag.is-small(:class="replayStatusTagClass(step.status)") {{ getStatusName(step.status) }}
-                  strong.ml-2 {{ step.ability.name }}
-                .replay-popover-body
-                  p.is-size-7
-                    span.has-text-grey Agent:
-                    |  {{ step.paw }}
-                  p.is-size-7(v-if="step.ability.tactic")
-                    span.has-text-grey Tactic:
-                    |  {{ step.ability.tactic }}
-                  p.is-size-7(v-if="step.ability.technique_name")
-                    span.has-text-grey Technique:
-                    |  {{ step.ability.technique_name }}
-                  p.is-size-7(v-if="step.finish")
-                    span.has-text-grey Time:
-                    |  {{ step.finish }}
+              //- Subnet zone bands
+              g.topo-subnets
+                template(v-for="(subnet, si) in topoSubnets", :key="si")
+                  rect.topo-zone(
+                    :x="subnet.x", :y="subnet.y",
+                    :width="subnet.w", :height="subnet.h",
+                    :fill="topoZoneColor(si)", rx="8"
+                  )
+                  text.topo-zone-label(:x="subnet.x + 12", :y="subnet.y + 18") {{ subnet.cidr }}
 
-        //- EVENT FEED
-        .replay-feed(ref="replayFeed")
-          template(v-for="(step, idx) in replaySteps", :key="idx")
-            .replay-card(
-              v-show="idx <= replayCursor",
-              :class="{ 'is-active': idx === replayCursor, 'is-past': idx < replayCursor }",
-              @click="replayExpandedIdx = (replayExpandedIdx === idx ? -1 : idx)"
-            )
-              .replay-card-timeline
-                .replay-card-dot(:class="replayDotClass(step.status)")
-                .replay-card-line(v-if="idx < replaySteps.length - 1")
-              .replay-card-content
-                .replay-card-header
-                  .replay-card-meta
-                    span.tag.is-small(:class="replayStatusTagClass(step.status)") {{ getStatusName(step.status) }}
-                    span.replay-agent-badge
-                      font-awesome-icon(:icon="replayPlatformIcon(step)")
-                      | {{ step.paw }}
-                  .replay-card-title
-                    strong {{ step.ability.name }}
-                    span.has-text-grey.ml-1(style="font-size:0.7rem", v-if="step.ability.tactic") {{ step.ability.tactic }}
-                    span.has-text-grey(style="font-size:0.7rem", v-if="step.ability.technique_name")  / {{ step.ability.technique_name }}
-                    span.has-text-grey.ml-2(style="font-size:0.65rem", v-if="step.finish") {{ step.finish }}
+              //- Connection edges (curved dotted)
+              g.topo-edges
+                template(v-for="(edge, ei) in topoEdges", :key="ei")
+                  path.topo-edge(
+                    :d="edge.path",
+                    :class="{ 'is-active': topoEdgeActive(ei), 'is-lateral': edge.type === 'lateral_movement' }",
+                    fill="none"
+                  )
+                  //- Animated pulse circle
+                  circle.topo-pulse(
+                    v-if="topoEdgeActive(ei)",
+                    r="4", fill="#cc3311"
+                  )
+                    animateMotion(dur="0.8s", repeatCount="1", :path="edge.path")
 
-                //- EXPANDED DETAIL (click to toggle)
-                .replay-card-detail(v-if="replayExpandedIdx === idx")
-                  p.is-size-7.has-text-grey.mb-2(v-if="step.ability.description") {{ step.ability.description }}
-                  p.is-size-7.has-text-weight-bold Command
-                  pre.replay-pre {{ replayDecodeCommand(step) }}
-                  .mt-2
-                    button.button.is-small.is-outlined(@click.stop="showCommand(step.id, step.command, step.ability.name)") View Output
-                  .mt-2(v-if="step.facts && step.facts.length")
-                    span.tag.is-info.is-light.mr-1(v-for="fact in step.facts", :key="fact.trait", style="font-size:0.65rem") {{ fact.trait }}
+              //- Host icons
+              g.topo-hosts
+                template(v-for="host in topoHosts", :key="host.id")
+                  g.topo-host(
+                    :transform="`translate(${host.x}, ${host.y})`",
+                    :class="{ 'is-compromised': host.compromised, 'is-discovered': !host.compromised, 'is-active': topoActiveHost === host.id, 'is-visited': topoVisitedHosts.has(host.id) }",
+                    @click="topoSelectHost(host)",
+                    @mouseenter="topoHoverHost = host.id",
+                    @mouseleave="topoHoverHost = null"
+                  )
+                    //- Glow ring for active host
+                    circle.topo-glow(r="28", v-if="topoActiveHost === host.id")
+                    //- Host circle background
+                    circle.topo-host-bg(r="20")
+                    //- Platform icon (FA rendered as text for SVG compat)
+                    text.topo-host-icon(text-anchor="middle", dominant-baseline="central") {{ topoPlatformEmoji(host.platform) }}
+                    //- Hostname label
+                    text.topo-host-label(y="32", text-anchor="middle") {{ host.hostname }}
+                    //- Step count badge
+                    g.topo-badge(v-if="host.compromised && host.step_count > 0")
+                      circle(cx="16", cy="-16", r="8", fill="#750b20")
+                      text(x="16", y="-16", text-anchor="middle", dominant-baseline="central", fill="white", font-size="9") {{ host.step_count }}
+                    //- Hover tooltip
+                    g.topo-tooltip(v-if="topoHoverHost === host.id")
+                      rect(x="-80", y="-60", width="160", height="40", rx="4", fill="#1a1a2e", stroke="#555")
+                      text(x="0", y="-46", text-anchor="middle", fill="#aaa", font-size="10") {{ host.ips.join(', ') || 'No IP' }}
+                      text(x="0", y="-32", text-anchor="middle", fill="#ccc", font-size="10") {{ host.platform }} | {{ host.compromised ? host.privilege || 'agent' : 'discovered' }}
 
-          //- Empty state
-          .has-text-centered.py-6(v-if="!replaySteps.length")
-            p.has-text-grey Select an operation to see the replay
+            //- Empty state
+            .has-text-centered.py-6(v-if="!topoData")
+              p.has-text-grey Select an operation to see the topology
+
+          //- SLIDE-OUT DETAIL PANEL
+          .topo-detail(v-if="topoSelectedHost")
+            .topo-detail-header
+              .is-flex.is-align-items-center.is-justify-content-space-between
+                strong {{ topoSelectedHost.hostname }}
+                button.delete.is-small(@click="topoSelectedHost = null")
+              p.is-size-7.has-text-grey {{ topoSelectedHost.ips.join(', ') }}
+              .tags.mt-1
+                span.tag.is-small(:class="topoSelectedHost.compromised ? 'is-danger' : 'is-dark'") {{ topoSelectedHost.compromised ? 'Compromised' : 'Discovered' }}
+                span.tag.is-small(v-if="topoSelectedHost.platform !== 'unknown'") {{ topoSelectedHost.platform }}
+                span.tag.is-small(v-if="topoSelectedHost.privilege") {{ topoSelectedHost.privilege }}
+
+            //- Steps on this host
+            .topo-detail-section(v-if="topoSelectedHost.compromised && topoHostSteps.length")
+              p.is-size-7.has-text-weight-bold.mb-1 Steps ({{ topoHostSteps.length }})
+              .topo-step(v-for="step in topoHostSteps", :key="step.id", @click="topoExpandedStep = (topoExpandedStep === step.id ? null : step.id)")
+                .is-flex.is-align-items-center
+                  span.topo-step-dot(:class="replayStatusTagClass(step.status)")
+                  span.is-size-7.ml-2 {{ step.ability_name }}
+                  span.has-text-grey.ml-auto(style="font-size:0.6rem") {{ step.tactic }}
+                .topo-step-detail(v-if="topoExpandedStep === step.id")
+                  p.is-size-7.has-text-grey {{ step.technique_id }} {{ step.technique_name }}
+                  pre.replay-pre(v-if="step.command") {{ replayDecodeCommand({ command: step.command }) }}
+
+            //- Intel for discovered hosts
+            .topo-detail-section(v-if="!topoSelectedHost.compromised && topoSelectedHost.intel && topoSelectedHost.intel.length")
+              p.is-size-7.has-text-weight-bold.mb-1 Gathered Intel
+              .topo-intel(v-for="item in topoSelectedHost.intel", :key="item.trait + item.value")
+                span.is-size-7.has-text-grey {{ item.trait }}:
+                span.is-size-7.ml-1 {{ item.value }}
+
+            .topo-detail-section(v-if="!topoSelectedHost.compromised && (!topoSelectedHost.intel || !topoSelectedHost.intel.length)")
+              p.is-size-7.has-text-grey No intel gathered
 
   .modal(v-bind:class="{ 'is-active': showGraphSettingsModal }")
     .modal-background(@click="showGraphSettingsModal = false")

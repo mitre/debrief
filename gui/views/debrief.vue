@@ -258,6 +258,39 @@ div.d3-tooltip {
     pointer-events: none;
 }
 
+/* Legend as HTML overlay */
+.topo-legend-box {
+    display: flex;
+    gap: 14px;
+    padding: 4px 10px;
+    background: #1a1a2e;
+    border: 1px solid #333;
+    border-radius: 4px;
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    z-index: 10;
+}
+
+.topo-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.65rem;
+    color: #888;
+}
+
+.topo-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.topo-legend-filled {
+    border: none !important;
+}
+
 .topo-pivot-ring {
     pointer-events: none;
 }
@@ -655,6 +688,7 @@ export default {
                 this.tacticsAndTechniques = data.ttps;
 
                 // Load topology data — start with only C2 visible
+                this.topoSelectedHost = null;
                 this.topoRevealedHosts = new Set(['c2']);
                 this.topoVisitedHosts = new Set();
                 this.topoActiveHost = null;
@@ -1267,10 +1301,10 @@ export default {
                 this.topoBeaconDotT = { ...this.topoBeaconDotT, [edgeIdx]: 0 };
 
                 // Animate in steps for visible hopping
-                const steps = 12;
+                const steps = 14;
                 for (let s = 0; s <= steps; s++) {
                     this.topoBeaconDotT = { ...this.topoBeaconDotT, [edgeIdx]: s / steps };
-                    await this.sleep(40);
+                    await this.sleep(45);
                 }
 
                 // Remove dot from this edge
@@ -1357,9 +1391,14 @@ export default {
 
             Object.entries(hosts).forEach(([id, host]) => {
                 const pos = hostPositions[id] || { x: svgW / 2, y: 35 };
-                // Detect pivot: host has IPs in multiple subnets
+                // Detect pivot: host has non-Docker IPs in multiple /24 subnets
                 const hostIps = host.ips || [];
-                const hostSubnets = new Set(hostIps.map(ip => {
+                const realIps = hostIps.filter(ip => {
+                    // Exclude Docker bridge IPs (172.17-31.x.x)
+                    const m = ip.match(/^172\.(\d+)\./);
+                    return !(m && parseInt(m[1]) >= 17 && parseInt(m[1]) <= 31);
+                });
+                const hostSubnets = new Set(realIps.map(ip => {
                     const parts = ip.split('.');
                     return parts.length === 4 ? `${parts[0]}.${parts[1]}.${parts[2]}` : null;
                 }).filter(Boolean));
@@ -1396,18 +1435,18 @@ export default {
         },
 
         topoSvgWidth() {
-            if (!this.topoData) return 600;
+            if (!this.topoData) return 800;
             const subnets = this.topoSubnets;
             const lastSubnet = subnets[subnets.length - 1];
-            const w = lastSubnet ? lastSubnet.x + lastSubnet.w + 20 : 300;
-            return Math.max(w, 300);
+            const w = lastSubnet ? lastSubnet.x + lastSubnet.w + 20 : 500;
+            return Math.max(w, 600);  // minimum width prevents huge icons
         },
 
         topoSvgHeight() {
-            if (!this.topoData) return 250;
+            if (!this.topoData) return 300;
             const subnets = this.topoSubnets;
             const maxH = subnets.reduce((max, s) => Math.max(max, s.y + s.h + 20), 0);
-            return Math.max(maxH, 200);
+            return Math.max(maxH, 250);  // minimum height
         },
 
         topoOperationName() {
@@ -1471,28 +1510,25 @@ div
         font-awesome-icon(icon="fas fa-download")
       span Download Operation JSON
 
-  .columns.mb-4.is-variable.is-1
-    .column.is-2
-      form
-        .field
-          .control.mr-2
-            .select.is-fullwidth
-              select.has-text-centered(v-model="selectedOperationId", @change="loadOperation")
-                option(disabled selected value="") Select an operation
-                template(v-for="operation in operations", :key="operation.id")
-                  option(:value="operation.id") {{ operation.name }}
-    .column.is-10.m-0
-      //- Hidden elements needed for PDF graph export
-      #images(style="display: none")
-      #copy
-      #debrief-graph(style="display:none")
-        .d3-tooltip#op-tooltip(style="opacity: 0")
-        svg#debrief-steps-svg.op-svg.debrief-svg
-        svg#debrief-attackpath-svg.op-svg.debrief-svg
-        svg#debrief-tactic-svg.op-svg.debrief-svg
-        svg#debrief-technique-svg.op-svg.debrief-svg
-      //- TOPOLOGY VIEW with integrated replay controls
-      .topo-main-canvas(v-show="selectedOperationId.length")
+  //- Hidden elements needed for PDF graph export
+  #images(style="display: none")
+  #copy
+  #debrief-graph(style="display:none")
+    .d3-tooltip#op-tooltip(style="opacity: 0")
+    svg#debrief-steps-svg.op-svg.debrief-svg
+    svg#debrief-attackpath-svg.op-svg.debrief-svg
+    svg#debrief-tactic-svg.op-svg.debrief-svg
+    svg#debrief-technique-svg.op-svg.debrief-svg
+
+  .is-flex.is-align-items-center.mb-3(style="gap:12px")
+    .select.is-small
+      select(v-model="selectedOperationId", @change="loadOperation")
+        option(disabled selected value="") Select an operation
+        template(v-for="operation in operations", :key="operation.id")
+          option(:value="operation.id") {{ operation.name }}
+
+  //- TOPOLOGY VIEW — full width
+  .topo-main-canvas(v-show="selectedOperationId.length")
         //- Operation title
         .has-text-centered.mb-2(v-if="selectedOperationId.length")
           strong.has-text-grey {{ topoOperationName }}
@@ -1518,13 +1554,8 @@ div
             button.button.is-small.is-dark(@click="replayJumpToEnd", :disabled="!replaySteps.length")
               span.icon
                 font-awesome-icon(icon="fas fa-fast-forward")
-          .is-flex.is-justify-content-center.is-align-items-center.mt-1
-            span.is-size-7.has-text-grey.mr-3 Speed:
-            .buttons.has-addons.mb-0
-              button.button.is-tiny(:class="replaySpeed === 1000 ? 'is-primary' : 'is-dark'", @click="replaySpeed = 1000", style="font-size:0.65rem;padding:2px 8px;height:22px") Fast
-              button.button.is-tiny(:class="replaySpeed === 2000 ? 'is-primary' : 'is-dark'", @click="replaySpeed = 2000", style="font-size:0.65rem;padding:2px 8px;height:22px") Normal
-              button.button.is-tiny(:class="replaySpeed === 3500 ? 'is-primary' : 'is-dark'", @click="replaySpeed = 3500", style="font-size:0.65rem;padding:2px 8px;height:22px") Slow
-            span.is-size-7.has-text-grey.ml-3 Step {{ Math.max(replayCursor + 1, 0) }} / {{ replaySteps.length }}
+          .has-text-centered.mt-1
+            span.is-size-7.has-text-grey Step {{ Math.max(replayCursor + 1, 0) }} / {{ replaySteps.length }}
 
         //- Topology canvas + legend + slide-out
         .topo-split
@@ -1535,10 +1566,10 @@ div
               preserveAspectRatio="xMidYMid meet",
               xmlns="http://www.w3.org/2000/svg"
             )
-              //- Subnet zone bands — only show when a host inside is revealed
+              //- Subnet zone bands — show when any host is revealed OR empty subnets visible
               g.topo-subnets
                 template(v-for="(subnet, si) in topoSubnets", :key="si")
-                  template(v-if="topoSubnetRevealed(subnet)")
+                  template(v-if="topoSubnetRevealed(subnet) || (subnet.hosts.length === 0 && topoRevealedHosts.size > 1)")
                     rect.topo-zone(
                       :x="subnet.x", :y="subnet.y",
                       :width="subnet.w", :height="subnet.h",

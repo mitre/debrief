@@ -473,9 +473,36 @@ class DebriefService(BaseService):
         if ungrouped:
             subnet_map['Unknown'] = set(ungrouped)
 
+        # Also include empty subnets from agent secondary IPs (networks the agent can see)
+        for host_id, host in hosts.items():
+            if host_id == 'c2':
+                continue
+            for ip in (host.get('ips') or []):
+                subnet_cidr = self._ip_to_subnet(ip)
+                if subnet_cidr and subnet_cidr not in subnet_map:
+                    subnet_map[subnet_cidr] = set()  # empty subnet — visible but no hosts
+
+        # Order subnets by chain appearance (first agent in each subnet determines position)
+        subnet_order = []
+        seen_subnets = set()
+        # First pass: order by replay_sequence (chain order)
+        for item in replay_sequence:
+            paw = item['paw']
+            host = hosts.get(paw)
+            if host and host.get('primary_ip'):
+                cidr = self._ip_to_subnet(host['primary_ip'])
+                if cidr and cidr not in seen_subnets:
+                    subnet_order.append(cidr)
+                    seen_subnets.add(cidr)
+        # Add any remaining subnets (empty ones, etc.) alphabetically
+        for cidr in sorted(subnet_map.keys()):
+            if cidr not in seen_subnets:
+                subnet_order.append(cidr)
+                seen_subnets.add(cidr)
+
         subnets = [
-            dict(cidr=cidr, label=cidr, hosts=sorted(hids))
-            for cidr, hids in sorted(subnet_map.items())
+            dict(cidr=cidr, label=cidr, hosts=sorted(subnet_map.get(cidr, set())))
+            for cidr in subnet_order
         ]
 
         # --- Compute path_to_c2 for each host (for beacon animation) ---

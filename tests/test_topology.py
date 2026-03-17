@@ -415,10 +415,16 @@ class TestBuildTopologyMultiHop:
         svc.data_svc.locate = AsyncMock(return_value=[op])
 
         result = await svc.build_topology(['op-1'])
-        # Should be in 192.168.5.0/24, not 172.x
+        # Host should be assigned to 192.168.5.0/24 (primary IP)
         cidrs = [s['cidr'] for s in result['subnets']]
         assert '192.168.5.0/24' in cidrs
-        assert all('172.' not in c for c in cidrs)
+        # Docker subnets exist as empty blocks (agent can see those networks)
+        primary_subnet = next(s for s in result['subnets'] if s['cidr'] == '192.168.5.0/24')
+        assert 'paw1' in primary_subnet['hosts']
+        # Docker subnets should be empty (no hosts assigned to them)
+        docker_subnets = [s for s in result['subnets'] if s['cidr'].startswith('172.')]
+        for ds in docker_subnets:
+            assert len(ds['hosts']) == 0
         assert result['hosts']['paw1']['primary_ip'] == '192.168.5.1'
 
     @pytest.mark.asyncio

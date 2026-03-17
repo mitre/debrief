@@ -129,8 +129,8 @@ div.d3-tooltip {
 }
 
 .topo-zone-label {
-    fill: #666;
-    font-size: 11px;
+    fill: #555;
+    font-size: 9px;
     font-family: monospace;
 }
 
@@ -203,8 +203,8 @@ div.d3-tooltip {
 }
 
 @keyframes topoGlow {
-    from { opacity: 0.3; r: 26; }
-    to { opacity: 0.7; r: 30; }
+    from { opacity: 0.3; r: 16; }
+    to { opacity: 0.7; r: 20; }
 }
 
 .topo-host-icon {
@@ -1074,17 +1074,17 @@ export default {
         topoSubnets() {
             if (!this.topoData) return [];
             const subnets = this.topoData.subnets || [];
-            const padding = 30;
-            const bandH = 80;
-            const hostSpacing = 100;
-            const c2Height = 70; // space reserved for C2 node above bands
+            const padding = 16;
+            const bandH = 56;
+            const hostSpacing = 70;
+            const c2Height = 50;
             return subnets.map((s, si) => {
                 const hostCount = Math.max(s.hosts.length, 1);
-                const w = Math.max(hostCount * hostSpacing + 80, 250);
+                const w = Math.max(hostCount * hostSpacing + 60, 200);
                 return {
                     cidr: s.cidr,
                     x: padding,
-                    y: c2Height + padding + si * (bandH + 16),
+                    y: c2Height + padding + si * (bandH + 10),
                     w: w,
                     h: bandH,
                     hosts: s.hosts,
@@ -1096,7 +1096,7 @@ export default {
             if (!this.topoData) return [];
             const hosts = this.topoData.hosts || {};
             const result = [];
-            const hostSpacing = 100;
+            const hostSpacing = 70;
             // Position hosts centered within their subnet bands
             const hostPositions = {};
             this.topoSubnets.forEach((subnet) => {
@@ -1438,25 +1438,25 @@ div
                     @mouseleave="topoHoverHost = null"
                   )
                     //- Glow ring for active host
-                    circle.topo-glow(r="28", v-if="topoActiveHost === host.id")
+                    circle.topo-glow(r="18", v-if="topoActiveHost === host.id")
                     //- Host circle background
-                    circle.topo-host-bg(r="20")
-                    //- Platform icon
+                    circle.topo-host-bg(r="14")
+                    //- Platform icon (small)
                     image.topo-host-icon(
                       :href="topoPlatformSvg(host.platform)",
-                      x="-12", y="-12", width="24", height="24"
+                      x="-8", y="-8", width="16", height="16"
                     )
                     //- Hostname label
-                    text.topo-host-label(y="32", text-anchor="middle") {{ host.hostname }}
-                    //- Step count badge (shows current count during replay)
+                    text.topo-host-label(y="22", text-anchor="middle") {{ host.hostname }}
+                    //- Step count badge
                     g.topo-badge(v-if="host.compromised && topoHostCurrentSteps(host.id) > 0")
-                      circle(cx="16", cy="-16", r="8", fill="#750b20")
-                      text(x="16", y="-16", text-anchor="middle", dominant-baseline="central", fill="white", font-size="9") {{ topoHostCurrentSteps(host.id) }}
+                      circle(cx="10", cy="-10", r="6", fill="#750b20")
+                      text(x="10", y="-10", text-anchor="middle", dominant-baseline="central", fill="white", font-size="7") {{ topoHostCurrentSteps(host.id) }}
                     //- Hover tooltip
                     g.topo-tooltip(v-if="topoHoverHost === host.id")
-                      rect(x="-80", y="-60", width="160", height="40", rx="4", fill="#1a1a2e", stroke="#555")
-                      text(x="0", y="-46", text-anchor="middle", fill="#aaa", font-size="10") {{ host.ips.join(', ') || 'No IP' }}
-                      text(x="0", y="-32", text-anchor="middle", fill="#ccc", font-size="10") {{ host.platform }} | {{ host.compromised ? host.privilege || 'agent' : 'discovered' }}
+                      rect(x="-70", y="-44", width="140", height="30", rx="4", fill="#1a1a2e", stroke="#555")
+                      text(x="0", y="-34", text-anchor="middle", fill="#aaa", font-size="9") {{ host.ips.join(', ') || 'No IP' }}
+                      text(x="0", y="-22", text-anchor="middle", fill="#ccc", font-size="9") {{ host.platform }} | {{ host.compromised ? host.privilege || 'agent' : 'discovered' }}
 
             //- Empty state
             .has-text-centered.py-6(v-if="!topoData")

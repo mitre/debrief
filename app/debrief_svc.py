@@ -404,10 +404,28 @@ class DebriefService(BaseService):
                         index=i,
                     ))
 
-        # --- Discovered hosts (from facts) ---
+        # --- Discovered hosts (from operation facts + knowledge svc) ---
         discovered_ips = set()
+        knowledge_svc = self.services.get('knowledge_svc')
         for op in operations:
-            all_facts = await op.all_facts()
+            all_facts = list(await op.all_facts())
+            # Also query knowledge_svc for facts in the operation's source
+            source = getattr(op, 'source', None)
+            source_id = str(getattr(source, 'id', '')) if source else ''
+            if knowledge_svc and source_id:
+                try:
+                    kb_facts = await knowledge_svc.get_facts(
+                        criteria=dict(source=source_id, trait='remote.host.ip')
+                    )
+                    for kf in (kb_facts or []):
+                        all_facts.append(kf)
+                    kb_fqdn = await knowledge_svc.get_facts(
+                        criteria=dict(source=source_id, trait='remote.host.fqdn')
+                    )
+                    for kf in (kb_fqdn or []):
+                        all_facts.append(kf)
+                except Exception:
+                    pass
             for fact in all_facts:
                 trait = getattr(fact, 'trait', '') or ''
                 value = str(getattr(fact, 'value', '') or '')

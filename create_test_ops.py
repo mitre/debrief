@@ -51,9 +51,16 @@ def create_op(s, name):
     return op['id']
 
 
-def add_discovered_hosts(s, hosts):
-    """Add remote.host.ip facts for discovered (not compromised) hosts."""
-    source_id = 'ed32b9c3-9593-4c33-b0db-e2007315096b'
+def add_discovered_hosts(s, op_name, hosts):
+    """Add remote.host.ip facts to the operation's own source."""
+    # Find the source created for this operation
+    sources = s.get(f'{BASE}/api/v2/sources').json()
+    source = next((src for src in sources if src['name'] == op_name), None)
+    if not source:
+        # Fallback to basic source
+        source_id = 'ed32b9c3-9593-4c33-b0db-e2007315096b'
+    else:
+        source_id = source['id']
     for ip, hostname in hosts:
         s.post(f'{BASE}/api/v2/facts', json={
             'trait': 'remote.host.ip', 'value': ip,
@@ -64,7 +71,7 @@ def add_discovered_hosts(s, hosts):
                 'trait': 'remote.host.fqdn', 'value': hostname,
                 'source': source_id, 'score': 1,
             })
-    print(f'    Added {len(hosts)} discovered hosts as facts')
+    print(f'    Added {len(hosts)} discovered hosts to source {source_id[:12]}')
 
 
 def delete_all_ops(s):
@@ -101,7 +108,7 @@ def main():
                  username='postgres', privilege='User')
     op1 = create_op(s, 'Corporate Pentest')
     print('  Discovered hosts:')
-    add_discovered_hosts(s, [
+    add_discovered_hosts(s, 'Corporate Pentest', [
         ('10.10.1.2', 'EXTFW01.corp.local'),
         ('10.10.1.3', 'IDSENSOR01.corp.local'),
         ('172.16.5.20', 'YOURPRINT01.corp.local'),
@@ -151,7 +158,7 @@ def main():
 
     op2 = create_op(s, 'Enterprise Red Team')
     print('  Discovered hosts:')
-    add_discovered_hosts(s, [
+    add_discovered_hosts(s, 'Enterprise Red Team', [
         # DMZ — seen from EXTWEBSRV01
         ('10.50.1.1', 'EXTFW01.corp.local'),
         ('10.50.1.2', 'IDSNODE01.corp.local'),

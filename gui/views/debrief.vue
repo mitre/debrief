@@ -88,6 +88,254 @@ div.d3-tooltip {
 #tactic-section > .card {
     background-color: #121212;
 }
+
+/* ==================== REPLAY TAB ==================== */
+
+.replay-container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.replay-controls {
+    padding: 12px 0 4px;
+}
+
+/* Timeline strip */
+.replay-timeline {
+    position: relative;
+    padding: 0 24px 20px;
+}
+
+.replay-timeline-track {
+    position: relative;
+    height: 4px;
+    background: #363636;
+    border-radius: 2px;
+    margin: 30px 0 0;
+}
+
+.replay-timeline-progress {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: linear-gradient(90deg, #750b20, #cc3311);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.replay-timeline-marker {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    z-index: 2;
+}
+
+.replay-marker-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #555;
+    border: 2px solid #363636;
+    transition: all 0.3s ease;
+}
+
+.replay-timeline-marker.is-past .replay-marker-dot {
+    background: #750b20;
+    border-color: #750b20;
+}
+
+.replay-timeline-marker.is-active .replay-marker-dot {
+    background: #cc3311;
+    border-color: #fff;
+    width: 16px;
+    height: 16px;
+    box-shadow: 0 0 8px rgba(204, 51, 17, 0.6);
+}
+
+.replay-marker-label {
+    display: none;
+    position: absolute;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.6rem;
+    white-space: nowrap;
+    color: #aaa;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.replay-timeline-marker.is-active .replay-marker-label,
+.replay-timeline-marker:hover .replay-marker-label {
+    display: block;
+    color: #fff;
+}
+
+/* Hover popover */
+.replay-popover {
+    position: absolute;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1a2e;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 10px 14px;
+    min-width: 220px;
+    max-width: 320px;
+    z-index: 100;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    pointer-events: none;
+}
+
+.replay-popover-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #333;
+}
+
+.replay-popover-body p {
+    margin: 2px 0;
+}
+
+/* Event feed */
+.replay-feed {
+    max-height: 500px;
+    overflow-y: auto;
+    padding: 8px 0;
+    scroll-behavior: smooth;
+}
+
+.replay-card {
+    display: flex;
+    margin-bottom: 2px;
+    opacity: 0;
+    transform: translateY(10px);
+    animation: replayFadeIn 0.35s ease forwards;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.replay-card.is-past {
+    opacity: 0.55;
+}
+
+.replay-card.is-active {
+    opacity: 1;
+}
+
+@keyframes replayFadeIn {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.replay-card.is-past {
+    animation: none;
+    opacity: 0.55;
+    transform: none;
+}
+
+/* Timeline dots on cards */
+.replay-card-timeline {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 32px;
+    flex-shrink: 0;
+    padding-top: 14px;
+}
+
+.replay-card-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #555;
+    flex-shrink: 0;
+}
+
+.replay-card-dot.is-success { background: #44AA99; }
+.replay-card-dot.is-danger { background: #CC3311; }
+.replay-card-dot.is-info { background: cornflowerblue; }
+.replay-card-dot.is-dark { background: #333; }
+.replay-card-dot.is-warning { background: #FFB000; }
+.replay-card-dot.is-light { background: #ddd; }
+
+.replay-card-line {
+    width: 2px;
+    flex-grow: 1;
+    background: #363636;
+    min-height: 12px;
+}
+
+/* Card content */
+.replay-card-content {
+    flex: 1;
+    background: #1a1a2e;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-left: 8px;
+    border: 1px solid transparent;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.replay-card.is-active .replay-card-content {
+    border-color: #750b20;
+    background: #1e1e32;
+}
+
+.replay-card:hover .replay-card-content {
+    border-color: #555;
+}
+
+.replay-card-header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.replay-card-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.replay-agent-badge {
+    font-size: 0.75rem;
+    color: #aaa;
+    background: #2a2a3e;
+    padding: 1px 8px;
+    border-radius: 4px;
+}
+
+.replay-card-title {
+    font-size: 0.9rem;
+}
+
+.replay-card-detail {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #333;
+}
+
+.replay-pre {
+    background: #0d0d1a;
+    color: #ccc;
+    font-size: 0.75rem;
+    padding: 8px 12px;
+    border-radius: 4px;
+    max-height: 200px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
 </style>
 
 <script>
@@ -128,6 +376,14 @@ export default {
         showGraphLegend: true,
         isGraphPlaying: false,
         graphInterval: null,
+
+        // Replay tab
+        replayCursor: -1,
+        replayPlaying: false,
+        replaySpeed: 1000,
+        replayInterval: null,
+        replayExpandedIdx: -1,
+        replayHoverIdx: -1,
     };
   },
   created() {
@@ -606,6 +862,144 @@ export default {
         useCustomLogoChange () {
             if (!this.useCustomLogo) this.logoFilename = '';
         },
+
+        // ==================== REPLAY METHODS ====================
+
+        initReplay() {
+            this.replayPause();
+            this.replayCursor = this.replaySteps.length ? this.replaySteps.length - 1 : -1;
+            this.replayExpandedIdx = -1;
+        },
+
+        replayPlay() {
+            if (!this.replaySteps.length) return;
+            this.replayPlaying = true;
+            if (this.replayCursor >= this.replaySteps.length - 1) {
+                this.replayCursor = -1;
+            }
+            this.replayInterval = setInterval(() => {
+                if (this.replayCursor < this.replaySteps.length - 1) {
+                    this.replayCursor++;
+                    this.replayScrollToActive();
+                } else {
+                    this.replayPause();
+                }
+            }, this.replaySpeed);
+        },
+
+        replayPause() {
+            this.replayPlaying = false;
+            if (this.replayInterval) {
+                clearInterval(this.replayInterval);
+                this.replayInterval = null;
+            }
+        },
+
+        replayStepForward() {
+            if (this.replayCursor < this.replaySteps.length - 1) {
+                this.replayCursor++;
+                this.replayScrollToActive();
+            }
+        },
+
+        replayStepBack() {
+            if (this.replayCursor > 0) {
+                this.replayCursor--;
+                this.replayScrollToActive();
+            }
+        },
+
+        replayJumpToStart() {
+            this.replayPause();
+            this.replayCursor = 0;
+        },
+
+        replayJumpToEnd() {
+            this.replayPause();
+            this.replayCursor = this.replaySteps.length - 1;
+        },
+
+        replayScrollToActive() {
+            this.$nextTick(() => {
+                const feed = this.$refs.replayFeed;
+                if (!feed) return;
+                const cards = feed.querySelectorAll('.replay-card');
+                const active = cards[this.replayCursor];
+                if (active) {
+                    active.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            });
+        },
+
+        replayMarkerPct(idx) {
+            if (this.replaySteps.length <= 1) return 50;
+            return (idx / (this.replaySteps.length - 1)) * 100;
+        },
+
+        replayMarkerClass(idx) {
+            return {
+                'is-active': idx === this.replayCursor,
+                'is-past': idx < this.replayCursor,
+                'is-future': idx > this.replayCursor,
+            };
+        },
+
+        replayDotClass(status) {
+            return {
+                'is-success': status === 0,
+                'is-danger': status === 1,
+                'is-info': status === 124,
+                'is-dark': status === -2,
+                'is-warning': status === -3,
+                'is-light': status === -4,
+            };
+        },
+
+        replayStatusTagClass(status) {
+            if (status === 0) return 'is-success';
+            if (status === 1) return 'is-danger';
+            if (status === 124) return 'is-info';
+            if (status === -2) return 'is-dark';
+            if (status === -3) return 'is-warning';
+            if (status === -4) return 'is-light';
+            if (status === -5) return 'is-link';
+            return 'is-dark';
+        },
+
+        replayPlatformIcon(step) {
+            // Find the agent's platform from loaded agents
+            const agent = this.agents.find(a => a.paw === step.paw);
+            if (agent) {
+                if (agent.platform === 'windows') return 'fab fa-windows';
+                if (agent.platform === 'linux') return 'fab fa-linux';
+                if (agent.platform === 'darwin') return 'fab fa-apple';
+            }
+            return 'fas fa-desktop';
+        },
+
+        replayDecodeCommand(step) {
+            try {
+                return atob(step.command);
+            } catch {
+                return step.command || 'N/A';
+            }
+        },
+  },
+  computed: {
+        replaySteps() {
+            if (!this.steps || !this.steps.length) return [];
+            return [...this.steps].sort((a, b) => {
+                const ta = a.finish || a.decide || '';
+                const tb = b.finish || b.decide || '';
+                return ta.localeCompare(tb);
+            });
+        },
+
+        replayProgressPct() {
+            if (this.replaySteps.length <= 1) return this.replayCursor >= 0 ? 100 : 0;
+            if (this.replayCursor < 0) return 0;
+            return (this.replayCursor / (this.replaySteps.length - 1)) * 100;
+        },
   },
 };
 </script>
@@ -695,6 +1089,11 @@ div
         a Tactics & Techniques
       li(:class="{ 'is-active': activeTab === 'facts' }", @click="activeTab = 'facts'")
         a Fact Graph
+      li(:class="{ 'is-active': activeTab === 'replay' }", @click="activeTab = 'replay'; initReplay()")
+        a
+          span.icon.is-small
+            font-awesome-icon(icon="fas fa-play-circle")
+          span Replay
 
   div(v-show="selectedOperationId.length")
     div(v-show="activeTab === 'stats'")
@@ -786,6 +1185,116 @@ div
         .d3-tooltip#fact-tooltip(style="opacity: 0")
       article#fact-limit.message.is-info
         #fact-limit-msg.message-body
+
+    //- ==================== REPLAY TAB ====================
+    div(v-show="activeTab === 'replay'")
+      .replay-container
+
+        //- PLAYBACK CONTROLS
+        .replay-controls
+          .buttons.has-addons.is-centered.mb-0
+            button.button.is-small.is-dark(@click="replayJumpToStart", :disabled="!replaySteps.length")
+              span.icon
+                font-awesome-icon(icon="fas fa-fast-backward")
+            button.button.is-small.is-dark(@click="replayStepBack", :disabled="!replaySteps.length")
+              span.icon
+                font-awesome-icon(icon="fas fa-backward")
+            button.button.is-small.is-dark(v-if="!replayPlaying", @click="replayPlay", :disabled="!replaySteps.length")
+              span.icon
+                font-awesome-icon(icon="fas fa-play")
+            button.button.is-small.is-dark(v-else, @click="replayPause")
+              span.icon
+                font-awesome-icon(icon="fas fa-pause")
+            button.button.is-small.is-dark(@click="replayStepForward", :disabled="!replaySteps.length")
+              span.icon
+                font-awesome-icon(icon="fas fa-forward")
+            button.button.is-small.is-dark(@click="replayJumpToEnd", :disabled="!replaySteps.length")
+              span.icon
+                font-awesome-icon(icon="fas fa-fast-forward")
+          .is-flex.is-justify-content-center.is-align-items-center.mt-1.mb-3
+            span.is-size-7.has-text-grey.mr-3 Speed:
+            .buttons.has-addons.mb-0
+              button.button.is-tiny(:class="replaySpeed === 500 ? 'is-primary' : 'is-dark'", @click="replaySpeed = 500", style="font-size:0.65rem;padding:2px 8px;height:22px") 2x
+              button.button.is-tiny(:class="replaySpeed === 1000 ? 'is-primary' : 'is-dark'", @click="replaySpeed = 1000", style="font-size:0.65rem;padding:2px 8px;height:22px") 1x
+              button.button.is-tiny(:class="replaySpeed === 2000 ? 'is-primary' : 'is-dark'", @click="replaySpeed = 2000", style="font-size:0.65rem;padding:2px 8px;height:22px") 0.5x
+            span.is-size-7.has-text-grey.ml-3 Step {{ replayCursor + 1 }} / {{ replaySteps.length }}
+
+        //- TIMELINE STRIP
+        .replay-timeline(v-if="replaySteps.length")
+          .replay-timeline-track
+            .replay-timeline-progress(:style="{ width: replayProgressPct + '%' }")
+            .replay-timeline-marker(
+              v-for="(step, idx) in replaySteps",
+              :key="idx",
+              :style="{ left: replayMarkerPct(idx) + '%' }",
+              :class="replayMarkerClass(idx)",
+              @click="replayCursor = idx",
+              @mouseenter="replayHoverIdx = idx",
+              @mouseleave="replayHoverIdx = -1"
+            )
+              .replay-marker-dot
+              .replay-marker-label {{ step.ability.name }}
+              //- Hover popover
+              .replay-popover(v-if="replayHoverIdx === idx")
+                .replay-popover-header
+                  span.tag.is-small(:class="replayStatusTagClass(step.status)") {{ getStatusName(step.status) }}
+                  strong.ml-2 {{ step.ability.name }}
+                .replay-popover-body
+                  p.is-size-7
+                    span.has-text-grey Agent:
+                    |  {{ step.paw }}
+                  p.is-size-7(v-if="step.ability.tactic")
+                    span.has-text-grey Tactic:
+                    |  {{ step.ability.tactic }}
+                  p.is-size-7(v-if="step.ability.technique_name")
+                    span.has-text-grey Technique:
+                    |  {{ step.ability.technique_name }}
+                  p.is-size-7(v-if="step.finish")
+                    span.has-text-grey Time:
+                    |  {{ step.finish }}
+
+        //- EVENT FEED
+        .replay-feed(ref="replayFeed")
+          template(v-for="(step, idx) in replaySteps", :key="idx")
+            .replay-card(
+              v-show="idx <= replayCursor",
+              :class="{ 'is-active': idx === replayCursor, 'is-past': idx < replayCursor }",
+              @click="replayExpandedIdx = (replayExpandedIdx === idx ? -1 : idx)"
+            )
+              .replay-card-timeline
+                .replay-card-dot(:class="replayDotClass(step.status)")
+                .replay-card-line(v-if="idx < replaySteps.length - 1")
+              .replay-card-content
+                .replay-card-header
+                  .replay-card-meta
+                    span.tag.is-small(:class="replayStatusTagClass(step.status)") {{ getStatusName(step.status) }}
+                    span.replay-agent-badge.ml-2
+                      font-awesome-icon.mr-1(:icon="replayPlatformIcon(step)")
+                      | {{ step.paw }}
+                    span.has-text-grey.ml-2.is-size-7(v-if="step.finish") {{ step.finish }}
+                  .replay-card-title
+                    strong {{ step.ability.name }}
+                    span.has-text-grey.ml-2.is-size-7(v-if="step.ability.tactic") {{ step.ability.tactic }}
+                    span.has-text-grey.is-size-7(v-if="step.ability.technique_name")  / {{ step.ability.technique_name }}
+
+                //- EXPANDED DETAIL
+                .replay-card-detail(v-if="replayExpandedIdx === idx")
+                  .columns.is-multiline.mt-1
+                    .column.is-12(v-if="step.ability.description")
+                      p.is-size-7.has-text-grey {{ step.ability.description }}
+                    .column.is-12
+                      p.is-size-7.has-text-weight-bold Command
+                      pre.replay-pre {{ replayDecodeCommand(step) }}
+                    .column.is-12
+                      button.button.is-small.is-outlined(@click.stop="showCommand(step.id, step.command, step.ability.name)") View Output
+                    .column.is-12(v-if="step.facts && step.facts.length")
+                      p.is-size-7.has-text-weight-bold.mb-1 Facts Discovered
+                      .tags
+                        span.tag.is-info.is-light(v-for="fact in step.facts", :key="fact.trait") {{ fact.trait }}: {{ fact.value ? fact.value.substring(0, 40) : '' }}
+
+          //- Empty state
+          .has-text-centered.py-6(v-if="!replaySteps.length")
+            p.has-text-grey Select an operation to see the replay
 
   .modal(v-bind:class="{ 'is-active': showGraphSettingsModal }")
     .modal-background(@click="showGraphSettingsModal = false")

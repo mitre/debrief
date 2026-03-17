@@ -10,7 +10,7 @@ class DebriefReportSection(BaseReportSection):
         self.description = 'This graph displays the facts discovered by the operations run. Facts are attached to ' \
                            'the operation where they were discovered. Facts are also attached to the facts that led ' \
                            'to their discovery. For readability, only the first 15 facts discovered in an operation ' \
-                           'are included in the graph.'
+                           'are included in the graph. Larger operations may have their fact count limited for readability.'
 
     async def generate_section_elements(self, styles, **kwargs):
         flowable_list = []

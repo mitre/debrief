@@ -23,12 +23,41 @@ class DebriefReportSection(BaseReportSection):
         title.textColor = 'maroon'
         title.fontSize = 24
         timestamp = "<i>Generated on %s</i>" % datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-        return [
-            KeepTogetherSplitAtTop([
-                Paragraph(self.section_title, title),
-                Spacer(1, 6),
-                Paragraph(timestamp, styles['Normal']),
-                Spacer(1, 12),
-                Paragraph(self.description, styles['Normal'])
-            ])
+
+        flowables = [
+            Paragraph(self.section_title, title),
+            Spacer(1, 6),
+            Paragraph(timestamp, styles['Normal']),
+            Spacer(1, 12),
+            Paragraph(self.description, styles['Normal']),
         ]
+
+        # Campaign summary on cover page
+        operations = kwargs.get('operations', [])
+        if operations:
+            flowables.append(Spacer(1, 16))
+            summary = self._build_cover_summary(operations)
+            flowables.append(Paragraph(summary, styles['Normal']))
+
+        return [KeepTogetherSplitAtTop(flowables)]
+
+    def _build_cover_summary(self, operations):
+        """Build a brief campaign summary for the cover page."""
+        op_names = ', '.join(f'<b>{o.name}</b>' for o in operations)
+
+        total_steps = 0
+        agents = set()
+        for op in operations:
+            for link in (getattr(op, 'chain', []) or []):
+                if not getattr(link, 'cleanup', 0):
+                    total_steps += 1
+            for agent in (getattr(op, 'agents', []) or []):
+                paw = getattr(agent, 'paw', None)
+                if paw:
+                    agents.add(paw)
+
+        lines = [
+            f'<b>Operations:</b> {op_names}',
+            f'<b>Agents:</b> {len(agents)} &nbsp;&nbsp; <b>Steps:</b> {total_steps}',
+        ]
+        return '<br/>'.join(lines)

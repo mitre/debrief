@@ -253,7 +253,7 @@ div.d3-tooltip {
     filter: drop-shadow(0 0 4px rgba(68, 170, 153, 0.8));
 }
 
-.topo-beacon-js {
+.topo-beacon-dot {
     filter: drop-shadow(0 0 6px rgba(68, 170, 153, 0.9));
     pointer-events: none;
 }
@@ -537,9 +537,8 @@ export default {
         topoRevealedHosts: new Set(),
         topoNewestEdge: -1,
         topoBeaconEdge: -1,
-        topoBeaconX: 0,
-        topoBeaconY: 0,
-        topoBeaconVisible: false,
+        topoBeaconEdges: new Set(),
+        topoBeaconDotT: {},  // edgeIdx -> t value (0=source, 1=target)
         topoExpandedStep: null,
         topoStepCounts: {},
         topoShowAll: false,    // true = static full view, false = progressive replay
@@ -1229,46 +1228,55 @@ export default {
             }
         },
 
-        // Animate green beacon through full path back to C2 using JS interpolation
+        // Compute position of green dot along an edge
+        topoBeaconDotPos(edgeIdx) {
+            const t = this.topoBeaconDotT[edgeIdx] || 0;
+            const edge = this.topoEdges[edgeIdx];
+            if (!edge) return { x: 0, y: 0 };
+            const hostMap = {};
+            this.topoHosts.forEach(h => { hostMap[h.id] = h; });
+            const src = hostMap[edge.source];
+            const tgt = hostMap[edge.target];
+            if (!src || !tgt) return { x: 0, y: 0 };
+            // Interpolate along the edge (target→source direction, so t=0 is target, t=1 is source)
+            return {
+                x: tgt.x + (src.x - tgt.x) * t,
+                y: tgt.y + (src.y - tgt.y) * t,
+            };
+        },
+
+        // Animate green dot hopping along each edge from new host back to C2
         async replayBeaconToC2(paw) {
             if (!this.topoData || !this.topoData.path_to_c2) return;
             const pathHosts = this.topoData.path_to_c2[paw];
             if (!pathHosts || pathHosts.length < 2) return;
 
-            const hostMap = {};
-            this.topoHosts.forEach(h => { hostMap[h.id] = h; });
-
-            this.topoBeaconVisible = true;
-
-            // Walk each hop: from current host back to C2
             for (let i = 0; i < pathHosts.length - 1; i++) {
                 if (!this.replayPlaying && i > 0) break;
-                const fromHost = hostMap[pathHosts[i]];
-                const toHost = hostMap[pathHosts[i + 1]];
-                if (!fromHost || !toHost) continue;
+                const from = pathHosts[i];
+                const to = pathHosts[i + 1];
 
-                // Animate from fromHost to toHost in ~500ms using requestAnimationFrame
-                const duration = 500;
-                const startTime = performance.now();
-                await new Promise(resolve => {
-                    const animate = (now) => {
-                        const elapsed = now - startTime;
-                        const t = Math.min(elapsed / duration, 1);
-                        // Ease-out cubic
-                        const eased = 1 - Math.pow(1 - t, 3);
-                        this.topoBeaconX = fromHost.x + (toHost.x - fromHost.x) * eased;
-                        this.topoBeaconY = fromHost.y + (toHost.y - fromHost.y) * eased;
-                        if (t < 1) {
-                            requestAnimationFrame(animate);
-                        } else {
-                            resolve();
-                        }
-                    };
-                    requestAnimationFrame(animate);
-                });
+                const edgeIdx = this.topoEdges.findIndex(e =>
+                    (e.source === to && e.target === from) || (e.source === from && e.target === to)
+                );
+                if (edgeIdx < 0) continue;
+
+                // Show dot on this edge and animate t from 0 to 1
+                this.topoBeaconEdges = new Set(this.topoBeaconEdges);
+                this.topoBeaconEdges.add(edgeIdx);
+                this.topoBeaconDotT = { ...this.topoBeaconDotT, [edgeIdx]: 0 };
+
+                // Animate in steps for visible hopping
+                const steps = 12;
+                for (let s = 0; s <= steps; s++) {
+                    this.topoBeaconDotT = { ...this.topoBeaconDotT, [edgeIdx]: s / steps };
+                    await this.sleep(40);
+                }
+
+                // Remove dot from this edge
+                this.topoBeaconEdges = new Set(this.topoBeaconEdges);
+                this.topoBeaconEdges.delete(edgeIdx);
             }
-
-            this.topoBeaconVisible = false;
         },
 
         topoSelectHost(host) {
@@ -1547,10 +1555,16 @@ div
                       :class="{ 'is-newest': topoNewestEdge === ei }",
                       fill="none"
                     )
+                    //- Green beacon — a single green dot that hops along the dashed path
+                    circle.topo-beacon-dot(
+                      v-if="topoBeaconEdges.has(ei)",
+                      r="4", fill="#44AA99",
+                      :cx="topoBeaconDotPos(ei).x",
+                      :cy="topoBeaconDotPos(ei).y"
+                    )
                     //- Red pulse: edge appearing (forward direction)
                     circle.topo-pulse(v-if="topoNewestEdge === ei", r="2", fill="#cc3311")
                       animateMotion(dur="0.5s", repeatCount="1", :path="edge.path")
-                    //- (beacon is rendered as a separate element below, JS-driven)
               //- Host icons
               g.topo-hosts
                 template(v-for="host in topoHosts", :key="host.id")
@@ -1576,12 +1590,7 @@ div
                       text(x="0", y="-28", text-anchor="middle", fill="#aaa", font-size="8") {{ host.ips.join(', ') || 'No IP' }}
                       text(x="0", y="-18", text-anchor="middle", fill="#ccc", font-size="8") {{ host.platform }}
 
-              //- Green beacon (JS-driven position)
-              circle.topo-beacon-js(
-                v-if="topoBeaconVisible",
-                :cx="topoBeaconX", :cy="topoBeaconY",
-                r="5", fill="#44AA99"
-              )
+              //- (beacon dots rendered per-edge above)
 
             .has-text-centered.py-4(v-if="!topoData && selectedOperationId.length")
               p.has-text-grey.is-size-7 Loading topology...

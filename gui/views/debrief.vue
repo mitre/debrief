@@ -1939,7 +1939,7 @@ div
                       span.file-label Upload new logo…
           .column.is-6.m-0.is-flex.is-align-items-center.is-justify-content-center
             template(v-if="logoFilename")
-              img(:alt="'Logo to use for report header'", :src="`/logodebrief/header-logos/${logoFilename}`")
+              img(:alt="'Logo to use for report header'", :src="`/logodebrief/${logoFilename}`")
             p(v-else) Select a logo to see preview
         h5 Report Sections
         p.help Sections that are checked will be displayed in the report in order as shown in the list below.

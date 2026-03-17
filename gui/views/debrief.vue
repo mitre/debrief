@@ -115,8 +115,10 @@ div.d3-tooltip {
     background: #121212;
     border-radius: 6px;
     overflow: auto;
-    min-height: 200px;
+    min-height: 250px;
     border: 1px solid #2a2a3e;
+    position: relative;
+    flex: 1;
 }
 
 .topo-svg {
@@ -206,12 +208,45 @@ div.d3-tooltip {
 }
 
 @keyframes topoGlow {
-    from { opacity: 0.3; r: 18; }
-    to { opacity: 0.7; r: 22; }
+    from { opacity: 0.3; r: 22; }
+    to { opacity: 0.7; r: 26; }
 }
 
 .topo-beacon-trail {
     pointer-events: none;
+}
+
+/* Legend as HTML outside SVG */
+.topo-legend-box {
+    display: flex;
+    gap: 16px;
+    padding: 6px 12px;
+    background: #1a1a2e;
+    border: 1px solid #333;
+    border-radius: 4px;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 10;
+}
+
+.topo-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.7rem;
+    color: #888;
+}
+
+.topo-legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.topo-legend-filled {
+    border: none !important;
 }
 
 .topo-beacon {
@@ -1246,9 +1281,9 @@ export default {
             if (!this.topoData) return [];
             const subnets = this.topoData.subnets || [];
             const padding = 16;
-            const bandW = 160;
-            const hostSpacing = 60;
-            const c2Width = 70;
+            const bandW = 180;
+            const hostSpacing = 70;
+            const c2Width = 80;
             return subnets.map((s, si) => {
                 const hostCount = Math.max(s.hosts.length, 1);
                 const h = Math.max(hostCount * hostSpacing + 40, 100);
@@ -1267,7 +1302,7 @@ export default {
             if (!this.topoData) return [];
             const hosts = this.topoData.hosts || {};
             const result = [];
-            const hostSpacing = 60;
+            const hostSpacing = 70;
             // Position hosts vertically centered within their subnet columns
             const hostPositions = {};
             this.topoSubnets.forEach((subnet) => {
@@ -1501,31 +1536,34 @@ div
                     @mouseenter="topoHoverHost = host.id",
                     @mouseleave="topoHoverHost = null"
                   )
-                    circle.topo-glow(r="20", v-if="topoActiveHost === host.id")
-                    circle.topo-host-bg(r="14")
-                    image.topo-host-icon(:href="topoPlatformSvg(host.platform)", x="-9", y="-9", width="18", height="18")
+                    circle.topo-glow(r="24", v-if="topoActiveHost === host.id")
+                    circle.topo-host-bg(r="18")
+                    image.topo-host-icon(:href="topoPlatformSvg(host.platform)", x="-12", y="-12", width="24", height="24")
                     //- Pivot indicator: dashed orange ring
-                    circle.topo-pivot-ring(v-if="host.isPivot", r="17", fill="none", stroke="#FFB000", stroke-width="1.5", stroke-dasharray="3 2")
-                    text.topo-host-label(y="22", text-anchor="middle") {{ host.hostname }}
+                    circle.topo-pivot-ring(v-if="host.isPivot", r="22", fill="none", stroke="#FFB000", stroke-width="1.5", stroke-dasharray="4 3")
+                    text.topo-host-label(y="28", text-anchor="middle") {{ host.hostname }}
                     g.topo-badge(v-if="host.compromised && topoHostCurrentSteps(host.id) > 0")
-                      circle(cx="12", cy="-10", r="6", fill="#750b20")
-                      text(x="12", y="-10", text-anchor="middle", dominant-baseline="central", fill="white", font-size="7") {{ topoHostCurrentSteps(host.id) }}
+                      circle(cx="14", cy="-12", r="7", fill="#4c0089")
+                      text(x="14", y="-12", text-anchor="middle", dominant-baseline="central", fill="white", font-size="8") {{ topoHostCurrentSteps(host.id) }}
                     g.topo-tooltip(v-if="topoHoverHost === host.id")
                       rect(x="-60", y="-36", width="120", height="24", rx="3", fill="#1a1a2e", stroke="#555")
                       text(x="0", y="-28", text-anchor="middle", fill="#aaa", font-size="8") {{ host.ips.join(', ') || 'No IP' }}
                       text(x="0", y="-18", text-anchor="middle", fill="#ccc", font-size="8") {{ host.platform }}
-              //- Legend key
-              g.topo-legend(transform="translate(10, 10)")
-                rect(x="0", y="0", width="110", height="52", rx="4", fill="#1a1a2e", stroke="#333", opacity="0.9")
-                circle(cx="12", cy="14", r="4", fill="none", stroke="#cc3311", stroke-width="1.5")
-                text(x="22", y="17", fill="#aaa", font-size="7") Path / Connection
-                circle(cx="12", cy="28", r="4", fill="none", stroke="#FFB000", stroke-width="1", stroke-dasharray="2 1")
-                text(x="22", y="31", fill="#aaa", font-size="7") Pivot Point
-                circle(cx="12", cy="42", r="4", fill="#44AA99")
-                text(x="22", y="45", fill="#aaa", font-size="7") Beacon / Callback
 
             .has-text-centered.py-4(v-if="!topoData && selectedOperationId.length")
               p.has-text-grey.is-size-7 Loading topology...
+
+          //- Legend key (outside SVG)
+          .topo-legend-box
+            .topo-legend-item
+              span.topo-legend-dot(style="border: 2px solid #cc3311")
+              span Path
+            .topo-legend-item
+              span.topo-legend-dot(style="border: 2px dashed #FFB000")
+              span Pivot
+            .topo-legend-item
+              span.topo-legend-dot.topo-legend-filled(style="background:#44AA99")
+              span Beacon
 
           //- Slide-out detail panel (click a host)
           .topo-detail(v-if="topoSelectedHost")
@@ -1622,7 +1660,10 @@ div
 
     //- TTPs — TACTICS & TECHNIQUES
     div(v-show="activeTab === 'tactics'")
-      .debrief-ttp-grid
+      .has-text-centered.py-4(v-if="!tacticsAndTechniques || Object.keys(tacticsAndTechniques).length === 0")
+        p.has-text-grey No TTPs data available for this operation
+        p.is-size-7.has-text-grey.mt-1 TTPs are populated when abilities are executed during an operation
+      .debrief-ttp-grid(v-else)
         template(v-for="tactic in tacticsAndTechniques", :key="tactic.name")
           .debrief-ttp-card
             .debrief-ttp-header {{ tactic.name }}

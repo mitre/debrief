@@ -92,18 +92,18 @@ div.d3-tooltip {
 /* ==================== REPLAY TAB ==================== */
 
 .replay-container {
-    max-width: 900px;
+    max-width: 100%;
     margin: 0 auto;
 }
 
 .replay-controls {
-    padding: 12px 0 4px;
+    padding: 8px 0 2px;
 }
 
 /* Timeline strip */
 .replay-timeline {
     position: relative;
-    padding: 0 24px 20px;
+    padding: 0 16px 12px;
 }
 
 .replay-timeline-track {
@@ -111,7 +111,7 @@ div.d3-tooltip {
     height: 4px;
     background: #363636;
     border-radius: 2px;
-    margin: 30px 0 0;
+    margin: 24px 0 0;
 }
 
 .replay-timeline-progress {
@@ -203,26 +203,28 @@ div.d3-tooltip {
     margin: 2px 0;
 }
 
-/* Event feed */
+/* Event feed — compact rows, not tall cards */
 .replay-feed {
-    max-height: 500px;
+    max-height: 400px;
     overflow-y: auto;
-    padding: 8px 0;
+    padding: 4px 0;
     scroll-behavior: smooth;
 }
 
 .replay-card {
     display: flex;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
     opacity: 0;
-    transform: translateY(10px);
-    animation: replayFadeIn 0.35s ease forwards;
+    transform: translateX(-8px);
+    animation: replayFadeIn 0.25s ease forwards;
     cursor: pointer;
-    transition: opacity 0.2s;
+    transition: opacity 0.15s;
 }
 
 .replay-card.is-past {
-    opacity: 0.55;
+    animation: none;
+    opacity: 0.5;
+    transform: none;
 }
 
 .replay-card.is-active {
@@ -232,29 +234,23 @@ div.d3-tooltip {
 @keyframes replayFadeIn {
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateX(0);
     }
 }
 
-.replay-card.is-past {
-    animation: none;
-    opacity: 0.55;
-    transform: none;
-}
-
-/* Timeline dots on cards */
+/* Timeline dots on cards — thin left rail */
 .replay-card-timeline {
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 32px;
+    width: 20px;
     flex-shrink: 0;
-    padding-top: 14px;
+    padding-top: 8px;
 }
 
 .replay-card-dot {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background: #555;
     flex-shrink: 0;
@@ -268,21 +264,22 @@ div.d3-tooltip {
 .replay-card-dot.is-light { background: #ddd; }
 
 .replay-card-line {
-    width: 2px;
+    width: 1px;
     flex-grow: 1;
-    background: #363636;
-    min-height: 12px;
+    background: #2a2a3e;
+    min-height: 4px;
 }
 
-/* Card content */
+/* Card content — compact single-line rows */
 .replay-card-content {
     flex: 1;
     background: #1a1a2e;
-    border-radius: 6px;
-    padding: 10px 14px;
-    margin-left: 8px;
+    border-radius: 4px;
+    padding: 5px 10px;
+    margin-left: 4px;
     border: 1px solid transparent;
-    transition: border-color 0.2s, background 0.2s;
+    transition: border-color 0.15s, background 0.15s;
+    min-height: 0;
 }
 
 .replay-card.is-active .replay-card-content {
@@ -291,47 +288,66 @@ div.d3-tooltip {
 }
 
 .replay-card:hover .replay-card-content {
-    border-color: #555;
+    border-color: #444;
 }
 
+/* Single-line header: status | icon+agent | ability | tactic/technique | time */
 .replay-card-header {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    flex-direction: row;
+    align-items: center;
+    gap: 0;
+    line-height: 1.4;
 }
 
 .replay-card-meta {
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 4px;
+    gap: 6px;
+    flex-shrink: 0;
 }
 
 .replay-agent-badge {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: #aaa;
     background: #2a2a3e;
-    padding: 1px 8px;
-    border-radius: 4px;
+    padding: 0 6px;
+    border-radius: 3px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    line-height: 1.6;
+}
+
+/* Force FA icons inside badges to be tiny */
+.replay-agent-badge svg {
+    width: 12px !important;
+    height: 12px !important;
 }
 
 .replay-card-title {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
+    margin-left: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
 }
 
 .replay-card-detail {
-    margin-top: 8px;
-    padding-top: 8px;
+    margin-top: 6px;
+    padding-top: 6px;
     border-top: 1px solid #333;
 }
 
 .replay-pre {
     background: #0d0d1a;
     color: #ccc;
-    font-size: 0.75rem;
-    padding: 8px 12px;
+    font-size: 0.7rem;
+    padding: 6px 10px;
     border-radius: 4px;
-    max-height: 200px;
+    max-height: 150px;
     overflow: auto;
     white-space: pre-wrap;
     word-break: break-all;
@@ -1268,29 +1284,24 @@ div
                 .replay-card-header
                   .replay-card-meta
                     span.tag.is-small(:class="replayStatusTagClass(step.status)") {{ getStatusName(step.status) }}
-                    span.replay-agent-badge.ml-2
-                      font-awesome-icon.mr-1(:icon="replayPlatformIcon(step)")
+                    span.replay-agent-badge
+                      font-awesome-icon(:icon="replayPlatformIcon(step)")
                       | {{ step.paw }}
-                    span.has-text-grey.ml-2.is-size-7(v-if="step.finish") {{ step.finish }}
                   .replay-card-title
                     strong {{ step.ability.name }}
-                    span.has-text-grey.ml-2.is-size-7(v-if="step.ability.tactic") {{ step.ability.tactic }}
-                    span.has-text-grey.is-size-7(v-if="step.ability.technique_name")  / {{ step.ability.technique_name }}
+                    span.has-text-grey.ml-1(style="font-size:0.7rem", v-if="step.ability.tactic") {{ step.ability.tactic }}
+                    span.has-text-grey(style="font-size:0.7rem", v-if="step.ability.technique_name")  / {{ step.ability.technique_name }}
+                    span.has-text-grey.ml-2(style="font-size:0.65rem", v-if="step.finish") {{ step.finish }}
 
-                //- EXPANDED DETAIL
+                //- EXPANDED DETAIL (click to toggle)
                 .replay-card-detail(v-if="replayExpandedIdx === idx")
-                  .columns.is-multiline.mt-1
-                    .column.is-12(v-if="step.ability.description")
-                      p.is-size-7.has-text-grey {{ step.ability.description }}
-                    .column.is-12
-                      p.is-size-7.has-text-weight-bold Command
-                      pre.replay-pre {{ replayDecodeCommand(step) }}
-                    .column.is-12
-                      button.button.is-small.is-outlined(@click.stop="showCommand(step.id, step.command, step.ability.name)") View Output
-                    .column.is-12(v-if="step.facts && step.facts.length")
-                      p.is-size-7.has-text-weight-bold.mb-1 Facts Discovered
-                      .tags
-                        span.tag.is-info.is-light(v-for="fact in step.facts", :key="fact.trait") {{ fact.trait }}: {{ fact.value ? fact.value.substring(0, 40) : '' }}
+                  p.is-size-7.has-text-grey.mb-2(v-if="step.ability.description") {{ step.ability.description }}
+                  p.is-size-7.has-text-weight-bold Command
+                  pre.replay-pre {{ replayDecodeCommand(step) }}
+                  .mt-2
+                    button.button.is-small.is-outlined(@click.stop="showCommand(step.id, step.command, step.ability.name)") View Output
+                  .mt-2(v-if="step.facts && step.facts.length")
+                    span.tag.is-info.is-light.mr-1(v-for="fact in step.facts", :key="fact.trait", style="font-size:0.65rem") {{ fact.trait }}
 
           //- Empty state
           .has-text-centered.py-6(v-if="!replaySteps.length")

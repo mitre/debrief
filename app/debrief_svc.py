@@ -273,6 +273,8 @@ class DebriefService(BaseService):
                     agent_paw=paw,
                     privilege=getattr(agent, 'privilege', ''),
                     username=getattr(agent, 'username', ''),
+                    contact=getattr(agent, 'contact', 'HTTP'),
+                    is_pivot=bool(getattr(agent, 'proxy_receivers', None)),
                     step_count=0,
                     origin_agent=None,
                 )

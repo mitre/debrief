@@ -1391,18 +1391,8 @@ export default {
 
             Object.entries(hosts).forEach(([id, host]) => {
                 const pos = hostPositions[id] || { x: svgW / 2, y: 35 };
-                // Detect pivot: host has non-Docker IPs in multiple /24 subnets
-                const hostIps = host.ips || [];
-                const realIps = hostIps.filter(ip => {
-                    // Exclude Docker bridge IPs (172.17-31.x.x)
-                    const m = ip.match(/^172\.(\d+)\./);
-                    return !(m && parseInt(m[1]) >= 17 && parseInt(m[1]) <= 31);
-                });
-                const hostSubnets = new Set(realIps.map(ip => {
-                    const parts = ip.split('.');
-                    return parts.length === 4 ? `${parts[0]}.${parts[1]}.${parts[2]}` : null;
-                }).filter(Boolean));
-                const isPivot = hostSubnets.size > 1;
+                // Pivot = agent has proxy_receivers (P2P enabled)
+                const isPivot = host.is_pivot || false;
                 result.push({ ...host, x: pos.x, y: pos.y, isPivot });
             });
             return result;

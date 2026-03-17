@@ -25,6 +25,7 @@ def create_agent(s, paw, host, platform, ips, **kw):
         'paw': paw, 'host': host, 'platform': platform,
         'host_ip_addrs': ips, 'group': kw.get('group', 'red'),
         'privilege': kw.get('privilege', 'User'),
+        'proxy_receivers': kw.get('proxy_receivers', {}),
         'username': kw.get('username', 'user'), 'exe_name': kw.get('exe', 'sandcat'),
         'contact': kw.get('contact', 'HTTP'),
         'sleep_min': 30, 'sleep_max': 60, 'watchdog': 0,
@@ -61,7 +62,8 @@ def main():
     create_agent(s, 'wp01', 'WEBPROD01', 'linux', ['10.10.1.50'],
                  username='www-data', privilege='User')
     create_agent(s, 'fw01', 'INTFW01', 'linux', ['10.10.1.1', '172.16.5.1'],
-                 username='root', privilege='Elevated', contact='P2P')
+                 username='root', privilege='Elevated', contact='P2P',
+                 proxy_receivers={'TCP': ['0.0.0.0/0']})
     create_agent(s, 'dc01', 'YOURDC01', 'windows', ['172.16.5.10'],
                  username='CORP\\svc_admin', privilege='Elevated')
     create_agent(s, 'sql01', 'SQLPROD01', 'linux', ['172.16.10.20'],
@@ -82,7 +84,8 @@ def main():
                  username='postfix', privilege='User')
     # Dual-homed jump box: DMZ ↔ Corporate
     create_agent(s, 'jmp1', 'YOURJMPBOX01', 'linux', ['10.50.1.5', '172.20.5.1'],
-                 username='root', privilege='Elevated', contact='P2P')
+                 username='root', privilege='Elevated', contact='P2P',
+                 proxy_receivers={'TCP': ['0.0.0.0/0']})
 
     # Corporate — 172.20.5.0/24
     create_agent(s, 'ws1', 'YOURWS001', 'windows', ['172.20.5.50'],
@@ -96,7 +99,8 @@ def main():
 
     # Dual-homed app server: Corporate ↔ Servers
     create_agent(s, 'app1', 'YOURAPP01', 'linux', ['172.20.5.2', '172.20.10.1'],
-                 username='tomcat', privilege='Elevated', contact='P2P')
+                 username='tomcat', privilege='Elevated', contact='P2P',
+                 proxy_receivers={'TCP': ['0.0.0.0/0']})
 
     # Servers/DB — 172.20.10.0/24
     create_agent(s, 'db1', 'SQLMASTER01', 'linux', ['172.20.10.50'],

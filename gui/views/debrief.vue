@@ -77,7 +77,7 @@ div.d3-tooltip {
     height: auto;
     padding: 5px;
     font: 12px sans-serif;
-    background: #750b20;
+    background: #4c0089;
     border: 0px;
     border-radius: 4px;
     pointer-events: none;
@@ -321,6 +321,123 @@ div.d3-tooltip {
     overflow: auto;
     white-space: pre-wrap;
     word-break: break-all;
+}
+
+/* ==================== REDESIGNED TABS & TABLES ==================== */
+
+.debrief-tabs ul {
+    border-bottom-color: #333;
+}
+
+.debrief-tabs li a {
+    color: #888;
+    border-bottom-color: transparent;
+    transition: color 0.2s;
+}
+
+.debrief-tabs li a:hover {
+    color: #ccc;
+    border-bottom-color: #555;
+}
+
+.debrief-tabs li.is-active a {
+    color: #fff;
+    border-bottom-color: #8b00ff;
+}
+
+.debrief-tab-content {
+    padding: 12px 0;
+}
+
+/* Custom dark table */
+.debrief-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.85rem;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.debrief-table thead th {
+    background: #4c0089;
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 8px 12px;
+    border: none;
+}
+
+.debrief-table tbody tr {
+    background: #1a1a2e;
+    transition: background 0.15s;
+}
+
+.debrief-table tbody tr:nth-child(even) {
+    background: #16162a;
+}
+
+.debrief-table tbody tr:hover {
+    background: #252540;
+}
+
+.debrief-table td {
+    padding: 6px 12px;
+    border: none;
+    border-bottom: 1px solid #222;
+    color: #ccc;
+    vertical-align: middle;
+}
+
+/* TTP Cards Grid */
+.debrief-ttp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+}
+
+.debrief-ttp-card {
+    background: #1a1a2e;
+    border-radius: 6px;
+    border: 1px solid #2a2a3e;
+    overflow: hidden;
+}
+
+.debrief-ttp-header {
+    background: #4c0089;
+    color: #fff;
+    padding: 8px 12px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: capitalize;
+}
+
+.debrief-ttp-body {
+    padding: 10px 12px;
+}
+
+.debrief-ttp-section {
+    margin-bottom: 8px;
+}
+
+.debrief-ttp-section:last-child {
+    margin-bottom: 0;
+}
+
+.debrief-ttp-label {
+    font-size: 0.7rem;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.debrief-ttp-item {
+    font-size: 0.8rem;
+    padding: 2px 0;
+    color: #ccc;
 }
 </style>
 
@@ -1439,44 +1556,51 @@ div
             .topo-detail-section(v-if="!topoSelectedHost.compromised && (!topoSelectedHost.intel || !topoSelectedHost.intel.length)")
               p.is-size-7.has-text-grey No intel gathered
 
-  .tabs.is-centered(v-show="selectedOperationId.length")
+  .tabs.is-centered.debrief-tabs(v-show="selectedOperationId.length")
     ul.ml-0
       li(:class="{ 'is-active': activeTab === 'stats' }", @click="activeTab = 'stats'")
-        a Stats
+        a
+          span.icon.is-small
+            font-awesome-icon(icon="fas fa-chart-bar")
+          span Stats
       li(:class="{ 'is-active': activeTab === 'agents' }", @click="activeTab = 'agents'")
-        a Agents
-      li(:class="{ 'is-active': activeTab === 'steps' }", @click="activeTab = 'steps'")
-        a Steps
+        a
+          span.icon.is-small
+            font-awesome-icon(icon="fas fa-user-secret")
+          span Agents
       li(:class="{ 'is-active': activeTab === 'tactics' }", @click="activeTab = 'tactics'")
-        a Tactics & Techniques
-      li(:class="{ 'is-active': activeTab === 'facts' }", @click="activeTab = 'facts'")
-        a Fact Graph
+        a
+          span.icon.is-small
+            font-awesome-icon(icon="fas fa-crosshairs")
+          span TTPs
 
-  div(v-show="selectedOperationId.length")
+  div.debrief-tab-content(v-show="selectedOperationId.length")
+    //- STATS TABLE
     div(v-show="activeTab === 'stats'")
-      table.table.is-striped.is-fullwidth
-        caption Operation Statistics
+      table.debrief-table
         thead
           tr
             th Name
             th State
             th Planner
             th Objective
-            th Time
+            th Started
         tbody
-          template(v-for="stat in stats")
+          template(v-for="stat in stats", :key="stat.name")
             tr
-              td {{ stat.name }}
-              td {{ stat.state.toUpperCase() }}
+              td.has-text-weight-bold {{ stat.name }}
+              td
+                span.tag.is-small(:class="stat.state === 'finished' ? 'is-success' : 'is-warning'") {{ stat.state.toUpperCase() }}
               td {{ stat.planner.name }}
               td {{ stat.objective.name }}
-              td {{ stat.start }}
+              td.has-text-grey {{ stat.start }}
 
+    //- AGENTS TABLE
     div(v-show="activeTab === 'agents'")
-      table.table.is-striped.is-fullwidth
-        caption Operation Agents
+      table.debrief-table
         thead
           tr
+            th
             th Paw
             th Host
             th Platform
@@ -1484,64 +1608,36 @@ div
             th Privilege
             th Executable
         tbody
-          template(v-for="agent in agents")
+          template(v-for="agent in agents", :key="agent.paw")
             tr
-              td {{ agent.paw }}
+              td
+                image(:src="agent.platform === 'windows' ? '/debrief/img/windows.svg' : agent.platform === 'darwin' ? '/debrief/img/darwin.svg' : '/debrief/img/linux.svg'", style="width:16px;height:16px;vertical-align:middle")
+              td.has-text-weight-bold {{ agent.paw }}
               td {{ agent.host }}
               td {{ agent.platform }}
               td {{ agent.username }}
-              td {{ agent.privilege }}
-              td {{ agent.exe_name }}
-
-    div(v-show="activeTab === 'steps'")
-      table.table.is-striped.is-fullwidth
-        caption Operation Steps
-        thead
-          tr
-            th Status
-            th Time
-            th Name
-            th Agent
-            th Operation
-            th Command
-        tbody
-          template(v-for="step in steps")
-            tr
-              td {{ getStatusName(step.status) }}
-              td {{ step.finish }}
-              td {{ step.ability.name }}
-              td {{ step.paw }}
-              td {{ step.operation_name }}
               td
-                button.button.is-small(@click="showCommand(step.id, step.command, step.ability.name)") Show Command
+                span.tag.is-small(:class="agent.privilege === 'Elevated' ? 'is-danger' : 'is-dark'") {{ agent.privilege }}
+              td.has-text-grey {{ agent.exe_name }}
 
+    //- TTPs — TACTICS & TECHNIQUES
     div(v-show="activeTab === 'tactics'")
-      template(v-for="tactic in tacticsAndTechniques")
-        .card.mb-4
-          header.card-header
-            p.card-header-title.is-size-5 {{ tactic.name }}
-          .card-content
-            .content
-              p.has-text-centered
-                strong Techniques
-              ul
-                template(v-for="technique in Object.keys(tactic.techniques)")
-                  li {{ `${tactic.techniques[technique]} | ${technique}` }}
-              p.has-text-centered
-                strong Steps
-              template(v-for="step in tactic.steps")
-                .block
-                  p {{ step.operation }}
-                  ul
-                    template(v-for="ability in step.abilities")
-                      li {{ ability }}
-
-    div(v-show="activeTab === 'facts'")
-      #fact-graph
-        svg#debrief-fact-svg.debrief-svg
-        .d3-tooltip#fact-tooltip(style="opacity: 0")
-      article#fact-limit.message.is-info
-        #fact-limit-msg.message-body
+      .debrief-ttp-grid
+        template(v-for="tactic in tacticsAndTechniques", :key="tactic.name")
+          .debrief-ttp-card
+            .debrief-ttp-header {{ tactic.name }}
+            .debrief-ttp-body
+              .debrief-ttp-section
+                .debrief-ttp-label Techniques
+                template(v-for="technique in Object.keys(tactic.techniques)", :key="technique")
+                  .debrief-ttp-item
+                    span.tag.is-small.is-dark.mr-1 {{ tactic.techniques[technique] }}
+                    span {{ technique }}
+              .debrief-ttp-section(v-if="tactic.steps && tactic.steps.length")
+                .debrief-ttp-label Abilities
+                template(v-for="step in tactic.steps", :key="step.operation")
+                  template(v-for="ability in step.abilities", :key="ability")
+                    .debrief-ttp-item.has-text-grey {{ ability }}
 
   .modal(v-bind:class="{ 'is-active': showGraphSettingsModal }")
     .modal-background(@click="showGraphSettingsModal = false")

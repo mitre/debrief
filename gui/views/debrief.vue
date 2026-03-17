@@ -208,13 +208,11 @@ div.d3-tooltip {
 }
 
 .topo-host-icon {
-    font-size: 20px;
-    fill: white;
     pointer-events: none;
 }
 
 .topo-host.is-discovered .topo-host-icon {
-    fill: #666;
+    opacity: 0.4;
 }
 
 .topo-host-label {
@@ -1000,12 +998,14 @@ export default {
             return this.topoActiveEdge === edgeIdx;
         },
 
-        topoPlatformEmoji(platform) {
-            if (platform === 'linux') return '\ud83d\udc27';
-            if (platform === 'windows') return '\ud83e\ude9f';
-            if (platform === 'darwin') return '\ud83c\udf4e';
-            if (platform === 'server') return '\u2601';
-            return '\ud83d\udcbb';
+        topoPlatformSvg(platform) {
+            const map = {
+                linux: '/debrief/img/linux.svg',
+                windows: '/debrief/img/windows.svg',
+                darwin: '/debrief/img/darwin.svg',
+                server: '/debrief/img/cloud.svg',
+            };
+            return map[platform] || '/debrief/img/unknown.svg';
         },
 
         topoZoneColor(index) {
@@ -1391,8 +1391,11 @@ div
                     circle.topo-glow(r="28", v-if="topoActiveHost === host.id")
                     //- Host circle background
                     circle.topo-host-bg(r="20")
-                    //- Platform icon (FA rendered as text for SVG compat)
-                    text.topo-host-icon(text-anchor="middle", dominant-baseline="central") {{ topoPlatformEmoji(host.platform) }}
+                    //- Platform icon (SVG image from debrief static assets)
+                    image.topo-host-icon(
+                      :href="topoPlatformSvg(host.platform)",
+                      x="-12", y="-12", width="24", height="24"
+                    )
                     //- Hostname label
                     text.topo-host-label(y="32", text-anchor="middle") {{ host.hostname }}
                     //- Step count badge

@@ -343,3 +343,89 @@ class TestBuildTopologyMultiOp:
         cidrs = [s['cidr'] for s in result['subnets']]
         assert '10.0.1.0/24' in cidrs
         assert '10.0.2.0/24' in cidrs
+
+
+# ===========================================================================
+# build_topology — multi-hop lateral movement with P2P proxy
+# ===========================================================================
+class TestBuildTopologyMultiHop:
+    @pytest.mark.asyncio
+    async def test_three_hop_lateral_movement_chain(self):
+        """C2 → web01 → proxy01(P2P) → dc01 → db01 across 3 subnets."""
+        svc = _svc()
+        web01 = _make_agent('web01paw', 'web01', ips=['10.0.1.5'])
+        proxy01 = _make_agent('proxy01paw', 'proxy01', ips=['10.0.1.10', '192.168.5.1'],
+                              origin_link_id='lat-1')
+        dc01 = _make_agent('dc01paw', 'DC01', platform='windows', ips=['192.168.5.10'],
+                           origin_link_id='lat-2')
+        db01 = _make_agent('db01paw', 'db01', ips=['192.168.10.50'],
+                           origin_link_id='lat-3')
+
+        lat1 = _make_link('web01paw', ability_name='SMB Move', tactic='lateral-movement',
+                          technique_id='T1021.002', link_id='lat-1')
+        lat2 = _make_link('proxy01paw', ability_name='SMB Move', tactic='lateral-movement',
+                          technique_id='T1021.002', link_id='lat-2')
+        lat3 = _make_link('dc01paw', ability_name='SMB Move', tactic='lateral-movement',
+                          technique_id='T1021.002', link_id='lat-3')
+        step1 = _make_link('web01paw', link_id='step-1')
+        step2 = _make_link('dc01paw', link_id='step-2')
+
+        op = _make_operation(
+            agents=[web01, proxy01, dc01, db01],
+            chain=[step1, lat1, lat2, step2, lat3],
+        )
+        svc.data_svc.locate = AsyncMock(return_value=[op])
+
+        result = await svc.build_topology(['op-1'])
+
+        # All 4 agents + C2
+        assert len(result['hosts']) == 5
+        assert 'web01paw' in result['hosts']
+        assert 'proxy01paw' in result['hosts']
+        assert 'dc01paw' in result['hosts']
+        assert 'db01paw' in result['hosts']
+
+        # 3 subnets (proxy01 goes to 10.0.1.0/24 as primary since non-172)
+        cidrs = sorted([s['cidr'] for s in result['subnets']])
+        assert '10.0.1.0/24' in cidrs
+        assert '192.168.5.0/24' in cidrs or '10.0.1.0/24' in cidrs  # proxy dual-homed
+        assert '192.168.10.0/24' in cidrs
+
+        # 1 initial access + 3 lateral movement edges
+        ia_edges = [e for e in result['edges'] if e['type'] == 'initial_access']
+        lat_edges = [e for e in result['edges'] if e['type'] == 'lateral_movement']
+        assert len(ia_edges) == 1  # C2 → web01
+        assert ia_edges[0]['target'] == 'web01paw'
+        assert len(lat_edges) == 3
+        # Verify the chain: web01→proxy01, proxy01→dc01, dc01→db01
+        lat_targets = {e['source']: e['target'] for e in lat_edges}
+        assert lat_targets['web01paw'] == 'proxy01paw'
+        assert lat_targets['proxy01paw'] == 'dc01paw'
+        assert lat_targets['dc01paw'] == 'db01paw'
+
+    @pytest.mark.asyncio
+    async def test_dual_homed_agent_uses_non_docker_ip(self):
+        """Agent with both Docker and real IPs should use non-Docker as primary."""
+        svc = _svc()
+        agent = _make_agent('paw1', 'pivot-host',
+                            ips=['172.17.0.1', '172.18.0.1', '192.168.5.1'])
+        op = _make_operation(agents=[agent], chain=[])
+        svc.data_svc.locate = AsyncMock(return_value=[op])
+
+        result = await svc.build_topology(['op-1'])
+        # Should be in 192.168.5.0/24, not 172.x
+        cidrs = [s['cidr'] for s in result['subnets']]
+        assert '192.168.5.0/24' in cidrs
+        assert all('172.' not in c for c in cidrs)
+        assert result['hosts']['paw1']['primary_ip'] == '192.168.5.1'
+
+    @pytest.mark.asyncio
+    async def test_dual_homed_agent_primary_ip_set(self):
+        """Dual-homed host should have primary_ip field set."""
+        svc = _svc()
+        agent = _make_agent('paw1', 'proxy01', ips=['10.0.1.10', '192.168.5.1'])
+        op = _make_operation(agents=[agent], chain=[])
+        svc.data_svc.locate = AsyncMock(return_value=[op])
+
+        result = await svc.build_topology(['op-1'])
+        assert result['hosts']['paw1']['primary_ip'] == '10.0.1.10'

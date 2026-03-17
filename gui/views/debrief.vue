@@ -1099,18 +1099,18 @@ export default {
             if (!this.topoData) return [];
             const subnets = this.topoData.subnets || [];
             const padding = 16;
-            const bandH = 56;
-            const hostSpacing = 70;
-            const c2Height = 50;
+            const bandW = 130;
+            const hostSpacing = 50;
+            const c2Width = 60;
             return subnets.map((s, si) => {
                 const hostCount = Math.max(s.hosts.length, 1);
-                const w = Math.max(hostCount * hostSpacing + 60, 200);
+                const h = Math.max(hostCount * hostSpacing + 40, 100);
                 return {
                     cidr: s.cidr,
-                    x: padding,
-                    y: c2Height + padding + si * (bandH + 10),
-                    w: w,
-                    h: bandH,
+                    x: c2Width + padding + si * (bandW + 12),
+                    y: padding,
+                    w: bandW,
+                    h: h,
                     hosts: s.hosts,
                 };
             });
@@ -1120,22 +1120,22 @@ export default {
             if (!this.topoData) return [];
             const hosts = this.topoData.hosts || {};
             const result = [];
-            const hostSpacing = 70;
-            // Position hosts centered within their subnet bands
+            const hostSpacing = 50;
+            // Position hosts vertically centered within their subnet columns
             const hostPositions = {};
             this.topoSubnets.forEach((subnet) => {
-                const totalW = subnet.hosts.length * hostSpacing;
-                const startX = subnet.x + (subnet.w - totalW) / 2 + hostSpacing / 2;
+                const totalH = subnet.hosts.length * hostSpacing;
+                const startY = subnet.y + (subnet.h - totalH) / 2 + hostSpacing / 2;
                 subnet.hosts.forEach((hid, hi) => {
                     hostPositions[hid] = {
-                        x: startX + hi * hostSpacing,
-                        y: subnet.y + subnet.h / 2,
+                        x: subnet.x + subnet.w / 2,
+                        y: startY + hi * hostSpacing,
                     };
                 });
             });
-            // C2 node centered above all bands
-            const svgW = this.topoSvgWidth;
-            hostPositions['c2'] = { x: svgW / 2, y: 35 };
+            // C2 node on the left
+            const svgH = this.topoSvgHeight;
+            hostPositions['c2'] = { x: 30, y: svgH / 2 };
 
             Object.entries(hosts).forEach(([id, host]) => {
                 const pos = hostPositions[id] || { x: svgW / 2, y: 35 };
@@ -1173,17 +1173,23 @@ export default {
 
         topoViewBox() {
             const w = this.topoSvgWidth;
-            const subnets = this.topoSubnets;
-            const lastSubnet = subnets[subnets.length - 1];
-            const h = lastSubnet ? lastSubnet.y + lastSubnet.h + 30 : 200;
-            return `0 0 ${w} ${Math.max(h, 180)}`;
+            const h = this.topoSvgHeight;
+            return `0 0 ${w} ${h}`;
         },
 
         topoSvgWidth() {
             if (!this.topoData) return 600;
             const subnets = this.topoSubnets;
-            const maxW = subnets.reduce((max, s) => Math.max(max, s.x + s.w + 30), 0);
-            return Math.max(maxW, 400);
+            const lastSubnet = subnets[subnets.length - 1];
+            const w = lastSubnet ? lastSubnet.x + lastSubnet.w + 20 : 300;
+            return Math.max(w, 300);
+        },
+
+        topoSvgHeight() {
+            if (!this.topoData) return 250;
+            const subnets = this.topoSubnets;
+            const maxH = subnets.reduce((max, s) => Math.max(max, s.y + s.h + 20), 0);
+            return Math.max(maxH, 200);
         },
 
         topoOperationName() {
@@ -1326,20 +1332,17 @@ div
                 template(v-for="(edge, ei) in topoEdges", :key="ei")
                   template(v-if="topoRevealedHosts.has(edge.source) && topoRevealedHosts.has(edge.target)")
                     path.topo-edge(
+                      :id="'topo-path-' + ei",
                       :d="edge.path",
                       :class="{ 'is-newest': topoNewestEdge === ei }",
                       fill="none"
                     )
-                    //- Red pulse: edge appearing
+                    //- Red pulse: edge appearing (forward direction)
                     circle.topo-pulse(v-if="topoNewestEdge === ei", r="2", fill="#cc3311")
                       animateMotion(dur="0.5s", repeatCount="1", :path="edge.path")
-                    //- Green beacon: callback traveling back to C2
-                    g(v-if="topoBeaconEdge === ei")
-                      circle.topo-beacon(r="3", fill="#44AA99")
-                        animateMotion(dur="1.0s", repeatCount="1", :path="edge.reversePath", fill="freeze")
-                      //- Green trail along the path
-                      path.topo-beacon-trail(:d="edge.reversePath", fill="none", stroke="#44AA99", stroke-width="2", stroke-dasharray="6 8", opacity="0.6")
-                        animate(attributeName="stroke-dashoffset", from="0", to="-100", dur="1.0s", repeatCount="1")
+                    //- Green beacon: travels BACK along the edge (target → source)
+                    circle.topo-beacon(v-if="topoBeaconEdge === ei", r="3", fill="#44AA99")
+                      animateMotion(dur="1.0s", repeatCount="1", keyPoints="1;0", keyTimes="0;1", calcMode="linear", fill="freeze", :path="edge.path")
               //- Host icons
               g.topo-hosts
                 template(v-for="host in topoHosts", :key="host.id")

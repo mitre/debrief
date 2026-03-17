@@ -305,8 +305,9 @@ div.d3-tooltip {
 }
 
 .topo-host-label {
-    fill: #aaa;
-    font-size: 9px;
+    fill: #ccc;
+    font-size: 12px;
+    font-weight: 500;
     pointer-events: none;
 }
 
@@ -1400,21 +1401,27 @@ export default {
             if (!this.topoData) return [];
             const subnets = this.topoData.subnets || [];
             const padding = 16;
-            const bandW = 160;
-            const hostSpacing = 100;
-            const c2Width = 70;
+            const fullBandW = 160;
+            const emptyBandW = 60;   // narrow for subnets with no agents
+            const hostSpacing = 110;
+            const c2Width = 80;
+            let xCursor = c2Width + padding;
             return subnets.map((s, si) => {
                 const hosts_data = this.topoData.hosts || {};
                 const comp = s.hosts.filter(h => hosts_data[h] && hosts_data[h].compromised);
                 const disc = s.hosts.filter(h => hosts_data[h] && !hosts_data[h].compromised);
-                const discSpacing = disc.length > 5 ? 20 : hostSpacing * 0.6;
-                const h = Math.max(
-                    comp.length * hostSpacing + disc.length * discSpacing + 50,
-                    hostSpacing + 40
-                );
+                const hasHosts = s.hosts.length > 0;
+                const bandW = hasHosts ? fullBandW : emptyBandW;
+                const discSpacing = disc.length > 5 ? 25 : hostSpacing * 0.6;
+                const h = hasHosts ? Math.max(
+                    comp.length * hostSpacing + disc.length * discSpacing + 60,
+                    hostSpacing + 50
+                ) : 80;
+                const x = xCursor;
+                xCursor += bandW + 10;
                 return {
                     cidr: s.cidr,
-                    x: c2Width + padding + si * (bandW + 12),
+                    x: x,
                     y: padding,
                     w: bandW,
                     h: h,
@@ -1497,16 +1504,16 @@ export default {
             return `0 0 ${w} ${h}`;
         },
 
-        // Dynamic icon scale — min 36, max 48
+        // Dynamic icon scale — 25% bigger min
         topoIconRadius() {
-            if (!this.topoData) return 42;
+            if (!this.topoData) return 48;
             const hostCount = Object.keys(this.topoData.hosts || {}).length;
-            if (hostCount <= 3) return 48;
-            if (hostCount <= 6) return 44;
-            if (hostCount <= 12) return 40;
-            if (hostCount <= 20) return 38;
-            if (hostCount <= 35) return 36;
-            return 34;
+            if (hostCount <= 3) return 56;
+            if (hostCount <= 6) return 52;
+            if (hostCount <= 12) return 48;
+            if (hostCount <= 20) return 44;
+            if (hostCount <= 35) return 40;
+            return 36;
         },
 
         topoIconImgSize() {
@@ -1707,7 +1714,7 @@ div
                     image.topo-host-icon(:href="topoPlatformSvg(host.platform)", :x="-topoIconImgSize/2", :y="-topoIconImgSize/2", :width="topoIconImgSize", :height="topoIconImgSize")
                     //- Pivot indicator: dashed orange ring
                     circle.topo-pivot-ring(v-if="host.isPivot", :r="topoIconRadius + 4", fill="none", stroke="#FFB000", stroke-width="1.5", stroke-dasharray="4 3")
-                    text.topo-host-label(:y="topoIconRadius + 18", text-anchor="middle") {{ host.hostname }}
+                    text.topo-host-label(:y="topoIconRadius + 22", text-anchor="middle") {{ host.hostname }}
                     g.topo-badge(v-if="host.compromised && topoHostCurrentSteps(host.id) > 0")
                       circle(:cx="topoIconRadius - 4", :cy="-topoIconRadius + 4", r="7", fill="#4c0089")
                       text(:x="topoIconRadius - 4", :y="-topoIconRadius + 4", text-anchor="middle", dominant-baseline="central", fill="white", font-size="8") {{ topoHostCurrentSteps(host.id) }}

@@ -107,12 +107,15 @@ div.d3-tooltip {
     min-height: 450px;
 }
 
+.topo-main-canvas {
+    width: 100%;
+}
+
 .topo-canvas {
-    flex: 1;
     background: #121212;
     border-radius: 6px;
     overflow: auto;
-    min-height: 400px;
+    min-height: 200px;
     border: 1px solid #2a2a3e;
 }
 
@@ -473,6 +476,25 @@ export default {
                     })
                 })
                 this.tacticsAndTechniques = data.ttps;
+
+                // Load topology data for the main view + replay
+                this.topoRevealedHosts = new Set(['c2']);
+                this.topoVisitedHosts = new Set();
+                this.topoActiveHost = null;
+                this.topoNewestEdge = -1;
+                this.topoStepCounts = {};
+                this.replayCursor = -1;
+                this.$api.get(`/plugin/debrief/topology?operations=${this.selectedOperationId}`).then((topo) => {
+                    this.topoData = topo.data;
+                    // Show all hosts immediately in the main view (not replay mode)
+                    const allHosts = new Set(Object.keys(this.topoData.hosts || {}));
+                    allHosts.add('c2');
+                    this.topoRevealedHosts = allHosts;
+                    this.topoVisitedHosts = allHosts;
+                    for (const [paw, steps] of Object.entries(this.topoData.steps_by_host || {})) {
+                        this.topoStepCounts[paw] = steps.length;
+                    }
+                }).catch((err) => console.error('Topology load failed:', err));
 
                 updateReportGraph([this.selectedOperationId]);
             }).catch((error) => {
@@ -848,24 +870,12 @@ export default {
             this.replayCursor = -1;
             this.replayExpandedIdx = -1;
             this.topoSelectedHost = null;
-            this.topoVisitedHosts = new Set();
-            this.topoRevealedHosts = new Set();
             this.topoActiveHost = null;
             this.topoNewestEdge = -1;
             this.topoStepCounts = {};
-            // C2 is always visible
-            this.topoRevealedHosts.add('c2');
-            // Fetch topology data
-            if (this.selectedOperationId.length) {
-                this.$api.get(`/plugin/debrief/topology?operations=${this.selectedOperationId}`).then((data) => {
-                    this.topoData = data.data;
-                    // If we have replay_sequence, set cursor to show nothing (press play to start)
-                    this.replayCursor = -1;
-                }).catch((err) => {
-                    console.error('Topology fetch failed:', err);
-                    this.topoData = null;
-                });
-            }
+            // Reset to C2 only — progressive reveal starts from here
+            this.topoRevealedHosts = new Set(['c2']);
+            this.topoVisitedHosts = new Set();
         },
 
         replayPlay() {
@@ -1161,6 +1171,11 @@ export default {
         },
 
         replaySteps() {
+            // Use topology replay_sequence if available (preferred — has correct ordering)
+            if (this.topoData && this.topoData.replay_sequence && this.topoData.replay_sequence.length) {
+                return this.topoData.replay_sequence;
+            }
+            // Fallback to operation steps
             if (!this.steps || !this.steps.length) return [];
             return [...this.steps].sort((a, b) => {
                 const ta = a.finish || a.decide || '';
@@ -1214,42 +1229,70 @@ div
                 option(disabled selected value="") Select an operation
                 template(v-for="operation in operations", :key="operation.id")
                   option(:value="operation.id") {{ operation.name }}
-    .column.is-10.is-flex.is-justify-content-center.m-0
+    .column.is-10.m-0
+      //- Hidden elements needed for PDF graph export
       #images(style="display: none")
       #copy
-      #debrief-graph.svg-container(v-show="1")
+      #debrief-graph(style="display:none")
         .d3-tooltip#op-tooltip(style="opacity: 0")
-        .is-flex.graph-controls.m-2
-          .select.is-small.mr-2
-            select(v-model="selectedGraphType")
-              option(value="attackpath") Attack Path
-              option(value="steps") Steps
-              option(value="tactic") Tactic
-              option(value="technique") Technique
-          button.button.is-small(@click="toggleLegend") {{ showGraphLegend ? 'Hide' : 'Show' }} Legend
-        svg#debrief-steps-svg.op-svg.debrief-svg(v-show="selectedGraphType === 'steps'")
-        svg#debrief-attackpath-svg.op-svg.debrief-svg(v-show="selectedGraphType === 'attackpath'")
-        svg#debrief-tactic-svg.op-svg.debrief-svg(v-show="selectedGraphType === 'tactic'")
-        svg#debrief-technique-svg.op-svg.debrief-svg(v-show="selectedGraphType === 'technique'")
-        .buttons.is-justify-content-center.mt-2
-          button.button.is-small(@click="visualizeBeginning")
-            span.icon.is-small
-              font-awesome-icon(icon="fas fa-fast-backward")
-          button.button.is-small(@click="visualizeStepBack")
-            span.icon.is-small
-              font-awesome-icon(icon="fas fa-backward")
-          button.button.is-small(v-show="isGraphPlaying", @click="visualizePlayPause")
-            span.icon.is-small
-              font-awesome-icon(icon="fas fa-pause")
-          button.button.is-small(v-show="!isGraphPlaying", @click="visualizePlayPause")
-            span.icon.is-small
-              font-awesome-icon(icon="fas fa-play")
-          button.button.is-small(@click="visualizeStepForward")
-            span.icon.is-small
-              font-awesome-icon(icon="fas fa-forward")
-          button.button.is-small(@click="visualizeEnd")
-            span.icon.is-small
-              font-awesome-icon(icon="fas fa-fast-forward")
+        svg#debrief-steps-svg.op-svg.debrief-svg
+        svg#debrief-attackpath-svg.op-svg.debrief-svg
+        svg#debrief-tactic-svg.op-svg.debrief-svg
+        svg#debrief-technique-svg.op-svg.debrief-svg
+      //- TOPOLOGY VIEW (replaces old D3 graph)
+      .topo-main-canvas(v-show="selectedOperationId.length")
+        .topo-canvas(ref="topoMainCanvas")
+          svg.topo-svg(
+            v-if="topoData",
+            :viewBox="topoViewBox",
+            preserveAspectRatio="xMidYMid meet",
+            xmlns="http://www.w3.org/2000/svg"
+          )
+            //- Subnet zone bands (always visible)
+            g.topo-subnets
+              template(v-for="(subnet, si) in topoSubnets", :key="si")
+                rect.topo-zone(
+                  :x="subnet.x", :y="subnet.y",
+                  :width="subnet.w", :height="subnet.h",
+                  :fill="topoZoneColor(si)", rx="6"
+                )
+                text.topo-zone-label(:x="subnet.x + 8", :y="subnet.y + 14") {{ subnet.cidr }}
+            //- Edges — only revealed ones
+            g.topo-edges
+              template(v-for="(edge, ei) in topoEdges", :key="ei")
+                template(v-if="topoRevealedHosts.has(edge.source) && topoRevealedHosts.has(edge.target)")
+                  path.topo-edge(
+                    :d="edge.path",
+                    :class="{ 'is-newest': topoNewestEdge === ei }",
+                    fill="none"
+                  )
+                  circle.topo-pulse(v-if="topoNewestEdge === ei", r="3", fill="#cc3311")
+                    animateMotion(dur="0.6s", repeatCount="1", :path="edge.path")
+            //- Host icons — only revealed ones
+            g.topo-hosts
+              template(v-for="host in topoHosts", :key="host.id")
+                g.topo-host(
+                  v-show="topoRevealedHosts.has(host.id)",
+                  :transform="`translate(${host.x}, ${host.y})`",
+                  :class="{ 'is-compromised': host.compromised, 'is-discovered': !host.compromised, 'is-active': topoActiveHost === host.id, 'is-visited': topoVisitedHosts.has(host.id) }",
+                  @click="topoSelectHost(host)",
+                  @mouseenter="topoHoverHost = host.id",
+                  @mouseleave="topoHoverHost = null"
+                )
+                  circle.topo-glow(r="18", v-if="topoActiveHost === host.id")
+                  circle.topo-host-bg(r="14")
+                  foreignObject(x="-7", y="-7", width="14", height="14", overflow="hidden")
+                    img(:src="topoPlatformSvg(host.platform)", style="width:14px;height:14px;", xmlns="http://www.w3.org/1999/xhtml")
+                  text.topo-host-label(y="22", text-anchor="middle") {{ host.hostname }}
+                  g.topo-badge(v-if="host.compromised && topoHostCurrentSteps(host.id) > 0")
+                    circle(cx="10", cy="-10", r="6", fill="#750b20")
+                    text(x="10", y="-10", text-anchor="middle", dominant-baseline="central", fill="white", font-size="7") {{ topoHostCurrentSteps(host.id) }}
+                  g.topo-tooltip(v-if="topoHoverHost === host.id")
+                    rect(x="-70", y="-44", width="140", height="30", rx="4", fill="#1a1a2e", stroke="#555")
+                    text(x="0", y="-34", text-anchor="middle", fill="#aaa", font-size="9") {{ host.ips.join(', ') || 'No IP' }}
+                    text(x="0", y="-22", text-anchor="middle", fill="#ccc", font-size="9") {{ host.platform }}
+          .has-text-centered.py-4(v-if="!topoData && selectedOperationId.length")
+            p.has-text-grey.is-size-7 Loading topology...
 
   .tabs.is-centered(v-show="selectedOperationId.length")
     ul.ml-0
@@ -1361,9 +1404,9 @@ div
         #fact-limit-msg.message-body
 
     //- ==================== REPLAY TAB ====================
+    //- REPLAY TAB — controls + slide-out (topology canvas is above in main view)
     div(v-show="activeTab === 'replay'")
       .topo-wrapper
-
         //- PLAYBACK CONTROLS
         .topo-controls
           .buttons.has-addons.is-centered.mb-0
@@ -1393,108 +1436,42 @@ div
               button.button.is-tiny(:class="replaySpeed === 2000 ? 'is-primary' : 'is-dark'", @click="replaySpeed = 2000", style="font-size:0.65rem;padding:2px 8px;height:22px") 0.5x
             span.is-size-7.has-text-grey.ml-3 Step {{ replayCursor + 1 }} / {{ replaySteps.length }}
 
-        //- TOPOLOGY CANVAS + DETAIL PANEL
-        .topo-split
-          //- SVG CANVAS — progressive reveal
-          .topo-canvas(ref="topoCanvas")
-            svg.topo-svg(
-              v-if="topoData",
-              :viewBox="topoViewBox",
-              preserveAspectRatio="xMidYMid meet",
-              xmlns="http://www.w3.org/2000/svg"
-            )
-              //- Subnet zone bands (always visible as background)
-              g.topo-subnets
-                template(v-for="(subnet, si) in topoSubnets", :key="si")
-                  rect.topo-zone(
-                    :x="subnet.x", :y="subnet.y",
-                    :width="subnet.w", :height="subnet.h",
-                    :fill="topoZoneColor(si)", rx="8"
-                  )
-                  text.topo-zone-label(:x="subnet.x + 12", :y="subnet.y + 18") {{ subnet.cidr }}
+        //- SLIDE-OUT DETAIL PANEL (click host on topology above)
+        .topo-detail(v-if="topoSelectedHost")
+          .topo-detail-header
+            .is-flex.is-align-items-center.is-justify-content-space-between
+              strong {{ topoSelectedHost.hostname }}
+              button.delete.is-small(@click="topoSelectedHost = null")
+            p.is-size-7.has-text-grey {{ topoSelectedHost.ips.join(', ') }}
+            .tags.mt-1
+              span.tag.is-small(:class="topoSelectedHost.compromised ? 'is-danger' : 'is-dark'") {{ topoSelectedHost.compromised ? 'Compromised' : 'Discovered' }}
+              span.tag.is-small(v-if="topoSelectedHost.platform !== 'unknown'") {{ topoSelectedHost.platform }}
+              span.tag.is-small(v-if="topoSelectedHost.privilege") {{ topoSelectedHost.privilege }}
 
-              //- Connection edges — only show edges to revealed hosts
-              g.topo-edges
-                template(v-for="(edge, ei) in topoEdges", :key="ei")
-                  template(v-if="topoRevealedHosts.has(edge.source) && topoRevealedHosts.has(edge.target)")
-                    path.topo-edge(
-                      :d="edge.path",
-                      :class="{ 'is-newest': topoNewestEdge === ei, 'is-lateral': edge.type === 'lateral_movement' }",
-                      fill="none"
-                    )
-                    //- Animated pulse on newest edge
-                    circle.topo-pulse(v-if="topoNewestEdge === ei", r="4", fill="#cc3311")
-                      animateMotion(dur="0.8s", repeatCount="1", :path="edge.path")
+          //- Steps on this host
+          .topo-detail-section(v-if="topoSelectedHost.compromised && topoHostSteps.length")
+            p.is-size-7.has-text-weight-bold.mb-1 Steps ({{ topoHostSteps.length }})
+            .topo-step(v-for="step in topoHostSteps", :key="step.id", @click="topoExpandedStep = (topoExpandedStep === step.id ? null : step.id)")
+              .is-flex.is-align-items-center
+                span.topo-step-dot(:class="replayStatusTagClass(step.status)")
+                span.is-size-7.ml-2 {{ step.ability_name }}
+                span.has-text-grey.ml-auto(style="font-size:0.6rem") {{ step.tactic }}
+              .topo-step-detail(v-if="topoExpandedStep === step.id")
+                p.is-size-7.has-text-grey {{ step.technique_id }} {{ step.technique_name }}
+                pre.replay-pre(v-if="step.command") {{ replayDecodeCommand({ command: step.command }) }}
 
-              //- Host icons — only show revealed hosts
-              g.topo-hosts
-                template(v-for="host in topoHosts", :key="host.id")
-                  g.topo-host(
-                    v-show="topoRevealedHosts.has(host.id)",
-                    :transform="`translate(${host.x}, ${host.y})`",
-                    :class="{ 'is-compromised': host.compromised, 'is-discovered': !host.compromised, 'is-active': topoActiveHost === host.id, 'is-visited': topoVisitedHosts.has(host.id) }",
-                    @click="topoSelectHost(host)",
-                    @mouseenter="topoHoverHost = host.id",
-                    @mouseleave="topoHoverHost = null"
-                  )
-                    //- Glow ring for active host
-                    circle.topo-glow(r="18", v-if="topoActiveHost === host.id")
-                    //- Host circle background
-                    circle.topo-host-bg(r="14")
-                    //- Platform icon (small)
-                    image.topo-host-icon(
-                      :href="topoPlatformSvg(host.platform)",
-                      x="-8", y="-8", width="16", height="16"
-                    )
-                    //- Hostname label
-                    text.topo-host-label(y="22", text-anchor="middle") {{ host.hostname }}
-                    //- Step count badge
-                    g.topo-badge(v-if="host.compromised && topoHostCurrentSteps(host.id) > 0")
-                      circle(cx="10", cy="-10", r="6", fill="#750b20")
-                      text(x="10", y="-10", text-anchor="middle", dominant-baseline="central", fill="white", font-size="7") {{ topoHostCurrentSteps(host.id) }}
-                    //- Hover tooltip
-                    g.topo-tooltip(v-if="topoHoverHost === host.id")
-                      rect(x="-70", y="-44", width="140", height="30", rx="4", fill="#1a1a2e", stroke="#555")
-                      text(x="0", y="-34", text-anchor="middle", fill="#aaa", font-size="9") {{ host.ips.join(', ') || 'No IP' }}
-                      text(x="0", y="-22", text-anchor="middle", fill="#ccc", font-size="9") {{ host.platform }} | {{ host.compromised ? host.privilege || 'agent' : 'discovered' }}
+          //- Intel for discovered hosts
+          .topo-detail-section(v-if="!topoSelectedHost.compromised && topoSelectedHost.intel && topoSelectedHost.intel.length")
+            p.is-size-7.has-text-weight-bold.mb-1 Gathered Intel
+            .topo-intel(v-for="item in topoSelectedHost.intel", :key="item.trait + item.value")
+              span.is-size-7.has-text-grey {{ item.trait }}:
+              span.is-size-7.ml-1 {{ item.value }}
 
-            //- Empty state
-            .has-text-centered.py-6(v-if="!topoData")
-              p.has-text-grey Select an operation to see the topology
+          .topo-detail-section(v-if="!topoSelectedHost.compromised && (!topoSelectedHost.intel || !topoSelectedHost.intel.length)")
+            p.is-size-7.has-text-grey No intel gathered
 
-          //- SLIDE-OUT DETAIL PANEL
-          .topo-detail(v-if="topoSelectedHost")
-            .topo-detail-header
-              .is-flex.is-align-items-center.is-justify-content-space-between
-                strong {{ topoSelectedHost.hostname }}
-                button.delete.is-small(@click="topoSelectedHost = null")
-              p.is-size-7.has-text-grey {{ topoSelectedHost.ips.join(', ') }}
-              .tags.mt-1
-                span.tag.is-small(:class="topoSelectedHost.compromised ? 'is-danger' : 'is-dark'") {{ topoSelectedHost.compromised ? 'Compromised' : 'Discovered' }}
-                span.tag.is-small(v-if="topoSelectedHost.platform !== 'unknown'") {{ topoSelectedHost.platform }}
-                span.tag.is-small(v-if="topoSelectedHost.privilege") {{ topoSelectedHost.privilege }}
-
-            //- Steps on this host
-            .topo-detail-section(v-if="topoSelectedHost.compromised && topoHostSteps.length")
-              p.is-size-7.has-text-weight-bold.mb-1 Steps ({{ topoHostSteps.length }})
-              .topo-step(v-for="step in topoHostSteps", :key="step.id", @click="topoExpandedStep = (topoExpandedStep === step.id ? null : step.id)")
-                .is-flex.is-align-items-center
-                  span.topo-step-dot(:class="replayStatusTagClass(step.status)")
-                  span.is-size-7.ml-2 {{ step.ability_name }}
-                  span.has-text-grey.ml-auto(style="font-size:0.6rem") {{ step.tactic }}
-                .topo-step-detail(v-if="topoExpandedStep === step.id")
-                  p.is-size-7.has-text-grey {{ step.technique_id }} {{ step.technique_name }}
-                  pre.replay-pre(v-if="step.command") {{ replayDecodeCommand({ command: step.command }) }}
-
-            //- Intel for discovered hosts
-            .topo-detail-section(v-if="!topoSelectedHost.compromised && topoSelectedHost.intel && topoSelectedHost.intel.length")
-              p.is-size-7.has-text-weight-bold.mb-1 Gathered Intel
-              .topo-intel(v-for="item in topoSelectedHost.intel", :key="item.trait + item.value")
-                span.is-size-7.has-text-grey {{ item.trait }}:
-                span.is-size-7.ml-1 {{ item.value }}
-
-            .topo-detail-section(v-if="!topoSelectedHost.compromised && (!topoSelectedHost.intel || !topoSelectedHost.intel.length)")
-              p.is-size-7.has-text-grey No intel gathered
+        .has-text-centered.py-4(v-if="!replaySteps.length")
+          p.has-text-grey.is-size-7 Select an operation to enable replay
 
   .modal(v-bind:class="{ 'is-active': showGraphSettingsModal }")
     .modal-background(@click="showGraphSettingsModal = false")

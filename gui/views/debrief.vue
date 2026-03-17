@@ -1255,25 +1255,36 @@ export default {
                     this.topoRevealedHosts.add(this.topoEdges[edgeIdx].source);
                     this.topoNewestEdge = edgeIdx;
                 }
-                // Batch-reveal discovered hosts in the same subnet(s) as this agent
+                // Batch-reveal all discovered hosts visible to ANY revealed agent:
+                // 1. In any subnet that a revealed agent has access to
+                // 2. Any host whose discovered_by includes a revealed agent's paw
                 if (this.topoData) {
-                    const agentHost = (this.topoData.hosts || {})[paw];
-                    if (agentHost) {
-                        const agentSubnets = new Set((agentHost.ips || []).map(ip => {
+                    // Collect all subnets accessible by all revealed compromised hosts
+                    const allRevealedSubnets = new Set();
+                    for (const revPaw of this.topoRevealedHosts) {
+                        const rHost = (this.topoData.hosts || {})[revPaw];
+                        if (!rHost || !rHost.compromised) continue;
+                        for (const ip of (rHost.ips || [])) {
                             const p = ip.split('.');
-                            return p.length === 4 ? `${p[0]}.${p[1]}.${p[2]}.0/24` : null;
-                        }).filter(Boolean));
-                        // Find all discovered hosts in those subnets
-                        for (const [hid, host] of Object.entries(this.topoData.hosts || {})) {
-                            if (host.compromised || this.topoRevealedHosts.has(hid)) continue;
-                            for (const ip of (host.ips || [])) {
-                                const p = ip.split('.');
-                                const cidr = p.length === 4 ? `${p[0]}.${p[1]}.${p[2]}.0/24` : null;
-                                if (cidr && agentSubnets.has(cidr)) {
-                                    this.topoRevealedHosts.add(hid);
-                                    break;
-                                }
-                            }
+                            if (p.length === 4) allRevealedSubnets.add(`${p[0]}.${p[1]}.${p[2]}.0/24`);
+                        }
+                    }
+
+                    for (const [hid, host] of Object.entries(this.topoData.hosts || {})) {
+                        if (host.compromised || this.topoRevealedHosts.has(hid)) continue;
+                        // Check if discovered by any revealed agent
+                        const discoveredByRevealed = (host.discovered_by || []).some(
+                            p => this.topoRevealedHosts.has(p)
+                        );
+                        // Check if in a subnet accessible by any revealed agent
+                        let inAccessibleSubnet = false;
+                        for (const ip of (host.ips || [])) {
+                            const p = ip.split('.');
+                            const cidr = p.length === 4 ? `${p[0]}.${p[1]}.${p[2]}.0/24` : null;
+                            if (cidr && allRevealedSubnets.has(cidr)) { inAccessibleSubnet = true; break; }
+                        }
+                        if (discoveredByRevealed || inAccessibleSubnet) {
+                            this.topoRevealedHosts.add(hid);
                         }
                     }
                 }

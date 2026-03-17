@@ -210,6 +210,18 @@ div.d3-tooltip {
     to { opacity: 0.7; r: 20; }
 }
 
+.topo-beacon {
+    filter: drop-shadow(0 0 4px rgba(68, 170, 153, 0.8));
+}
+
+.topo-pivot-ring {
+    pointer-events: none;
+}
+
+.topo-pivot-label {
+    pointer-events: none;
+}
+
 .topo-host-icon {
     pointer-events: none;
 }
@@ -350,7 +362,7 @@ export default {
         // Replay tab
         replayCursor: -1,
         replayPlaying: false,
-        replaySpeed: 1000,
+        replaySpeed: 2000,
         replayInterval: null,
         replayExpandedIdx: -1,
         replayHoverIdx: -1,
@@ -363,8 +375,10 @@ export default {
         topoVisitedHosts: new Set(),
         topoRevealedHosts: new Set(),
         topoNewestEdge: -1,
+        topoBeaconEdge: -1,   // edge index for green beacon traveling back to C2
         topoExpandedStep: null,
-        topoStepCounts: {},  // paw -> count of steps revealed so far
+        topoStepCounts: {},
+        topoShowAll: false,    // true = static full view, false = progressive replay
     };
   },
   created() {
@@ -477,22 +491,20 @@ export default {
                 })
                 this.tacticsAndTechniques = data.ttps;
 
-                // Load topology data for the main view + replay
+                // Load topology data — start with only C2 visible
                 this.topoRevealedHosts = new Set(['c2']);
                 this.topoVisitedHosts = new Set();
                 this.topoActiveHost = null;
                 this.topoNewestEdge = -1;
+                this.topoBeaconEdge = -1;
                 this.topoStepCounts = {};
+                this.topoShowAll = false;
                 this.replayCursor = -1;
                 this.$api.get(`/plugin/debrief/topology?operations=${this.selectedOperationId}`).then((topo) => {
                     this.topoData = topo.data;
-                    // Show all hosts immediately in the main view (not replay mode)
-                    const allHosts = new Set(Object.keys(this.topoData.hosts || {}));
-                    allHosts.add('c2');
-                    this.topoRevealedHosts = allHosts;
-                    this.topoVisitedHosts = allHosts;
-                    for (const [paw, steps] of Object.entries(this.topoData.steps_by_host || {})) {
-                        this.topoStepCounts[paw] = steps.length;
+                    // Show all hosts in static view (non-replay tabs)
+                    if (this.activeTab !== 'replay') {
+                        this.topoRevealAll();
                     }
                 }).catch((err) => console.error('Topology load failed:', err));
 
@@ -872,15 +884,16 @@ export default {
             this.topoSelectedHost = null;
             this.topoActiveHost = null;
             this.topoNewestEdge = -1;
+            this.topoBeaconEdge = -1;
             this.topoStepCounts = {};
+            this.topoShowAll = false;
             // Reset to C2 only — progressive reveal starts from here
             this.topoRevealedHosts = new Set(['c2']);
             this.topoVisitedHosts = new Set();
         },
 
-        replayPlay() {
+        async replayPlay() {
             if (!this.replaySteps.length) return;
-            this.replayPlaying = true;
             if (this.replayCursor >= this.replaySteps.length - 1) {
                 // Restart from beginning
                 this.replayCursor = -1;
@@ -888,37 +901,39 @@ export default {
                 this.topoVisitedHosts = new Set();
                 this.topoActiveHost = null;
                 this.topoNewestEdge = -1;
+                this.topoBeaconEdge = -1;
                 this.topoStepCounts = {};
             }
-            this.replayInterval = setInterval(() => {
-                if (this.replayCursor < this.replaySteps.length - 1) {
-                    this.replayCursor++;
-                    this.replayUpdateTopo();
-                } else {
-                    this.replayPause();
+            this.replayPlaying = true;
+            while (this.replayPlaying && this.replayCursor < this.replaySteps.length - 1) {
+                this.replayCursor++;
+                this.replayUpdateTopo();
+                // Wait for beacon animation if a new host was revealed
+                if (this.topoBeaconEdge >= 0) {
+                    await this.sleep(1200);  // beacon travel time
+                    this.topoBeaconEdge = -1;
                 }
-            }, this.replaySpeed);
+                // Wait between steps
+                await this.sleep(this.replaySpeed);
+            }
+            this.replayPlaying = false;
         },
 
         replayPause() {
             this.replayPlaying = false;
-            if (this.replayInterval) {
-                clearInterval(this.replayInterval);
-                this.replayInterval = null;
-            }
         },
 
         replayStepForward() {
             if (this.replayCursor < this.replaySteps.length - 1) {
                 this.replayCursor++;
-                this.replayScrollToActive();
+                this.replayUpdateTopo();
             }
         },
 
         replayStepBack() {
+            // Can't easily undo progressive reveal, just go back one cursor
             if (this.replayCursor > 0) {
                 this.replayCursor--;
-                this.replayScrollToActive();
             }
         },
 
@@ -929,37 +944,30 @@ export default {
             this.topoVisitedHosts = new Set();
             this.topoActiveHost = null;
             this.topoNewestEdge = -1;
+            this.topoBeaconEdge = -1;
             this.topoStepCounts = {};
         },
 
         replayJumpToEnd() {
             this.replayPause();
+            this.topoRevealAll();
+            this.replayCursor = this.replaySteps.length - 1;
+        },
+
+        topoRevealAll() {
             if (!this.topoData) return;
-            // Reveal all hosts and count all steps
             const allHosts = new Set(Object.keys(this.topoData.hosts || {}));
             allHosts.add('c2');
             this.topoRevealedHosts = allHosts;
             this.topoVisitedHosts = new Set(allHosts);
             this.topoActiveHost = null;
             this.topoNewestEdge = -1;
-            // Set step counts from full data
+            this.topoBeaconEdge = -1;
             this.topoStepCounts = {};
             for (const [paw, steps] of Object.entries(this.topoData.steps_by_host || {})) {
                 this.topoStepCounts[paw] = steps.length;
             }
-            this.replayCursor = this.replaySteps.length - 1;
-        },
-
-        replayScrollToActive() {
-            this.$nextTick(() => {
-                const feed = this.$refs.replayFeed;
-                if (!feed) return;
-                const cards = feed.querySelectorAll('.replay-card');
-                const active = cards[this.replayCursor];
-                if (active) {
-                    active.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                }
-            });
+            this.topoShowAll = true;
         },
 
         replayMarkerPct(idx) {
@@ -1038,16 +1046,17 @@ export default {
             this.topoStepCounts = { ...this.topoStepCounts };
             this.topoStepCounts[paw] = (this.topoStepCounts[paw] || 0) + 1;
 
-            // If this is a newly revealed host, find and activate the edge that leads to it
+            // If this is a newly revealed host, show the edge + green beacon back to C2
+            this.topoNewestEdge = -1;
+            this.topoBeaconEdge = -1;
             if (!wasRevealed) {
                 const edgeIdx = this.topoEdges.findIndex(e => e.target === paw);
                 if (edgeIdx >= 0) {
-                    // Also reveal the source of that edge
                     this.topoRevealedHosts.add(this.topoEdges[edgeIdx].source);
                     this.topoNewestEdge = edgeIdx;
+                    // Green beacon travels the edge (back to C2 direction)
+                    this.topoBeaconEdge = edgeIdx;
                 }
-            } else {
-                this.topoNewestEdge = -1;
             }
         },
 
@@ -1125,7 +1134,14 @@ export default {
 
             Object.entries(hosts).forEach(([id, host]) => {
                 const pos = hostPositions[id] || { x: svgW / 2, y: 35 };
-                result.push({ ...host, x: pos.x, y: pos.y });
+                // Detect pivot: host has IPs in multiple subnets
+                const hostIps = host.ips || [];
+                const hostSubnets = new Set(hostIps.map(ip => {
+                    const parts = ip.split('.');
+                    return parts.length === 4 ? `${parts[0]}.${parts[1]}.${parts[2]}` : null;
+                }).filter(Boolean));
+                const isPivot = hostSubnets.size > 1;
+                result.push({ ...host, x: pos.x, y: pos.y, isPivot });
             });
             return result;
         },
@@ -1138,14 +1154,15 @@ export default {
             return edges.map(e => {
                 const src = hostMap[e.source];
                 const tgt = hostMap[e.target];
-                if (!src || !tgt) return { ...e, path: '' };
-                // Gentle curve — control point offset perpendicular to the line
+                if (!src || !tgt) return { ...e, path: '', reversePath: '' };
                 const mx = (src.x + tgt.x) / 2;
                 const my = (src.y + tgt.y) / 2;
                 const dx = tgt.x - src.x;
                 const curveOffset = Math.min(Math.abs(dx) * 0.2, 30);
                 const path = `M ${src.x} ${src.y} Q ${mx + curveOffset} ${my} ${tgt.x} ${tgt.y}`;
-                return { ...e, path };
+                // Reverse path for beacon traveling back to C2
+                const reversePath = `M ${tgt.x} ${tgt.y} Q ${mx + curveOffset} ${my} ${src.x} ${src.y}`;
+                return { ...e, path, reversePath };
             });
         },
 
@@ -1266,8 +1283,12 @@ div
                     :class="{ 'is-newest': topoNewestEdge === ei }",
                     fill="none"
                   )
+                  //- Red pulse: new edge appearing (source → target)
                   circle.topo-pulse(v-if="topoNewestEdge === ei", r="3", fill="#cc3311")
                     animateMotion(dur="0.6s", repeatCount="1", :path="edge.path")
+                  //- Green beacon: callback traveling target → source (back to C2)
+                  circle.topo-beacon(v-if="topoBeaconEdge === ei", r="4", fill="#44AA99")
+                    animateMotion(dur="1.0s", repeatCount="1", :path="edge.reversePath", fill="freeze")
             //- Host icons — only revealed ones
             g.topo-hosts
               template(v-for="host in topoHosts", :key="host.id")
@@ -1282,7 +1303,11 @@ div
                   circle.topo-glow(r="18", v-if="topoActiveHost === host.id")
                   circle.topo-host-bg(r="14")
                   image.topo-host-icon(:href="topoPlatformSvg(host.platform)", x="-8", y="-8", width="16", height="16")
+                  //- Pivot indicator: double ring
+                  circle.topo-pivot-ring(v-if="host.isPivot", r="18", fill="none", stroke="#FFB000", stroke-width="1.5", stroke-dasharray="4 2")
                   text.topo-host-label(y="22", text-anchor="middle") {{ host.hostname }}
+                  //- Pivot badge
+                  text.topo-pivot-label(v-if="host.isPivot", y="30", text-anchor="middle", fill="#FFB000", font-size="7") PIVOT
                   g.topo-badge(v-if="host.compromised && topoHostCurrentSteps(host.id) > 0")
                     circle(cx="10", cy="-10", r="6", fill="#750b20")
                     text(x="10", y="-10", text-anchor="middle", dominant-baseline="central", fill="white", font-size="7") {{ topoHostCurrentSteps(host.id) }}
@@ -1430,9 +1455,9 @@ div
           .is-flex.is-justify-content-center.is-align-items-center.mt-1.mb-2
             span.is-size-7.has-text-grey.mr-3 Speed:
             .buttons.has-addons.mb-0
-              button.button.is-tiny(:class="replaySpeed === 500 ? 'is-primary' : 'is-dark'", @click="replaySpeed = 500", style="font-size:0.65rem;padding:2px 8px;height:22px") 2x
-              button.button.is-tiny(:class="replaySpeed === 1000 ? 'is-primary' : 'is-dark'", @click="replaySpeed = 1000", style="font-size:0.65rem;padding:2px 8px;height:22px") 1x
-              button.button.is-tiny(:class="replaySpeed === 2000 ? 'is-primary' : 'is-dark'", @click="replaySpeed = 2000", style="font-size:0.65rem;padding:2px 8px;height:22px") 0.5x
+              button.button.is-tiny(:class="replaySpeed === 1000 ? 'is-primary' : 'is-dark'", @click="replaySpeed = 1000", style="font-size:0.65rem;padding:2px 8px;height:22px") Fast
+              button.button.is-tiny(:class="replaySpeed === 2000 ? 'is-primary' : 'is-dark'", @click="replaySpeed = 2000", style="font-size:0.65rem;padding:2px 8px;height:22px") Normal
+              button.button.is-tiny(:class="replaySpeed === 3500 ? 'is-primary' : 'is-dark'", @click="replaySpeed = 3500", style="font-size:0.65rem;padding:2px 8px;height:22px") Slow
             span.is-size-7.has-text-grey.ml-3 Step {{ replayCursor + 1 }} / {{ replaySteps.length }}
 
         //- SLIDE-OUT DETAIL PANEL (click host on topology above)

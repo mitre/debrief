@@ -206,8 +206,8 @@ div.d3-tooltip {
 }
 
 @keyframes topoGlow {
-    from { opacity: 0.3; r: 12; }
-    to { opacity: 0.7; r: 16; }
+    from { opacity: 0.3; r: 18; }
+    to { opacity: 0.7; r: 22; }
 }
 
 .topo-beacon-trail {
@@ -908,14 +908,24 @@ export default {
             this.replayPlaying = true;
             while (this.replayPlaying && this.replayCursor < this.replaySteps.length - 1) {
                 this.replayCursor++;
+                const prevRevealed = new Set(this.topoRevealedHosts);
                 this.replayUpdateTopo();
-                // Wait for beacon animation if a new host was revealed
-                if (this.topoBeaconEdge >= 0) {
-                    await this.sleep(1200);  // beacon travel time
-                    this.topoBeaconEdge = -1;
+                // Check if a new host was just revealed
+                const seq = this.topoData.replay_sequence || [];
+                const item = seq[this.replayCursor];
+                const paw = item ? item.paw : null;
+                const isNewHost = paw && !prevRevealed.has(paw);
+                if (isNewHost && this.replayPlaying) {
+                    // Wait a moment to show the host, then beacon back to C2
+                    await this.sleep(400);
+                    if (this.replayPlaying) {
+                        await this.replayBeaconToC2(paw);
+                    }
                 }
                 // Wait between steps
-                await this.sleep(this.replaySpeed);
+                if (this.replayPlaying) {
+                    await this.sleep(this.replaySpeed);
+                }
             }
             this.replayPlaying = false;
         },
@@ -1047,7 +1057,7 @@ export default {
             this.topoStepCounts = { ...this.topoStepCounts };
             this.topoStepCounts[paw] = (this.topoStepCounts[paw] || 0) + 1;
 
-            // If this is a newly revealed host, show the edge + green beacon back to C2
+            // If this is a newly revealed host, show the edge
             this.topoNewestEdge = -1;
             this.topoBeaconEdge = -1;
             if (!wasRevealed) {
@@ -1055,10 +1065,30 @@ export default {
                 if (edgeIdx >= 0) {
                     this.topoRevealedHosts.add(this.topoEdges[edgeIdx].source);
                     this.topoNewestEdge = edgeIdx;
-                    // Green beacon travels the edge (back to C2 direction)
-                    this.topoBeaconEdge = edgeIdx;
                 }
             }
+        },
+
+        // Animate green beacon through full path back to C2
+        async replayBeaconToC2(paw) {
+            if (!this.topoData || !this.topoData.path_to_c2) return;
+            const path = this.topoData.path_to_c2[paw];
+            if (!path || path.length < 2) return;
+            // path = [host, parent, grandparent, ..., c2]
+            // Animate beacon along each edge in the path
+            for (let i = 0; i < path.length - 1; i++) {
+                const from = path[i];
+                const to = path[i + 1];
+                // Find the edge index for this hop
+                const edgeIdx = this.topoEdges.findIndex(e =>
+                    (e.source === to && e.target === from) || (e.source === from && e.target === to)
+                );
+                if (edgeIdx >= 0) {
+                    this.topoBeaconEdge = edgeIdx;
+                    await this.sleep(600);  // beacon travel time per hop
+                }
+            }
+            this.topoBeaconEdge = -1;
         },
 
         topoSelectHost(host) {
@@ -1099,9 +1129,9 @@ export default {
             if (!this.topoData) return [];
             const subnets = this.topoData.subnets || [];
             const padding = 16;
-            const bandW = 130;
-            const hostSpacing = 50;
-            const c2Width = 60;
+            const bandW = 160;
+            const hostSpacing = 60;
+            const c2Width = 70;
             return subnets.map((s, si) => {
                 const hostCount = Math.max(s.hosts.length, 1);
                 const h = Math.max(hostCount * hostSpacing + 40, 100);
@@ -1120,7 +1150,7 @@ export default {
             if (!this.topoData) return [];
             const hosts = this.topoData.hosts || {};
             const result = [];
-            const hostSpacing = 50;
+            const hostSpacing = 60;
             // Position hosts vertically centered within their subnet columns
             const hostPositions = {};
             this.topoSubnets.forEach((subnet) => {
@@ -1354,15 +1384,15 @@ div
                     @mouseenter="topoHoverHost = host.id",
                     @mouseleave="topoHoverHost = null"
                   )
-                    circle.topo-glow(r="14", v-if="topoActiveHost === host.id")
-                    circle.topo-host-bg(r="10")
-                    image.topo-host-icon(:href="topoPlatformSvg(host.platform)", x="-6", y="-6", width="12", height="12")
-                    //- Pivot indicator: dashed orange ring (no text)
-                    circle.topo-pivot-ring(v-if="host.isPivot", r="13", fill="none", stroke="#FFB000", stroke-width="1", stroke-dasharray="3 2")
-                    text.topo-host-label(y="18", text-anchor="middle") {{ host.hostname }}
+                    circle.topo-glow(r="20", v-if="topoActiveHost === host.id")
+                    circle.topo-host-bg(r="14")
+                    image.topo-host-icon(:href="topoPlatformSvg(host.platform)", x="-9", y="-9", width="18", height="18")
+                    //- Pivot indicator: dashed orange ring
+                    circle.topo-pivot-ring(v-if="host.isPivot", r="17", fill="none", stroke="#FFB000", stroke-width="1.5", stroke-dasharray="3 2")
+                    text.topo-host-label(y="22", text-anchor="middle") {{ host.hostname }}
                     g.topo-badge(v-if="host.compromised && topoHostCurrentSteps(host.id) > 0")
-                      circle(cx="8", cy="-8", r="5", fill="#750b20")
-                      text(x="8", y="-8", text-anchor="middle", dominant-baseline="central", fill="white", font-size="6") {{ topoHostCurrentSteps(host.id) }}
+                      circle(cx="12", cy="-10", r="6", fill="#750b20")
+                      text(x="12", y="-10", text-anchor="middle", dominant-baseline="central", fill="white", font-size="7") {{ topoHostCurrentSteps(host.id) }}
                     g.topo-tooltip(v-if="topoHoverHost === host.id")
                       rect(x="-60", y="-36", width="120", height="24", rx="3", fill="#1a1a2e", stroke="#555")
                       text(x="0", y="-28", text-anchor="middle", fill="#aaa", font-size="8") {{ host.ips.join(', ') || 'No IP' }}

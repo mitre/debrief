@@ -478,12 +478,33 @@ class DebriefService(BaseService):
             for cidr, hids in sorted(subnet_map.items())
         ]
 
+        # --- Compute path_to_c2 for each host (for beacon animation) ---
+        # Build parent map from edges: target → source
+        parent_map = {}
+        for e in edges:
+            if e['target'] != 'c2':
+                parent_map[e['target']] = e['source']
+
+        path_to_c2 = {}
+        for host_id in hosts:
+            if host_id == 'c2':
+                continue
+            path = [host_id]
+            current = host_id
+            visited = set()
+            while current in parent_map and current not in visited:
+                visited.add(current)
+                current = parent_map[current]
+                path.append(current)
+            path_to_c2[host_id] = path  # e.g. ['db01', 'dc01', 'proxy01', 'web01', 'c2']
+
         return dict(
             subnets=subnets,
             hosts=hosts,
             edges=edges,
             steps_by_host=steps_by_host,
             replay_sequence=replay_sequence,
+            path_to_c2=path_to_c2,
         )
 
     @staticmethod

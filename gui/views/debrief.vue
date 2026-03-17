@@ -872,49 +872,99 @@ export default {
         getGraphData() {
             let encodedGraphs = {}
 
+            // Capture the topology SVG as the main graph for PDF
+            const topoSvg = document.querySelector('.topo-svg');
+            if (topoSvg) {
+                // First ensure all hosts are revealed for the PDF snapshot
+                const wasRevealed = new Set(this.topoRevealedHosts);
+                if (this.topoData) {
+                    const allHosts = new Set(Object.keys(this.topoData.hosts || {}));
+                    allHosts.add('c2');
+                    this.topoRevealedHosts = allHosts;
+                }
+
+                this.$nextTick(() => {});  // let Vue render
+
+                let newSvg = topoSvg.cloneNode(true);
+                newSvg.setAttribute('id', 'copy-svg');
+
+                // Make all elements visible in the clone
+                newSvg.querySelectorAll('[style*="display: none"]').forEach((el) => {
+                    el.style.display = '';
+                });
+
+                document.getElementById('copy').appendChild(newSvg);
+
+                var bbox = newSvg.getBBox();
+                var viewBox = [bbox.x - 10, bbox.y - 10, bbox.width + 20, bbox.height + 20].join(' ');
+                newSvg.setAttribute('viewBox', viewBox);
+
+                // Fix text colors for PDF (dark background → light text won't work on white PDF)
+                newSvg.querySelectorAll('text').forEach((el) => {
+                    el.style.fill = '#333';
+                });
+
+                // Make host backgrounds visible on white
+                newSvg.querySelectorAll('.topo-host-bg').forEach((el) => {
+                    el.setAttribute('fill', '#e8e8f0');
+                    el.setAttribute('stroke', '#666');
+                });
+
+                // Make zone bands visible on white background
+                newSvg.querySelectorAll('.topo-zone').forEach((el) => {
+                    el.setAttribute('stroke', '#999');
+                    el.setAttribute('fill', el.getAttribute('fill').replace(/[\d.]+\)$/, '0.15)'));
+                });
+
+                // Make edges darker for print
+                newSvg.querySelectorAll('.topo-edge').forEach((el) => {
+                    el.setAttribute('stroke', '#888');
+                });
+
+                // Remove glow/beacon animations
+                newSvg.querySelectorAll('.topo-glow, .topo-beacon-dot, .topo-pulse').forEach((el) => el.remove());
+
+                // Remove icon filter (invert) for PDF — icons are already black
+                newSvg.querySelectorAll('.topo-host-icon').forEach((el) => {
+                    el.style.filter = 'none';
+                });
+
+                let serializedSvg = new XMLSerializer().serializeToString(newSvg);
+                let encodedData = window.btoa(unescape(encodeURIComponent(serializedSvg)));
+
+                // Use 'attackpath' key so the existing PDF section picks it up
+                encodedGraphs['attackpath'] = encodedData;
+
+                document.getElementById('copy').innerHTML = '';
+
+                // Restore reveal state
+                this.topoRevealedHosts = wasRevealed;
+            }
+
+            // Also capture old D3 SVGs for backward compatibility
             document.querySelectorAll('.debrief-svg').forEach((svg) => {
                 let newSvg = svg.cloneNode(true);
                 newSvg.setAttribute('id', 'copy-svg');
-                document.getElementById('copy').appendChild(newSvg)
-                document.querySelectorAll('#copy-svg .container').forEach((container) => container.setAttribute('transform', 'scale(5)'))
-
-                // resize svg viewBox to fit content
+                document.getElementById('copy').appendChild(newSvg);
+                document.querySelectorAll('#copy-svg .container').forEach((container) => container.setAttribute('transform', 'scale(5)'));
                 var copy = document.getElementById('copy-svg');
-                if (copy.style.display == "none") {
-                    copy.style.display = "";
-                }
-                var bbox = copy.getBBox();
-                var viewBox = [bbox.x - 10, bbox.y - 10, bbox.width + 20, bbox.height + 20].join(" ");
-                copy.setAttribute("viewBox", viewBox);
-
-                // re-enable any hidden nodes
-                document.querySelectorAll('#copy-svg .link').forEach((el) => el.style.display = '');
-                document.querySelectorAll('#copy-svg polyline').forEach((el) => el.style.display = '');
-                document.querySelectorAll('#copy-svg .link .icons').forEach((el) => {
-                    Array.from(el.children).forEach((child) => {
-                        if (child.getAttribute('class').includes('svg-icon')) {
-                            child.style.display = '';
-                        }
-                    })
-                })
-                document.querySelectorAll('#copy-svg .link .icons').forEach((el) => {
-                    Array.from(el.children).forEach((child) => {
-                        if (child.getAttribute('class').includes('hidden')) {
-                            child.remove();
-                        }
-                    })
-                })
-                document.querySelectorAll('#copy-svg text').forEach((el) => el.style.display = '');
+                if (copy.style.display == 'none') copy.style.display = '';
+                try {
+                    var bbox = copy.getBBox();
+                    var viewBox = [bbox.x - 10, bbox.y - 10, bbox.width + 20, bbox.height + 20].join(' ');
+                    copy.setAttribute('viewBox', viewBox);
+                } catch(e) {}
                 document.querySelectorAll('#copy-svg text').forEach((el) => el.style.fill = '#333');
-
-                let serializedSvg = new XMLSerializer().serializeToString(document.getElementById('copy-svg'));
+                let serializedSvg = new XMLSerializer().serializeToString(copy);
                 let encodedData = window.btoa(serializedSvg);
-                let graphKey = svg.id.split("-")[1];
-                encodedGraphs[graphKey] = encodedData;
+                let graphKey = svg.id.split('-')[1];
+                if (!encodedGraphs[graphKey]) {
+                    encodedGraphs[graphKey] = encodedData;
+                }
                 document.getElementById('copy').innerHTML = '';
-            })
+            });
 
-            return encodedGraphs
+            return encodedGraphs;
         },
 
         toggleLabels() {

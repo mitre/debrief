@@ -1,3 +1,5 @@
+from reportlab.lib.units import inch
+
 from plugins.debrief.app.utility.base_report_section import BaseReportSection
 
 
@@ -16,11 +18,21 @@ class DebriefReportSection(BaseReportSection):
         flowable_list = []
         if 'agents' in kwargs:
             flowable_list.append(self.generate_section_title_and_description(styles))
-            agent_data = [['Paw', 'Host', 'Platform', 'Username', 'Privilege', 'Executable']]
+            agent_data = [['Paw', 'Host', 'Platform', 'Group', 'Username', 'Privilege', 'Arch', 'Executable']]
             for a in kwargs.get('agents', []):
-                agent_data.append(
-                    ['<a name="agent-{0}"/>{0}'.format(a.paw), a.host, a.platform, a.username, a.privilege,
-                     a.exe_name])
-            flowable_list.append(self.generate_table(agent_data, '*'))
+                agent_data.append([
+                    '<a name="agent-{0}"/>{0}'.format(a.paw),
+                    a.host,
+                    a.platform,
+                    getattr(a, 'group', '') or '',
+                    a.username,
+                    a.privilege,
+                    getattr(a, 'architecture', '') or '',
+                    a.exe_name,
+                ])
+            flowable_list.append(self.generate_table(
+                agent_data,
+                [.85*inch, 1.0*inch, .65*inch, .55*inch, .95*inch, .65*inch, .55*inch, 1.8*inch]
+            ))
 
         return flowable_list

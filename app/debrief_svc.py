@@ -242,3 +242,325 @@ class DebriefService(BaseService):
             if not target_links:
                 d3_link = dict(source=op_id, target=n['id'], type='relationship')
                 op_links.append(d3_link)
+
+    async def build_topology(self, operation_ids):
+        """Build network topology data: hosts, subnets, edges, steps grouped by host."""
+        operations = []
+        for op_id in operation_ids:
+            matches = await self.data_svc.locate('operations', match=dict(id=op_id))
+            if matches:
+                operations.append(matches[0])
+
+        hosts = {}       # keyed by agent paw or discovered-ip
+        edges = []
+        steps_by_host = {}
+        all_ips = {}     # ip -> host_id mapping for subnet grouping
+
+        # --- Compromised hosts (agents) ---
+        paw_to_host = {}
+        for op in operations:
+            for agent in (op.agents or []):
+                paw = agent.paw
+                if paw in hosts:
+                    continue
+                ips = list(getattr(agent, 'host_ip_addrs', []) or [])
+                hosts[paw] = dict(
+                    id=paw,
+                    hostname=agent.host,
+                    ips=ips,
+                    platform=agent.platform,
+                    compromised=True,
+                    agent_paw=paw,
+                    privilege=getattr(agent, 'privilege', ''),
+                    username=getattr(agent, 'username', ''),
+                    contact=getattr(agent, 'contact', 'HTTP'),
+                    is_pivot=bool(getattr(agent, 'proxy_receivers', None)),
+                    step_count=0,
+                    origin_agent=None,
+                )
+                paw_to_host[paw] = paw
+                for ip in ips:
+                    all_ips[ip] = paw
+
+        # --- C2 node ---
+        c2_config = {k: v for k, v in self.get_config().items() if k.startswith('app.')}
+        hosts['c2'] = dict(
+            id='c2',
+            hostname='C2 Server',
+            ips=[c2_config.get('app.contact.http', '')],
+            platform='server',
+            compromised=True,
+            agent_paw=None,
+            privilege='',
+            username='',
+            step_count=0,
+            origin_agent=None,
+        )
+
+        # --- Steps by host ---
+        # Also build an ordered list of (step_index, paw, step_data) for replay sequencing
+        replay_sequence = []  # ordered list of {paw, step, index}
+
+        for op in operations:
+            for agent in (op.agents or []):
+                paw = agent.paw
+                if paw not in steps_by_host:
+                    steps_by_host[paw] = []
+
+            step_idx = 0
+            for link in (op.chain or []):
+                if link.cleanup:
+                    continue
+                paw = link.paw
+                if paw not in steps_by_host:
+                    steps_by_host[paw] = []
+                step_data = dict(
+                    id=str(link.id),
+                    ability_name=link.ability.name,
+                    tactic=link.ability.tactic,
+                    technique_id=link.ability.technique_id,
+                    technique_name=link.ability.technique_name,
+                    status=link.status,
+                    finish=link.finish or '',
+                    facts_count=len([f for f in link.facts if f.score > 0]),
+                    command=link.command,
+                )
+                steps_by_host[paw].append(step_data)
+                replay_sequence.append(dict(paw=paw, step=step_data, index=step_idx))
+                step_idx += 1
+                if paw in hosts:
+                    hosts[paw]['step_count'] = len(steps_by_host[paw])
+
+        # --- Build edges from chain order + origin_link_id ---
+        # First: explicit lateral movement via origin_link_id
+        agents_with_origin = set()
+        for op in operations:
+            for agent in (op.agents or []):
+                if agent.origin_link_id:
+                    origin_link = next((lnk for lnk in op.chain if lnk.id == agent.origin_link_id), None)
+                    if origin_link:
+                        source_paw = origin_link.paw
+                        if source_paw in hosts:
+                            hosts[agent.paw]['origin_agent'] = source_paw
+                            edges.append(dict(
+                                source=source_paw, target=agent.paw,
+                                type='lateral_movement',
+                                technique=f'{origin_link.ability.technique_id} {origin_link.ability.technique_name}',
+                            ))
+                            agents_with_origin.add(agent.paw)
+
+        # Second: derive edges from chain order for agents without origin_link_id
+        # When the chain switches from agent A to agent B, that implies a hop A→B
+        seen_paws = set()
+        edge_pairs = set()  # avoid duplicate edges
+        prev_paw = None
+        for item in replay_sequence:
+            paw = item['paw']
+            if paw not in seen_paws:
+                if prev_paw is None:
+                    # First agent seen → C2 edge
+                    edge_pair = ('c2', paw)
+                    if edge_pair not in edge_pairs:
+                        edges.append(dict(source='c2', target=paw,
+                                          type='initial_access', technique='Initial Access'))
+                        edge_pairs.add(edge_pair)
+                elif paw not in agents_with_origin:
+                    # New agent without explicit origin → infer hop from previous agent
+                    edge_pair = (prev_paw, paw)
+                    if edge_pair not in edge_pairs:
+                        edges.append(dict(source=prev_paw, target=paw,
+                                          type='lateral_movement', technique='Inferred from chain order'))
+                        edge_pairs.add(edge_pair)
+                seen_paws.add(paw)
+            prev_paw = paw
+
+        # Third: fallback — if no chain at all, create edges from agent order
+        # This handles fabricated operations where agents exist but no steps ran
+        if not replay_sequence and not edges:
+            agent_paws = [paw for paw in hosts if paw != 'c2']
+            if agent_paws:
+                # C2 → first agent
+                edges.append(dict(source='c2', target=agent_paws[0],
+                                  type='initial_access', technique='Initial Access'))
+                # Chain remaining agents sequentially
+                for i in range(1, len(agent_paws)):
+                    edges.append(dict(source=agent_paws[i-1], target=agent_paws[i],
+                                      type='lateral_movement', technique='Inferred from agent order'))
+                # Also generate a synthetic replay_sequence so play button works
+                for i, paw in enumerate(agent_paws):
+                    replay_sequence.append(dict(
+                        paw=paw,
+                        step=dict(
+                            id=f'synthetic-{i}',
+                            ability_name=f'Agent on {hosts[paw]["hostname"]}',
+                            tactic='initial-access' if i == 0 else 'lateral-movement',
+                            technique_id='',
+                            technique_name='',
+                            status=0,
+                            finish='',
+                            facts_count=0,
+                            command='',
+                        ),
+                        index=i,
+                    ))
+
+        # --- Discovered hosts (from operation facts + knowledge svc) ---
+        discovered_ips = set()
+        knowledge_svc = self.services.get('knowledge_svc')
+        for op in operations:
+            all_facts = list(await op.all_facts())
+            # Also query knowledge_svc for facts in the operation's source
+            source = getattr(op, 'source', None)
+            source_id = str(getattr(source, 'id', '')) if source else ''
+            if knowledge_svc and source_id:
+                try:
+                    kb_facts = await knowledge_svc.get_facts(
+                        criteria=dict(source=source_id, trait='remote.host.ip')
+                    )
+                    for kf in (kb_facts or []):
+                        all_facts.append(kf)
+                    kb_fqdn = await knowledge_svc.get_facts(
+                        criteria=dict(source=source_id, trait='remote.host.fqdn')
+                    )
+                    for kf in (kb_fqdn or []):
+                        all_facts.append(kf)
+                except Exception:
+                    pass
+            for fact in all_facts:
+                trait = getattr(fact, 'trait', '') or ''
+                value = str(getattr(fact, 'value', '') or '')
+                if not value:
+                    continue
+
+                # remote.host.ip or remote.host.fqdn → discovered host
+                if trait == 'remote.host.ip' and value not in all_ips and value not in discovered_ips:
+                    discovered_ips.add(value)
+                    host_id = f'discovered-{value}'
+                    hosts[host_id] = dict(
+                        id=host_id,
+                        hostname=value,
+                        ips=[value],
+                        platform='unknown',
+                        compromised=False,
+                        agent_paw=None,
+                        privilege='',
+                        username='',
+                        step_count=0,
+                        origin_agent=None,
+                        discovered_by=list(getattr(fact, 'collected_by', []) or []),
+                        intel=[],
+                    )
+                    all_ips[value] = host_id
+
+                # Collect intel for discovered hosts
+                if trait.startswith('remote.host.') and value in all_ips:
+                    hid = all_ips[value]
+                    if hid.startswith('discovered-') and 'intel' in hosts.get(hid, {}):
+                        hosts[hid]['intel'].append(dict(trait=trait, value=value))
+
+        # --- Build subnets from IPs ---
+        # Each host goes in ONE subnet only (its primary/first non-docker IP).
+        # Docker bridge IPs (172.17-31.x.x) are deprioritized.
+        subnet_map = {}  # cidr -> set of host_ids
+        assigned_hosts = set()
+
+        for host_id, host in hosts.items():
+            if host_id == 'c2':
+                continue
+            ips = host.get('ips') or []
+            # Pick best IP: prefer non-172.1x (non-Docker bridge) IPs
+            primary_ip = None
+            for ip in ips:
+                subnet = self._ip_to_subnet(ip)
+                if subnet and not ip.startswith('172.'):
+                    primary_ip = ip
+                    break
+            if not primary_ip:
+                for ip in ips:
+                    subnet = self._ip_to_subnet(ip)
+                    if subnet:
+                        primary_ip = ip
+                        break
+            if primary_ip:
+                subnet_cidr = self._ip_to_subnet(primary_ip)
+                subnet_map.setdefault(subnet_cidr, set()).add(host_id)
+                assigned_hosts.add(host_id)
+                # Store primary IP on host for display
+                host['primary_ip'] = primary_ip
+
+        # Hosts with no valid IP go to "Unknown" subnet
+        ungrouped = [hid for hid in hosts if hid != 'c2' and hid not in assigned_hosts]
+        if ungrouped:
+            subnet_map['Unknown'] = set(ungrouped)
+
+        # Also include empty subnets from agent secondary IPs (networks the agent can see)
+        for host_id, host in hosts.items():
+            if host_id == 'c2':
+                continue
+            for ip in (host.get('ips') or []):
+                subnet_cidr = self._ip_to_subnet(ip)
+                if subnet_cidr and subnet_cidr not in subnet_map:
+                    subnet_map[subnet_cidr] = set()  # empty subnet — visible but no hosts
+
+        # Order subnets by chain appearance (first agent in each subnet determines position)
+        subnet_order = []
+        seen_subnets = set()
+        # First pass: order by replay_sequence (chain order)
+        for item in replay_sequence:
+            paw = item['paw']
+            host = hosts.get(paw)
+            if host and host.get('primary_ip'):
+                cidr = self._ip_to_subnet(host['primary_ip'])
+                if cidr and cidr not in seen_subnets:
+                    subnet_order.append(cidr)
+                    seen_subnets.add(cidr)
+        # Add any remaining subnets (empty ones, etc.) alphabetically
+        for cidr in sorted(subnet_map.keys()):
+            if cidr not in seen_subnets:
+                subnet_order.append(cidr)
+                seen_subnets.add(cidr)
+
+        subnets = [
+            dict(cidr=cidr, label=cidr, hosts=sorted(subnet_map.get(cidr, set())))
+            for cidr in subnet_order
+        ]
+
+        # --- Compute path_to_c2 for each host (for beacon animation) ---
+        # Build parent map from edges: target → source
+        parent_map = {}
+        for e in edges:
+            if e['target'] != 'c2':
+                parent_map[e['target']] = e['source']
+
+        path_to_c2 = {}
+        for host_id in hosts:
+            if host_id == 'c2':
+                continue
+            path = [host_id]
+            current = host_id
+            visited = set()
+            while current in parent_map and current not in visited:
+                visited.add(current)
+                current = parent_map[current]
+                path.append(current)
+            path_to_c2[host_id] = path  # e.g. ['db01', 'dc01', 'proxy01', 'web01', 'c2']
+
+        return dict(
+            subnets=subnets,
+            hosts=hosts,
+            edges=edges,
+            steps_by_host=steps_by_host,
+            replay_sequence=replay_sequence,
+            path_to_c2=path_to_c2,
+        )
+
+    @staticmethod
+    def _ip_to_subnet(ip_str):
+        """Convert an IP string to a /24 subnet string."""
+        try:
+            parts = ip_str.strip().split('.')
+            if len(parts) == 4 and all(p.isdigit() and 0 <= int(p) <= 255 for p in parts):
+                return f'{parts[0]}.{parts[1]}.{parts[2]}.0/24'
+        except (ValueError, AttributeError):
+            pass
+        return None

@@ -1,10 +1,14 @@
 from reportlab.lib import colors
+from reportlab.lib.units import inch
 from reportlab.platypus import Image, Paragraph, Spacer, Table, TableStyle
 from reportlab.platypus.flowables import KeepTogetherSplitAtTop
 from svglib.svglib import svg2rlg
 
 from plugins.debrief.app.objects.c_story import Story
 from plugins.debrief.attack_mapper import get_attack18
+
+# Available content width for portrait pages (letter 8.5" - 2×0.75" margins)
+PORTRAIT_CONTENT_WIDTH = 7.0 * inch
 
 
 class BaseReportSection:
@@ -61,22 +65,25 @@ class BaseReportSection:
     def generate_table(data, col_widths):
         data[1:] = [[Story.get_table_object(val) for val in row] for row in data[1:]]
         tbl = Table(data, colWidths=col_widths, repeatRows=1)
-        tbl.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), colors.maroon),
-                                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                                 ('FONTSIZE', (0, 1), (-1, -1), 8),
-                                 ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                                 ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                                 ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.white),
-                                 ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
-                                 ]))
+        style_cmds = [
+            ('BACKGROUND', (0, 0), (-1, 0), colors.maroon),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 4),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('TOPPADDING', (0, 1), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 2),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.white),
+            ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
+            ('LINEAFTER', (0, 0), (0, -1), 2, colors.maroon),
+        ]
         for each in range(1, len(data)):
-            if each % 2 == 0:
-                bg_color = colors.lightgrey
-            else:
-                bg_color = colors.whitesmoke
-
-            tbl.setStyle(TableStyle([('BACKGROUND', (0, each), (-1, each), bg_color)]))
+            bg_color = colors.lightgrey if each % 2 == 0 else colors.whitesmoke
+            style_cmds.append(('BACKGROUND', (0, each), (-1, each), bg_color))
+        tbl.setStyle(TableStyle(style_cmds))
         return tbl
 
     @staticmethod

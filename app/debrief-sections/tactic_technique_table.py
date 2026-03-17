@@ -174,10 +174,10 @@ class DebriefReportSection(BaseReportSection):
         tbl = Table(
             ttp_data,
             colWidths=[
-                1.10*inch,  # Tactics
-                2.50*inch,  # Techniques
-                1.75*inch,  # Abilities
-                0.90*inch   # Detections
+                1.15*inch,  # Tactics
+                2.80*inch,  # Techniques
+                2.00*inch,  # Abilities
+                1.05*inch   # Detections
             ],
             hAlign='LEFT'
         )

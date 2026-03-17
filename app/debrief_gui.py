@@ -21,8 +21,8 @@ from plugins.debrief.app.objects.c_story import Story
 from plugins.debrief.attack_mapper import get_attack18
 
 
-LEFT_MARGIN = RIGHT_MARGIN = 72
-TOP_MARGIN = BOTTOM_MARGIN = 84
+LEFT_MARGIN = RIGHT_MARGIN = 54   # 0.75 inch
+TOP_MARGIN = BOTTOM_MARGIN = 72   # 1.0 inch
 
 
 @for_all_public_methods(check_authorization)
@@ -81,6 +81,16 @@ class DebriefGui(BaseWorld):
         op_displays = [o.display for o in operations]
         ttps = DebriefService.generate_ttps(operations)
         return web.json_response(dict(operations=op_displays, ttps=ttps))
+
+    async def topology(self, request):
+        try:
+            operations = request.rel_url.query.get('operations', '')
+            op_ids = [o for o in operations.split(',') if o]
+            topo = await self.debrief_svc.build_topology(op_ids)
+            return web.json_response(topo)
+        except Exception as e:
+            self.log.error(repr(e), exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
 
     async def graph(self, request):
         graphs = {

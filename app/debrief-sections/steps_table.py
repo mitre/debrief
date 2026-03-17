@@ -29,11 +29,21 @@ class DebriefReportSection(BaseReportSection):
         return flowable_list
 
     def _generate_op_steps_table(self, operation):
-        steps = [['Time', 'Status', 'Agent', 'Name', 'Command', 'Facts']]
+        steps = [['Time', 'Status', 'Agent', 'Tactic', 'Technique', 'Name', 'Command', 'Facts']]
         for link in operation.chain:
-            steps.append(
-                [link.finish or '', self.status_name(link.status), link.paw, link.ability.name,
-                 link.decode_bytes(link.command),
-                 'Yes' if len([f for f in link.facts if f.score > 0]) > 0 else 'No'])
+            tactic = getattr(getattr(link, 'ability', None), 'tactic', '') or ''
+            technique = getattr(getattr(link, 'ability', None), 'technique_name', '') or ''
+            steps.append([
+                link.finish or '',
+                self.status_name(link.status),
+                link.paw,
+                tactic,
+                technique,
+                link.ability.name,
+                link.decode_bytes(link.command),
+                'Yes' if len([f for f in link.facts if f.score > 0]) > 0 else 'No',
+            ])
 
-        return self.generate_table(steps, [.75 * inch, .6 * inch, .6 * inch, .85 * inch, 3 * inch, .6 * inch])
+        return self.generate_table(steps, [
+            .7*inch, .55*inch, .55*inch, .65*inch, .85*inch, .75*inch, 2.45*inch, .5*inch
+        ])

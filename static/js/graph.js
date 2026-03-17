@@ -1,7 +1,7 @@
 // Constants are wrapped in a function to prevent redeclarations when tab is closed and openned again
 function global() {
     return {
-        FACT_DISPLAY_LIMIT: 15,
+        FACT_DISPLAY_LIMIT: 50,
 
         OP_GRAPH_HEIGHT: 400,
         FACT_GRAPH_WIDTH: 800,

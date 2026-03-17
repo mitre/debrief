@@ -135,20 +135,22 @@ class Story:
         with open(path, 'wb') as f:
             svg.write(f)
 
+    _TABLE_STYLE = ParagraphStyle(name='Table', fontSize=8, wordWrap='CJK')
+
     @staticmethod
     def get_table_object(val):
-        table = ParagraphStyle(name='Table', fontSize=8)
+        style = Story._TABLE_STYLE
         if type(val) is str:
-            return Paragraph(val, table)
+            return Paragraph(val, style)
         elif type(val) is list:
             list_string = ''
             for list_item in val:
                 list_string += list_item + '<br/>'
-            return Paragraph(list_string, table)
+            return Paragraph(list_string, style)
         elif type(val) is dict:
             dict_string = ''
             for k, v in val.items():
                 dict_string += '<font color=grey>' + k + '</font><br/>'
                 for list_item in v:
                     dict_string += '&nbsp;&nbsp;&nbsp;' + list_item + '<br/>'
-            return Paragraph(dict_string, table)
+            return Paragraph(dict_string, style)

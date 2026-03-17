@@ -32,7 +32,7 @@ class DebriefReportSection(BaseReportSection):
                 ])
             flowable_list.append(self.generate_table(
                 agent_data,
-                [.8*inch, .9*inch, .6*inch, .5*inch, .9*inch, .6*inch, .5*inch, 1.7*inch]
+                [.85*inch, 1.0*inch, .65*inch, .55*inch, .95*inch, .65*inch, .55*inch, 1.8*inch]
             ))
 
         return flowable_list

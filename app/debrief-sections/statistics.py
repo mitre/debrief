@@ -86,7 +86,7 @@ class DebriefReportSection(BaseReportSection):
         ]
 
         rows[1:] = [[Story.get_table_object(val) for val in row] for row in rows[1:]]
-        tbl = Table(rows, colWidths=[1.5 * inch, 5 * inch], repeatRows=1)
+        tbl = Table(rows, colWidths=[1.5 * inch, 5.5 * inch], repeatRows=1)
         tbl.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.maroon),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),

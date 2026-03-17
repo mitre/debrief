@@ -7,8 +7,8 @@ from svglib.svglib import svg2rlg
 from plugins.debrief.app.objects.c_story import Story
 from plugins.debrief.attack_mapper import get_attack18
 
-# Available content width for portrait pages (letter 8.5" - 2×1" margins)
-PORTRAIT_CONTENT_WIDTH = 6.5 * inch
+# Available content width for portrait pages (letter 8.5" - 2×0.75" margins)
+PORTRAIT_CONTENT_WIDTH = 7.0 * inch
 
 
 class BaseReportSection:

@@ -21,8 +21,8 @@ from plugins.debrief.app.objects.c_story import Story
 from plugins.debrief.attack_mapper import get_attack18
 
 
-LEFT_MARGIN = RIGHT_MARGIN = 72
-TOP_MARGIN = BOTTOM_MARGIN = 84
+LEFT_MARGIN = RIGHT_MARGIN = 54   # 0.75 inch
+TOP_MARGIN = BOTTOM_MARGIN = 72   # 1.0 inch
 
 
 @for_all_public_methods(check_authorization)

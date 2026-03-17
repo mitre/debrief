@@ -39,7 +39,7 @@ svg {
 #debrief-graph {
     position: relative;
     background-color: black;
-    width: 80% !important;
+    width: 100% !important;
     height: 400px;
     border-radius: 4px;
 }
@@ -49,22 +49,24 @@ svg {
     margin: auto;
     background-color: black;
     border-radius: 4px;
-    width: 800px;
+    width: 100%;
+    max-width: 100%;
     height: 600px;
 }
 
 #fact-limit {
-    width: 800px;
+    width: 100%;
     margin: auto;
 }
 
 #select-operation {
-    max-width: 800px;
+    max-width: 100%;
     margin: 0 auto;
 }
 
 #tactic-section {
-    width: 600px;
+    width: 100%;
+    max-width: 100%;
     margin: auto;
 }
 
@@ -1046,8 +1048,8 @@ div
         font-awesome-icon(icon="fas fa-download")
       span Download Operation JSON
 
-  .columns.mb-6
-    .column.is-3
+  .columns.mb-4.is-variable.is-1
+    .column.is-2
       form
         .field
           .control.mr-2
@@ -1056,7 +1058,7 @@ div
                 option(disabled selected value="") Select an operation
                 template(v-for="operation in operations", :key="operation.id")
                   option(:value="operation.id") {{ operation.name }}
-    .column.is-9.is-flex.is-justify-content-center.m-0
+    .column.is-10.is-flex.is-justify-content-center.m-0
       #images(style="display: none")
       #copy
       #debrief-graph.svg-container(v-show="1")
@@ -1113,7 +1115,7 @@ div
 
   div(v-show="selectedOperationId.length")
     div(v-show="activeTab === 'stats'")
-      table.table.is-striped
+      table.table.is-striped.is-fullwidth
         caption Operation Statistics
         thead
           tr
@@ -1132,7 +1134,7 @@ div
               td {{ stat.start }}
 
     div(v-show="activeTab === 'agents'")
-      table.table.is-striped
+      table.table.is-striped.is-fullwidth
         caption Operation Agents
         thead
           tr
@@ -1153,7 +1155,7 @@ div
               td {{ agent.exe_name }}
 
     div(v-show="activeTab === 'steps'")
-      table.table.is-striped
+      table.table.is-striped.is-fullwidth
         caption Operation Steps
         thead
           tr

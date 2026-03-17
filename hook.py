@@ -30,7 +30,7 @@ async def enable(services):
 
     # Static routes
     app.router.add_static('/debrief', 'plugins/debrief/static/', append_version=True)
-    app.router.add_static('/logodebrief', 'plugins/debrief/uploads/', append_version=True)
+    app.router.add_static('/logodebrief', 'plugins/debrief/uploads/header-logos/', append_version=True)
     app.router.add_route('GET', '/plugin/debrief/gui', debrief_gui.splash)
     app.router.add_route('POST', '/plugin/debrief/report', debrief_gui.report)
     app.router.add_route('*', '/plugin/debrief/graph', debrief_gui.graph)

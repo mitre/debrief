@@ -119,7 +119,12 @@ class Story:
 
     @staticmethod
     def adjust_icon_svgs(path):
-        parser = ET.XMLParser(resolve_entities=False)
+        parser = ET.XMLParser(
+            resolve_entities=False,
+            no_network=True,
+            dtd_validation=False,
+            load_dtd=False,
+        )
         svg = ET.parse(path, parser)
         for icon_svg in svg.getroot().iter("{http://www.w3.org/2000/svg}svg"):
             if icon_svg.get('id') == 'copy-svg':

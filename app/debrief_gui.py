@@ -90,7 +90,7 @@ class DebriefGui(BaseWorld):
             return web.json_response(topo)
         except Exception as e:
             self.log.error(repr(e), exc_info=True)
-            return web.json_response({'error': str(e)}, status=500)
+            return web.json_response({'error': 'Error building topology'}, status=500)
 
     async def graph(self, request):
         graphs = {
@@ -158,22 +158,35 @@ class DebriefGui(BaseWorld):
         ) and not filename.startswith('.')]
         return web.json_response(dict(logos=logos))
 
+    _MAX_LOGO_SIZE = 5 * 1024 * 1024  # 5 MB
+    _ALLOWED_LOGO_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp'}
+
     async def upload_logo(self, request):
         data = await request.post()
         logo_file_info = data['header-logo']
         if logo_file_info:
             logo_file = logo_file_info.file
             content = logo_file.read()
+            if len(content) > self._MAX_LOGO_SIZE:
+                return web.json_response({'error': 'File too large (max 5 MB)'}, status=400)
             sanitized_filename = self._sanitize_filename(logo_file_info.filename)
+            if not sanitized_filename:
+                return web.json_response({'error': 'Invalid filename'}, status=400)
+            _, ext = os.path.splitext(sanitized_filename)
+            if ext.lower() not in self._ALLOWED_LOGO_EXTENSIONS:
+                return web.json_response({'error': f'File type not allowed: {ext}'}, status=400)
             try:
                 self._save_uploaded_image(sanitized_filename, content)
-            except Exception as e:
-                return web.json_response(str(e))
+            except Exception:
+                return web.json_response({'error': 'Error saving file'}, status=500)
             return web.json_response({'filename': sanitized_filename})
         return web.json_response('No header logo file provided.')
 
     def _save_uploaded_image(self, filename, content):
-        filepath = os.path.relpath(os.path.join(self.uploads_dir, 'header-logos', filename))
+        upload_dir = os.path.realpath(os.path.join(self.uploads_dir, 'header-logos'))
+        filepath = os.path.realpath(os.path.join(upload_dir, filename))
+        if not filepath.startswith(upload_dir):
+            raise ValueError('Invalid file path')
         with open(filepath, 'wb') as f:
             f.write(content)
 
@@ -359,9 +372,15 @@ class DebriefGui(BaseWorld):
 
     @staticmethod
     def _save_svgs(svgs):
+        save_location = os.path.realpath('./plugins/debrief/downloads/')
         for filename, svg_bytes in svgs.items():
-            save_location = './plugins/debrief/downloads/'
-            with open(save_location + filename + '.svg', 'wb') as fh:
+            safe_name = re.sub(r'[^A-Za-z0-9_-]', '', filename)
+            if not safe_name:
+                continue
+            full_path = os.path.realpath(os.path.join(save_location, safe_name + '.svg'))
+            if not full_path.startswith(save_location):
+                continue  # path traversal attempt
+            with open(full_path, 'wb') as fh:
                 fh.write(base64.b64decode(svg_bytes))
 
     @staticmethod

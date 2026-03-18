@@ -1,6 +1,6 @@
 # MITRE Caldera Plugin: Debrief
 
-A Caldera plugin: https://github.com/mitre/caldera
+A plugin for [MITRE Caldera](https://github.com/mitre/caldera)
 
 Debrief is a plugin for gathering overall campaign information and analytics for
 operations. It provides a centralized view of operation metadata, network topology
@@ -33,9 +33,77 @@ tactics & techniques with ATT&CK v18 detection strategy mapping, and step output
 - **ATT&CK v18 Detection Mapping** — Maps operation techniques to MITRE ATT&CK v18 detection strategies and analytics
 - **Dark Theme UI** — Styled tables and cards matching Caldera's purple theme
 
-## Legacy Views
+## Installation
 
-![Operation Overview](docs/DebriefOverview.png)
-![Tactics and Techniques Table](docs/TacticsAndTechniquesTable.png)
+### As a Caldera Submodule (Recommended)
 
-Example generated PDF: [Caldera Debrief Report](docs/Demo-Operation_Debrief_Example.pdf)
+Clone Caldera with the debrief plugin included:
+
+```bash
+git clone https://github.com/mitre/caldera.git --recursive
+```
+
+If Caldera is already cloned, add debrief as a plugin:
+
+```bash
+cd caldera/plugins
+git clone https://github.com/mitre/debrief.git
+```
+
+### Enable the Plugin
+
+Add `debrief` to the list of enabled plugins in your Caldera configuration file (`conf/local.yml` or `conf/default.yml`):
+
+```yaml
+plugins:
+  - debrief
+```
+
+### Install Python Dependencies
+
+From your Caldera virtual environment:
+
+```bash
+pip install reportlab svglib lxml aiohttp-jinja2
+```
+
+### Build the Vue UI
+
+Debrief uses the Magma Vue.js framework. Rebuild Magma to include the debrief plugin UI:
+
+```bash
+cd caldera/plugins/magma
+npm install
+npm run build
+```
+
+Or start Caldera with the `--build` flag:
+
+```bash
+python server.py --insecure --build
+```
+
+> **Note:** Requires Node.js >= 20.19 or >= 22.12 for Vite 7.
+
+### Start Caldera
+
+```bash
+cd caldera
+python server.py --insecure
+```
+
+Navigate to the Caldera UI and click on the **debrief** plugin in the sidebar.
+
+## Running Tests
+
+```bash
+cd caldera/plugins/debrief
+pip install pytest pytest-asyncio
+python -m pytest tests/ -v
+```
+
+## Configuration
+
+Plugin configuration options can be set in `plugins/debrief/conf/default.yml`:
+
+- `reportlab_trusted_hosts` — List of trusted hosts for ReportLab SVG rendering (optional)

@@ -64,7 +64,7 @@ plugins:
 From your Caldera virtual environment:
 
 ```bash
-pip install reportlab svglib lxml aiohttp-jinja2
+pip install -r plugins/debrief/requirements.txt
 ```
 
 ### Build the Vue UI

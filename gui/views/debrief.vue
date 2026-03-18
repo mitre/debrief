@@ -1633,10 +1633,6 @@ hr
 
 div
   .buttons
-    button.button.is-primary.is-small(:disabled="!selectedOperationId.length", @click="showGraphSettingsModal = true")
-      span.icon.is-small
-        font-awesome-icon(icon="fas fa-cog")
-      span Graph Settings
     button.button.is-primary.is-small(:disabled="!selectedOperationId.length", @click="showReportModal = true")
       span.icon.is-small
         font-awesome-icon(icon="fas fa-download")
@@ -1894,45 +1890,6 @@ div
                 template(v-for="step in tactic.steps", :key="step.operation")
                   template(v-for="ability in step.abilities", :key="ability")
                     .debrief-ttp-item.has-text-grey {{ ability }}
-
-  .modal(v-bind:class="{ 'is-active': showGraphSettingsModal }")
-    .modal-background(@click="showGraphSettingsModal = false")
-    .modal-card
-      header.modal-card-head
-        p.modal-card-title Graph Settings
-      section.modal-card-body
-        p
-          strong Display Options
-        form
-          .field
-            .control
-              label.checkbox
-                input(type="checkbox", v-model="graphOptionLabels", @change="toggleLabels")
-                |  Show labels
-          .field
-            .control
-              label.checkbox
-                input(type="checkbox", v-model="graphOptionIcons", @change="toggleIcons")
-                |  Show icons
-        p
-          strong Data Options
-        form
-          .field
-            .control
-              label.checkbox
-                input(type="checkbox", v-model="graphOptionSteps", @change="toggleSteps")
-                |  Show operation steps
-          .field
-            .control
-              label.checkbox
-                input(type="checkbox", @change="toggleTactics")
-                |  Show steps as tactics
-      footer.modal-card-foot
-        nav.level
-          .level-left
-          .level-right
-            .level-item
-              button.button.is-small(@click="showGraphSettingsModal = false") Close
 
   .modal(v-bind:class="{ 'is-active': showCommandModal }")
     .modal-background(@click="showCommandModal = false")

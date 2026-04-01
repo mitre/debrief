@@ -150,7 +150,7 @@ class DebriefReportSection(BaseReportSection):
         if not operations:
             return flows
 
-        op_name = escape(getattr(operations[0], 'name', 'Operation')).strip()
+        op_name = escape(str(getattr(operations[0], 'name', None) or 'Operation')).strip()
         flows.append(self._section_band(f'Detections for {op_name}'))
 
         # Add the intro paragraph here (not per DET)

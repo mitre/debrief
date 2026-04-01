@@ -58,7 +58,7 @@ class DebriefReportSection(BaseReportSection):
         if len(data) == 1:
             data.append(['No output captured', '', '', ''])
 
-        return self.generate_table(data, [1.2*inch, .6*inch, .6*inch, 4.6*inch])
+        return self.generate_table(data, [1.2*inch, .6*inch, .6*inch, 4.6*inch], escape_html=False)
 
     def _get_output(self, link):
         """Decode link output, returning empty string if unavailable."""

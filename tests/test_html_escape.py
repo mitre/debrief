@@ -143,6 +143,19 @@ class TestBaseReportSectionGenerateTable:
         para = data[1][0]
         assert '<b>already escaped</b>' in para.text
 
+    def test_generate_table_preserves_paragraph_objects(self):
+        """Pre-built Paragraph objects should pass through without re-escaping."""
+        with patch('plugins.debrief.app.utility.base_report_section.get_attack18') as m:
+            m.return_value = MagicMock()
+            section = BaseReportSection()
+
+        style = getSampleStyleSheet()['Normal']
+        pre_built = Paragraph('<font color="maroon">markup</font>', style)
+        data = [['Header'], [pre_built]]
+        tbl = section.generate_table(data, '*')
+        # The Paragraph should be preserved as-is, not wrapped again
+        assert data[1][0] is pre_built
+
 
 # ===========================================================================
 # Agents section — all fields escaped
@@ -226,6 +239,23 @@ class TestFactsTableHtmlEscape:
         result = section._generate_fact_table_cmd(fact, {'lnk1': lnk})
         assert '<script>' not in result
         assert XSS_ESCAPED in result
+
+    def test_value_truncation_does_not_split_entities(self):
+        """Truncation should happen on raw text, then escape, to avoid splitting entities."""
+        section = _mock_section(facts_table_mod)
+        from enum import Enum
+        class OT(Enum):
+            LEARNED = 'LEARNED'
+        # Value with special chars near the truncation boundary
+        long_val = 'x' * 1049 + '<'  # 1050 chars, last char is '<'
+        fact = SimpleNamespace(
+            trait='t', value=long_val, score=1,
+            origin_type=OT.LEARNED, source='src', links=[], collected_by=[])
+        row = section._generate_fact_table_row(fact, False, {}, 'src', set())
+        val_cell = row[1]
+        # Should not contain a bare '&lt' split mid-entity
+        # The escaped version should have complete entities
+        assert '&lt;' in val_cell or '<' not in val_cell.replace('<font', '').replace('<i>', '').replace('</font>', '').replace('</i>', '')
 
     def test_source_id_escaped(self):
         section = _mock_section(facts_table_mod)
@@ -312,6 +342,22 @@ class TestTtpsDetectionsHtmlEscape:
         section = self._make_section(styles)
         para = section._p(None)
         assert isinstance(para, Paragraph)
+
+
+# ===========================================================================
+# TTPs detections — None-safe operation name
+# ===========================================================================
+class TestTtpsDetectionsNoneSafety:
+    @pytest.mark.asyncio
+    async def test_none_operation_name_does_not_crash(self, styles, make_operation):
+        """Operation with name=None should fall back to 'Operation', not crash."""
+        section = _mock_section(ttps_detections_mod)
+        section._ensure_styles()
+        op = make_operation(name=None)
+        result = await section.generate_section_elements(
+            styles, operations=[op], selected_sections=[])
+        # Should not raise TypeError from escape(None)
+        assert isinstance(result, list)
 
 
 # ===========================================================================

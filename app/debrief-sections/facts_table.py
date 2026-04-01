@@ -110,12 +110,14 @@ class DebriefReportSection(BaseReportSection):
         command_value = self._generate_fact_table_cmd(curr_fact, link_by_id)
 
         # --- value truncation for layout ---
+        # Truncate raw text first, then escape to avoid splitting HTML entities
         if isinstance(raw_value, str):
-            raw_value = escape(raw_value)
-            val_cell = raw_value if len(raw_value) < TABLE_CHAR_LIMIT else (raw_value[:TABLE_CHAR_LIMIT] + EXCEEDS_MSG)
+            truncated = raw_value if len(raw_value) < TABLE_CHAR_LIMIT else (raw_value[:TABLE_CHAR_LIMIT])
+            val_cell = escape(truncated) + (EXCEEDS_MSG if len(raw_value) >= TABLE_CHAR_LIMIT else '')
         else:
-            sval = escape(str(raw_value)) if raw_value is not None else ''
-            val_cell = sval if len(sval) < TABLE_CHAR_LIMIT else (sval[:TABLE_CHAR_LIMIT] + EXCEEDS_MSG)
+            sval = str(raw_value) if raw_value is not None else ''
+            truncated = sval if len(sval) < TABLE_CHAR_LIMIT else (sval[:TABLE_CHAR_LIMIT])
+            val_cell = escape(truncated) + (EXCEEDS_MSG if len(sval) >= TABLE_CHAR_LIMIT else '')
 
         return [trait, val_cell, escape(str(score)), source_cell, command_value]
 

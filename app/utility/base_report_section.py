@@ -63,7 +63,17 @@ class BaseReportSection:
 
     @staticmethod
     def generate_table(data, col_widths, escape_html=True):
-        data[1:] = [[Story.get_table_object(val, escape_html=escape_html) for val in row] for row in data[1:]]
+        # Preserve pre-built Paragraph objects (e.g. cells with intentional markup)
+        processed_rows = []
+        for row in data[1:]:
+            processed_row = []
+            for val in row:
+                if isinstance(val, Paragraph):
+                    processed_row.append(val)
+                else:
+                    processed_row.append(Story.get_table_object(val, escape_html=escape_html))
+            processed_rows.append(processed_row)
+        data[1:] = processed_rows
         tbl = Table(data, colWidths=col_widths, repeatRows=1)
         style_cmds = [
             ('BACKGROUND', (0, 0), (-1, 0), colors.maroon),

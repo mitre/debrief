@@ -201,7 +201,7 @@ class TestFactsTableHelpers:
             trait='t', value=long_val, score=1, origin_type=OT.LEARNED,
             source='src', links=[], collected_by=[])
         row = section._generate_fact_table_row(
-            fact, False, {}, 'src', set(), set())
+            fact, False, {}, 'src', set())
         assert len(row[1]) < len(long_val), "Long values should be truncated"
 
 

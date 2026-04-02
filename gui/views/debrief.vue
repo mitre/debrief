@@ -953,10 +953,11 @@ export default {
                     edgesGroup.setAttribute('class', 'topo-edges');
                     // Insert before hosts so edges render behind icons
                     const hostsGroup = newSvg.querySelector('.topo-hosts');
-                    if (hostsGroup) {
-                        newSvg.querySelector('svg') ? newSvg.insertBefore(edgesGroup, hostsGroup) : null;
+                    if (hostsGroup && hostsGroup.parentNode === newSvg) {
+                        newSvg.insertBefore(edgesGroup, hostsGroup);
+                    } else {
+                        newSvg.appendChild(edgesGroup);
                     }
-                    newSvg.appendChild(edgesGroup);
                 }
                 // Clear any existing edges (may be stale from v-if)
                 edgesGroup.innerHTML = '';

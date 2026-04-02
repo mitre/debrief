@@ -169,6 +169,7 @@ class Story:
             # Create an inline <svg> with the icon's viewBox and content
             vb = icon_root.get('viewBox', '0 0 512 512')
             inline_svg = ET.SubElement(img_el.getparent(), '{%s}svg' % ns)
+            inline_svg.set('data-inlined-icon', 'true')
             inline_svg.set('viewBox', vb)
             inline_svg.set('x', str(x))
             inline_svg.set('y', str(y))
@@ -183,9 +184,11 @@ class Story:
             # Remove the original <image> element
             img_el.getparent().remove(img_el)
 
-        # Legacy D3 graph icon adjustment
+        # Legacy D3 graph icon adjustment (skip inlined topology icons)
         for icon_svg in root.iter('{%s}svg' % ns):
             if icon_svg.get('id') == 'copy-svg':
+                continue
+            if icon_svg.get('data-inlined-icon'):
                 continue
             viewbox_attr = icon_svg.get('viewBox')
             if not viewbox_attr:

@@ -48,7 +48,7 @@ class DebriefReportSection(BaseReportSection):
             if not output:
                 continue
             if len(output) > OUTPUT_CHAR_LIMIT:
-                output = output[:OUTPUT_CHAR_LIMIT] + TRUNCATED_MSG
+                output = escape(output[:OUTPUT_CHAR_LIMIT]) + TRUNCATED_MSG
             else:
                 output = escape(output)
             data.append([

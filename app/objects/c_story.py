@@ -116,6 +116,28 @@ class Story:
         im.drawOn(canvas, page_w - im.drawWidth - 10,
                   page_h - im.drawHeight - 10)
 
+    SVG_NS = 'http://www.w3.org/2000/svg'
+    _icon_cache = {}
+
+    @classmethod
+    def _load_icon_svg(cls, icon_path):
+        """Read an SVG icon file and return its root element for inlining."""
+        if icon_path in cls._icon_cache:
+            return cls._icon_cache[icon_path]
+        try:
+            import os
+            if not os.path.isfile(icon_path):
+                return None
+            parser = ET.XMLParser(
+                resolve_entities=False, no_network=True,
+                dtd_validation=False, load_dtd=False,
+            )
+            tree = ET.parse(icon_path, parser)
+            cls._icon_cache[icon_path] = tree.getroot()
+            return cls._icon_cache[icon_path]
+        except Exception:
+            return None
+
     @staticmethod
     def adjust_icon_svgs(path):
         parser = ET.XMLParser(
@@ -125,7 +147,44 @@ class Story:
             load_dtd=False,
         )
         svg = ET.parse(path, parser)
-        for icon_svg in svg.getroot().iter("{http://www.w3.org/2000/svg}svg"):
+        root = svg.getroot()
+        ns = Story.SVG_NS
+
+        # Inline external <image> icons that have data-icon-path attributes
+        for img_el in root.iter('{%s}image' % ns):
+            icon_path = img_el.get('data-icon-path')
+            if not icon_path:
+                continue
+
+            icon_root = Story._load_icon_svg(icon_path)
+            if icon_root is None:
+                continue
+
+            # Get placement from the <image> element
+            x = float(img_el.get('x', 0))
+            y = float(img_el.get('y', 0))
+            w = float(img_el.get('width', 40))
+            h = float(img_el.get('height', 40))
+
+            # Create an inline <svg> with the icon's viewBox and content
+            vb = icon_root.get('viewBox', '0 0 512 512')
+            inline_svg = ET.SubElement(img_el.getparent(), '{%s}svg' % ns)
+            inline_svg.set('viewBox', vb)
+            inline_svg.set('x', str(x))
+            inline_svg.set('y', str(y))
+            inline_svg.set('width', str(w))
+            inline_svg.set('height', str(h))
+
+            # Copy all children from the icon SVG
+            import copy
+            for child in icon_root:
+                inline_svg.append(copy.deepcopy(child))
+
+            # Remove the original <image> element
+            img_el.getparent().remove(img_el)
+
+        # Legacy D3 graph icon adjustment
+        for icon_svg in root.iter('{%s}svg' % ns):
             if icon_svg.get('id') == 'copy-svg':
                 continue
             viewbox_attr = icon_svg.get('viewBox')
@@ -133,9 +192,15 @@ class Story:
                 continue
             viewbox = [int(float(val)) for val in viewbox_attr.split()]
             aspect = viewbox[2] / viewbox[3]
-            icon_svg.set('width', str(round(float(icon_svg.get('height')) * aspect)))
-            if not icon_svg.get('id') or 'legend' not in icon_svg.get('id'):
-                icon_svg.set('x', '-' + str(int(icon_svg.get('width')) / 2))
+            height = icon_svg.get('height')
+            if height and not icon_svg.get('data-icon-path'):
+                try:
+                    icon_svg.set('width', str(round(float(height) * aspect)))
+                    if not icon_svg.get('id') or 'legend' not in icon_svg.get('id'):
+                        icon_svg.set('x', '-' + str(int(icon_svg.get('width')) / 2))
+                except (ValueError, TypeError):
+                    pass
+
         with open(path, 'wb') as f:
             svg.write(f)
 

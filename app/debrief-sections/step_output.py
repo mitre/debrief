@@ -28,13 +28,16 @@ class DebriefReportSection(BaseReportSection):
             return flowable_list
 
         for op in kwargs.get('operations', []):
+            table = self._generate_output_table(op)
+            if table is None:
+                continue  # skip section entirely when no output captured
             flowable_list.append(
                 KeepTogetherSplitAtTop([
-                    Paragraph(self.section_title % op.name.upper(), styles['Heading2']),
+                    Paragraph(self.section_title % escape(op.name.upper()), styles['Heading2']),
                     Paragraph(self.description, styles['Normal'])
                 ])
             )
-            flowable_list.append(self._generate_output_table(op))
+            flowable_list.append(table)
 
         return flowable_list
 
@@ -56,7 +59,7 @@ class DebriefReportSection(BaseReportSection):
             ])
 
         if len(data) == 1:
-            data.append(['No output captured', '', '', ''])
+            return None  # no output to show
 
         return self.generate_table(data, [1.2*inch, .6*inch, .6*inch, 4.6*inch], escape_html=False)
 

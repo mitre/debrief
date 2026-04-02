@@ -27,14 +27,14 @@ class DebriefReportSection(BaseReportSection):
             self.styles = getSampleStyleSheet()
 
         self.DATA_COL_WIDTHS = [
-            0.53*inch,  # AN
-            0.60*inch,  # Platform
-            2.10*inch,  # Detection Statement
-            0.85*inch,  # Name
-            1.10*inch,  # Channel
-            1.20*inch,  # Data Component
-            1.41*inch,  # Field
-            1.70*inch,  # Description
+            0.50*inch,  # AN
+            0.55*inch,  # Platform
+            1.85*inch,  # Detection Statement
+            0.75*inch,  # Name
+            0.85*inch,  # Channel
+            1.25*inch,  # Data Component
+            0.85*inch,  # Field
+            2.89*inch,  # Description
         ]
         self.DATA_FULL_WIDTH = sum(self.DATA_COL_WIDTHS)
         self.cell_style = ParagraphStyle(
@@ -488,8 +488,8 @@ class DebriefReportSection(BaseReportSection):
             ('BOX',        (0, 0), (7, -1), 0.75, colors.black),
             ('INNERGRID',  (0, 0), (7, -1), 0.25, colors.black),
 
-            ('LEFTPADDING',   (0, 0), (7, -1), 4),
-            ('RIGHTPADDING',  (0, 0), (7, -1), 4),
+            ('LEFTPADDING',   (0, 0), (7, -1), 3),
+            ('RIGHTPADDING',  (0, 0), (7, -1), 3),
             ('BOTTOMPADDING', (0, 0), (7, -1), 2),
         ]
 

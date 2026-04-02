@@ -349,30 +349,21 @@ class DebriefService(BaseService):
                             ))
                             agents_with_origin.add(agent.paw)
 
-        # Second: derive edges from chain order for agents without origin_link_id
-        # When the chain switches from agent A to agent B, that implies a hop A→B
+        # Second: agents without origin_link_id connect directly to C2
+        # Only agents with an explicit origin_link_id (lateral movement) get
+        # agent-to-agent edges (handled above). All others beacon to C2 directly.
         seen_paws = set()
-        edge_pairs = set()  # avoid duplicate edges
-        prev_paw = None
+        edge_pairs = set()
         for item in replay_sequence:
             paw = item['paw']
             if paw not in seen_paws:
-                if prev_paw is None:
-                    # First agent seen → C2 edge
+                if paw not in agents_with_origin:
                     edge_pair = ('c2', paw)
                     if edge_pair not in edge_pairs:
                         edges.append(dict(source='c2', target=paw,
                                           type='initial_access', technique='Initial Access'))
                         edge_pairs.add(edge_pair)
-                elif paw not in agents_with_origin:
-                    # New agent without explicit origin → infer hop from previous agent
-                    edge_pair = (prev_paw, paw)
-                    if edge_pair not in edge_pairs:
-                        edges.append(dict(source=prev_paw, target=paw,
-                                          type='lateral_movement', technique='Inferred from chain order'))
-                        edge_pairs.add(edge_pair)
                 seen_paws.add(paw)
-            prev_paw = paw
 
         # Third: fallback — if no chain at all, create edges from agent order
         # This handles fabricated operations where agents exist but no steps ran

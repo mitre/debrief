@@ -104,7 +104,7 @@ div.d3-tooltip {
 .topo-split {
     display: flex;
     gap: 0;
-    min-height: 450px;
+    min-height: 200px;
 }
 
 .topo-main-canvas {
@@ -115,7 +115,8 @@ div.d3-tooltip {
     background: #121212;
     border-radius: 6px;
     overflow: auto;
-    min-height: 250px;
+    min-height: 200px;
+    max-height: 55vh;
     border: 1px solid #2a2a3e;
     position: relative;
     flex: 1;
@@ -123,8 +124,8 @@ div.d3-tooltip {
 
 .topo-svg {
     width: 100%;
-    height: 100%;
-    min-height: 400px;
+    height: auto;
+    max-height: 55vh;
 }
 
 /* Zone bands */
@@ -554,7 +555,7 @@ export default {
         // Replay tab
         replayCursor: -1,
         replayPlaying: false,
-        replaySpeed: 2000,
+        replaySpeed: 600,
         replayInterval: null,
         replayExpandedIdx: -1,
         replayHoverIdx: -1,
@@ -570,6 +571,9 @@ export default {
         topoBeaconEdge: -1,
         topoBeaconEdges: new Set(),
         topoBeaconDotT: {},  // edgeIdx -> t value (0=source, 1=target)
+        topoBeaconDotColor: '#44AA99',  // current beacon dot color (green=success, red=failure)
+        topoCommandEdges: new Set(),    // edges with an active command dot (C2→host)
+        topoCommandDotT: {},            // edgeIdx -> t value for command dot
         topoExpandedStep: null,
         topoStepCounts: {},
         topoShowAll: false,    // true = static full view, false = progressive replay
@@ -691,6 +695,8 @@ export default {
                 this.topoActiveHost = null;
                 this.topoNewestEdge = -1;
                 this.topoBeaconEdge = -1;
+                this.topoCommandEdges = new Set();
+                this.topoCommandDotT = {};
                 this.topoStepCounts = {};
                 this.topoShowAll = false;
                 this.replayCursor = -1;
@@ -780,6 +786,12 @@ export default {
             let index = this.activeReportSections.indexOf(section);
             index >= 0 ? this.activeReportSections.splice(index, 1) : this.activeReportSections.push(section);
         },
+        selectAllReportSections() {
+            this.activeReportSections = this.reportSections.map(s => s.key);
+        },
+        deselectAllReportSections() {
+            this.activeReportSections = [];
+        },
 
         toggleLegend() {
             this.showGraphLegend = !this.showGraphLegend;
@@ -811,10 +823,10 @@ export default {
             });
         },
 
-        downloadPDF() {
+        async downloadPDF() {
             let requestBody = {
                 'operations': [this.selectedOperationId],
-                'graphs': this.getGraphData(),
+                'graphs': await this.getGraphData(),
                 'report-sections': this.activeReportSections,
                 'header-logo': this.logoFilename
             };
@@ -869,7 +881,7 @@ export default {
             downloadAnchorNode.remove();
         },
 
-        getGraphData() {
+        async getGraphData() {
             let encodedGraphs = {}
 
             // Capture the topology SVG as the main graph for PDF
@@ -883,7 +895,8 @@ export default {
                     this.topoRevealedHosts = allHosts;
                 }
 
-                this.$nextTick(() => {});  // let Vue render
+                // Wait for Vue to re-render with all hosts/edges revealed
+                await this.$nextTick();
 
                 let newSvg = topoSvg.cloneNode(true);
                 newSvg.setAttribute('id', 'copy-svg');
@@ -899,35 +912,72 @@ export default {
                 var viewBox = [bbox.x - 10, bbox.y - 10, bbox.width + 20, bbox.height + 20].join(' ');
                 newSvg.setAttribute('viewBox', viewBox);
 
-                // Fix text colors for PDF (dark background → light text won't work on white PDF)
-                newSvg.querySelectorAll('text').forEach((el) => {
+                // Fix text colors for PDF
+                newSvg.querySelectorAll('.topo-zone-label').forEach((el) => {
                     el.style.fill = '#333';
                 });
+                newSvg.querySelectorAll('.topo-host-label').forEach((el) => {
+                    el.style.fill = '#333';
+                });
+                newSvg.querySelectorAll('.topo-host-ip').forEach((el) => {
+                    el.style.fill = '#666';
+                });
 
-                // Make host backgrounds visible on white
+                // Light circles with dark border for print
                 newSvg.querySelectorAll('.topo-host-bg').forEach((el) => {
-                    el.setAttribute('fill', '#e8e8f0');
-                    el.setAttribute('stroke', '#666');
+                    el.setAttribute('fill', '#e8eaf0');
+                    el.setAttribute('stroke', '#555');
+                    el.setAttribute('stroke-width', '2');
+                });
+
+                // Remove image icons — the Python backend will inline them from disk
+                newSvg.querySelectorAll('.topo-host-icon').forEach((el) => {
+                    // Convert href to a relative file path the backend can resolve
+                    const href = el.getAttribute('href') || '';
+                    // /debrief/img/linux.svg → plugins/debrief/static/img/linux.svg
+                    const filePath = href.replace('/debrief/', 'plugins/debrief/static/');
+                    el.setAttribute('data-icon-path', filePath);
                 });
 
                 // Make zone bands visible on white background
                 newSvg.querySelectorAll('.topo-zone').forEach((el) => {
-                    el.setAttribute('stroke', '#999');
-                    el.setAttribute('fill', el.getAttribute('fill').replace(/[\d.]+\)$/, '0.15)'));
+                    el.setAttribute('stroke', '#888');
+                    el.setAttribute('stroke-width', '1.5');
+                    el.setAttribute('fill', 'rgba(200, 200, 210, 0.25)');
                 });
 
-                // Make edges darker for print
-                newSvg.querySelectorAll('.topo-edge').forEach((el) => {
-                    el.setAttribute('stroke', '#888');
+                // Inject edge paths directly — v-if may not have rendered them due to Set reactivity
+                let edgesGroup = newSvg.querySelector('.topo-edges');
+                if (!edgesGroup) {
+                    edgesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    edgesGroup.setAttribute('class', 'topo-edges');
+                    // Insert before hosts so edges render behind icons
+                    const hostsGroup = newSvg.querySelector('.topo-hosts');
+                    if (hostsGroup) {
+                        newSvg.querySelector('svg') ? newSvg.insertBefore(edgesGroup, hostsGroup) : null;
+                    }
+                    newSvg.appendChild(edgesGroup);
+                }
+                // Clear any existing edges (may be stale from v-if)
+                edgesGroup.innerHTML = '';
+                // Add all computed edges
+                this.topoEdges.forEach((edge) => {
+                    if (edge.path) {
+                        const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                        pathEl.setAttribute('d', edge.path);
+                        pathEl.setAttribute('fill', 'none');
+                        pathEl.setAttribute('stroke', '#555');
+                        pathEl.setAttribute('stroke-width', '2');
+                        pathEl.setAttribute('stroke-dasharray', '6 4');
+                        edgesGroup.appendChild(pathEl);
+                    }
                 });
 
                 // Remove glow/beacon animations
                 newSvg.querySelectorAll('.topo-glow, .topo-beacon-dot, .topo-pulse').forEach((el) => el.remove());
 
-                // Remove icon filter (invert) for PDF — icons are already black
-                newSvg.querySelectorAll('.topo-host-icon').forEach((el) => {
-                    el.style.filter = 'none';
-                });
+                // Remove tooltip/hover elements not needed in PDF
+                newSvg.querySelectorAll('.topo-tooltip').forEach((el) => el.remove());
 
                 let serializedSvg = new XMLSerializer().serializeToString(newSvg);
                 let encodedData = window.btoa(unescape(encodeURIComponent(serializedSvg)));
@@ -941,28 +991,9 @@ export default {
                 this.topoRevealedHosts = wasRevealed;
             }
 
-            // Also capture old D3 SVGs for backward compatibility
-            document.querySelectorAll('.debrief-svg').forEach((svg) => {
-                let newSvg = svg.cloneNode(true);
-                newSvg.setAttribute('id', 'copy-svg');
-                document.getElementById('copy').appendChild(newSvg);
-                document.querySelectorAll('#copy-svg .container').forEach((container) => container.setAttribute('transform', 'scale(5)'));
-                var copy = document.getElementById('copy-svg');
-                if (copy.style.display == 'none') copy.style.display = '';
-                try {
-                    var bbox = copy.getBBox();
-                    var viewBox = [bbox.x - 10, bbox.y - 10, bbox.width + 20, bbox.height + 20].join(' ');
-                    copy.setAttribute('viewBox', viewBox);
-                } catch(e) {}
-                document.querySelectorAll('#copy-svg text').forEach((el) => el.style.fill = '#333');
-                let serializedSvg = new XMLSerializer().serializeToString(copy);
-                let encodedData = window.btoa(serializedSvg);
-                let graphKey = svg.id.split('-')[1];
-                if (!encodedGraphs[graphKey]) {
-                    encodedGraphs[graphKey] = encodedData;
-                }
-                document.getElementById('copy').innerHTML = '';
-            });
+            // D3 force-directed graphs (steps, tactic, technique) are omitted from
+            // PDF — their random layouts produce poor print output. The corresponding
+            // table sections already convey the same information in a readable format.
 
             return encodedGraphs;
         },
@@ -1126,6 +1157,8 @@ export default {
             this.topoActiveHost = null;
             this.topoNewestEdge = -1;
             this.topoBeaconEdge = -1;
+            this.topoCommandEdges = new Set();
+            this.topoCommandDotT = {};
             this.topoStepCounts = {};
             this.topoShowAll = false;
             // Reset to C2 only — progressive reveal starts from here
@@ -1143,6 +1176,8 @@ export default {
                 this.topoActiveHost = null;
                 this.topoNewestEdge = -1;
                 this.topoBeaconEdge = -1;
+                this.topoCommandEdges = new Set();
+                this.topoCommandDotT = {};
                 this.topoStepCounts = {};
             }
             this.replayPlaying = true;
@@ -1150,16 +1185,25 @@ export default {
                 this.replayCursor++;
                 const prevRevealed = new Set(this.topoRevealedHosts);
                 this.replayUpdateTopo();
-                // Check if a new host was just revealed
                 const seq = this.topoData.replay_sequence || [];
                 const item = seq[this.replayCursor];
                 const paw = item ? item.paw : null;
                 const isNewHost = paw && !prevRevealed.has(paw);
+                const step = item ? (item.step || {}) : {};
+                const stepStatus = step.status != null ? step.status : 0;
+
                 if (isNewHost && this.replayPlaying) {
-                    // Wait a moment to show the host, then beacon back to C2
-                    await this.sleep(400);
+                    // New host: show edge appearing, brief pause, then beacon back
+                    await this.sleep(200);
                     if (this.replayPlaying) {
-                        await this.replayBeaconToC2(paw);
+                        await this.replayBeaconToC2(paw, stepStatus);
+                    }
+                } else if (paw && this.replayPlaying) {
+                    // Existing host: animate C2 sending command, then host beaconing result
+                    await this.replayCommandToHost(paw);
+                    if (this.replayPlaying) {
+                        await this.sleep(80);
+                        await this.replayBeaconToC2(paw, stepStatus);
                     }
                 }
                 // Wait between steps
@@ -1196,6 +1240,8 @@ export default {
             this.topoActiveHost = null;
             this.topoNewestEdge = -1;
             this.topoBeaconEdge = -1;
+            this.topoCommandEdges = new Set();
+            this.topoCommandDotT = {};
             this.topoStepCounts = {};
         },
 
@@ -1214,6 +1260,8 @@ export default {
             this.topoActiveHost = null;
             this.topoNewestEdge = -1;
             this.topoBeaconEdge = -1;
+            this.topoCommandEdges = new Set();
+            this.topoCommandDotT = {};
             this.topoStepCounts = {};
             for (const [paw, steps] of Object.entries(this.topoData.steps_by_host || {})) {
                 this.topoStepCounts[paw] = steps.length;
@@ -1300,6 +1348,8 @@ export default {
             // If this is a newly revealed host, show the edge + batch-reveal discovered hosts
             this.topoNewestEdge = -1;
             this.topoBeaconEdge = -1;
+            this.topoCommandEdges = new Set();
+            this.topoCommandDotT = {};
             if (!wasRevealed) {
                 const edgeIdx = this.topoEdges.findIndex(e => e.target === paw);
                 if (edgeIdx >= 0) {
@@ -1342,7 +1392,7 @@ export default {
             }
         },
 
-        // Compute position of green dot along an edge
+        // Compute position of beacon dot along an edge (target→source direction: host back to C2)
         topoBeaconDotPos(edgeIdx) {
             const t = this.topoBeaconDotT[edgeIdx] || 0;
             const edge = this.topoEdges[edgeIdx];
@@ -1352,18 +1402,71 @@ export default {
             const src = hostMap[edge.source];
             const tgt = hostMap[edge.target];
             if (!src || !tgt) return { x: 0, y: 0 };
-            // Interpolate along the edge (target→source direction, so t=0 is target, t=1 is source)
+            // t=0 is target (host), t=1 is source (C2 direction)
             return {
                 x: tgt.x + (src.x - tgt.x) * t,
                 y: tgt.y + (src.y - tgt.y) * t,
             };
         },
 
-        // Animate green dot hopping along each edge from new host back to C2
-        async replayBeaconToC2(paw) {
+        // Compute position of command dot along an edge (source→target direction: C2 to host)
+        topoCommandDotPos(edgeIdx) {
+            const t = this.topoCommandDotT[edgeIdx] || 0;
+            const edge = this.topoEdges[edgeIdx];
+            if (!edge) return { x: 0, y: 0 };
+            const hostMap = {};
+            this.topoHosts.forEach(h => { hostMap[h.id] = h; });
+            const src = hostMap[edge.source];
+            const tgt = hostMap[edge.target];
+            if (!src || !tgt) return { x: 0, y: 0 };
+            // t=0 is source (C2), t=1 is target (host)
+            return {
+                x: src.x + (tgt.x - src.x) * t,
+                y: src.y + (tgt.y - src.y) * t,
+            };
+        },
+
+        // Animate command dot from C2 to host along the path
+        async replayCommandToHost(paw) {
             if (!this.topoData || !this.topoData.path_to_c2) return;
             const pathHosts = this.topoData.path_to_c2[paw];
             if (!pathHosts || pathHosts.length < 2) return;
+
+            // path_to_c2 is [host, ..., c2], so reverse for C2→host direction
+            const reversed = [...pathHosts].reverse();
+            for (let i = 0; i < reversed.length - 1; i++) {
+                if (!this.replayPlaying && i > 0) break;
+                const from = reversed[i];
+                const to = reversed[i + 1];
+
+                const edgeIdx = this.topoEdges.findIndex(e =>
+                    (e.source === from && e.target === to) || (e.source === to && e.target === from)
+                );
+                if (edgeIdx < 0) continue;
+
+                this.topoCommandEdges = new Set(this.topoCommandEdges);
+                this.topoCommandEdges.add(edgeIdx);
+                this.topoCommandDotT = { ...this.topoCommandDotT, [edgeIdx]: 0 };
+
+                const steps = 8;
+                for (let s = 0; s <= steps; s++) {
+                    this.topoCommandDotT = { ...this.topoCommandDotT, [edgeIdx]: s / steps };
+                    await this.sleep(20);
+                }
+
+                this.topoCommandEdges = new Set(this.topoCommandEdges);
+                this.topoCommandEdges.delete(edgeIdx);
+            }
+        },
+
+        // Animate beacon dot from host back to C2, colored by status
+        async replayBeaconToC2(paw, status) {
+            if (!this.topoData || !this.topoData.path_to_c2) return;
+            const pathHosts = this.topoData.path_to_c2[paw];
+            if (!pathHosts || pathHosts.length < 2) return;
+
+            // Set beacon color based on step status (0 = success, 1 = failure)
+            this.topoBeaconDotColor = (status === 0 || status === -3) ? '#44AA99' : '#CC3311';
 
             for (let i = 0; i < pathHosts.length - 1; i++) {
                 if (!this.replayPlaying && i > 0) break;
@@ -1375,19 +1478,16 @@ export default {
                 );
                 if (edgeIdx < 0) continue;
 
-                // Show dot on this edge and animate t from 0 to 1
                 this.topoBeaconEdges = new Set(this.topoBeaconEdges);
                 this.topoBeaconEdges.add(edgeIdx);
                 this.topoBeaconDotT = { ...this.topoBeaconDotT, [edgeIdx]: 0 };
 
-                // Animate in steps for visible hopping
-                const steps = 14;
+                const steps = 8;
                 for (let s = 0; s <= steps; s++) {
                     this.topoBeaconDotT = { ...this.topoBeaconDotT, [edgeIdx]: s / steps };
-                    await this.sleep(45);
+                    await this.sleep(20);
                 }
 
-                // Remove dot from this edge
                 this.topoBeaconEdges = new Set(this.topoBeaconEdges);
                 this.topoBeaconEdges.delete(edgeIdx);
             }
@@ -1454,7 +1554,7 @@ export default {
             const fullBandW = 160;
             const emptyBandW = 60;   // narrow for subnets with no agents
             const hostSpacing = 110;
-            const c2Width = 80;
+            const c2Width = 100;  // fixed space reserved for C2 icon + label
             let xCursor = c2Width + padding;
             return subnets.map((s, si) => {
                 const hosts_data = this.topoData.hosts || {};
@@ -1516,9 +1616,9 @@ export default {
                 });
             });
 
-            // C2 node on the left
+            // C2 node on the left — centered in reserved C2 area (100px wide)
             const svgH = this.topoSvgHeight;
-            hostPositions['c2'] = { x: 30, y: svgH / 2 };
+            hostPositions['c2'] = { x: 50, y: svgH / 2 };
 
             Object.entries(hosts).forEach(([id, host]) => {
                 const pos = hostPositions[id] || { x: 50, y: svgH / 2 };
@@ -1554,16 +1654,16 @@ export default {
             return `0 0 ${w} ${h}`;
         },
 
-        // Dynamic icon scale — 25% bigger min
+        // Dynamic icon scale — clamp between 24 and 44 based on host and subnet count
         topoIconRadius() {
-            if (!this.topoData) return 48;
+            if (!this.topoData) return 36;
             const hostCount = Object.keys(this.topoData.hosts || {}).length;
-            if (hostCount <= 3) return 56;
-            if (hostCount <= 6) return 52;
-            if (hostCount <= 12) return 48;
-            if (hostCount <= 20) return 44;
-            if (hostCount <= 35) return 40;
-            return 36;
+            const subnetCount = (this.topoData.subnets || []).length;
+            // Scale: 44 for ≤4 hosts, smoothly down to 24 for 20+ hosts
+            const byHosts = Math.max(24, Math.min(44, Math.round(52 - hostCount * 1.4)));
+            // Cap for few subnets so a single subnet doesn't produce giant icons
+            const bySubnets = Math.max(28, Math.min(44, 20 + subnetCount * 8));
+            return Math.min(byHosts, bySubnets);
         },
 
         topoIconImgSize() {
@@ -1574,15 +1674,17 @@ export default {
             if (!this.topoData) return 800;
             const subnets = this.topoSubnets;
             const lastSubnet = subnets[subnets.length - 1];
-            const w = lastSubnet ? lastSubnet.x + lastSubnet.w + 20 : 500;
-            return Math.max(w, 600);  // minimum width prevents huge icons
+            const contentW = lastSubnet ? lastSubnet.x + lastSubnet.w + 40 : 500;
+            // Ensure minimum width so icons don't dominate when few hosts/subnets
+            return Math.max(contentW, 800);
         },
 
         topoSvgHeight() {
             if (!this.topoData) return 300;
             const subnets = this.topoSubnets;
             const maxH = subnets.reduce((max, s) => Math.max(max, s.y + s.h + 20), 0);
-            return Math.max(maxH, 250);  // minimum height
+            // Ensure C2 icon (at y = svgH/2) plus its radius fits within bounds
+            return Math.max(maxH, 300);
         },
 
         topoOperationName() {
@@ -1698,8 +1800,14 @@ div
             span.topo-legend-dot(style="border: 2px dashed #FFB000")
             span Pivot
           span.topo-legend-item
+            span.topo-legend-dot.topo-legend-filled(style="background:#6688cc")
+            span Command
+          span.topo-legend-item
             span.topo-legend-dot.topo-legend-filled(style="background:#44AA99")
-            span Beacon
+            span Success
+          span.topo-legend-item
+            span.topo-legend-dot.topo-legend-filled(style="background:#CC3311")
+            span Failure
           span.topo-legend-item
             span.topo-legend-dot(style="border: 2px solid #555; color:#555; font-size:10px; display:flex; align-items:center; justify-content:center; width:14px; height:14px") ?
             span Discovered
@@ -1734,14 +1842,21 @@ div
                       :class="{ 'is-newest': topoNewestEdge === ei }",
                       fill="none"
                     )
-                    //- Green beacon — a single green dot that hops along the dashed path
+                    //- Command dot — C2 sending instruction to host (forward along edge)
+                    circle.topo-command-dot(
+                      v-if="topoCommandEdges.has(ei)",
+                      r="4", fill="#6688cc",
+                      :cx="topoCommandDotPos(ei).x",
+                      :cy="topoCommandDotPos(ei).y"
+                    )
+                    //- Beacon dot — host reporting back to C2 (reverse along edge), color = status
                     circle.topo-beacon-dot(
                       v-if="topoBeaconEdges.has(ei)",
-                      r="4", fill="#44AA99",
+                      r="4", :fill="topoBeaconDotColor",
                       :cx="topoBeaconDotPos(ei).x",
                       :cy="topoBeaconDotPos(ei).y"
                     )
-                    //- Red pulse: edge appearing (forward direction)
+                    //- Red pulse: edge appearing (first contact)
                     circle.topo-pulse(v-if="topoNewestEdge === ei", r="2", fill="#cc3311")
                       animateMotion(dur="0.5s", repeatCount="1", :path="edge.path")
               //- Host icons
@@ -1761,6 +1876,7 @@ div
                     //- Pivot indicator: dashed orange ring
                     circle.topo-pivot-ring(v-if="host.isPivot", :r="topoIconRadius + 4", fill="none", stroke="#FFB000", stroke-width="1.5", stroke-dasharray="4 3")
                     text.topo-host-label(:y="topoIconRadius + 22", text-anchor="middle") {{ host.hostname }}
+                    text.topo-host-ip(:y="topoIconRadius + 34", text-anchor="middle", font-size="9", fill="#aaa") {{ host.ips && host.ips.length ? '(' + host.ips[0] + ')' : '' }}
                     g.topo-badge(v-if="host.compromised && topoHostCurrentSteps(host.id) > 0")
                       circle(:cx="topoIconRadius - 4", :cy="-topoIconRadius + 4", r="7", fill="#4c0089")
                       text(:x="topoIconRadius - 4", :y="-topoIconRadius + 4", text-anchor="middle", dominant-baseline="central", fill="white", font-size="8") {{ topoHostCurrentSteps(host.id) }}
@@ -1950,6 +2066,10 @@ div
             p(v-else) Select a logo to see preview
         h5 Report Sections
         p.help Sections that are checked will be displayed in the report in order as shown in the list below.
+        .mb-2
+          button.button.is-small.is-dark(@click="selectAllReportSections") Select All
+          |
+          button.button.is-small.is-light.ml-2(@click="deselectAllReportSections") Deselect All
         table
           caption Sections to display in report
           thead

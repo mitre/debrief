@@ -95,6 +95,8 @@ class DebriefReportSection(BaseReportSection):
             ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 3),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
             ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.white),
             ('BOX', (0, 0), (-1, -1), 0.5, colors.black),
         ]))

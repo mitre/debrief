@@ -199,8 +199,8 @@ class DebriefReportSection(BaseReportSection):
             ('BOX',        (0, 0), (-1, -1), 0.75, colors.black),
             ('INNERGRID',  (0, 0), (-1, -1), 0.25, colors.black),
 
-            ('LEFTPADDING',   (0, 0), (-1, -1), 4),
-            ('RIGHTPADDING',  (0, 0), (-1, -1), 4),
+            ('LEFTPADDING',   (0, 0), (-1, -1), 3),
+            ('RIGHTPADDING',  (0, 0), (-1, -1), 3),
             ('TOPPADDING',    (0, 0), (-1, -1), 0),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
         ]))

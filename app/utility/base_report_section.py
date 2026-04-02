@@ -81,6 +81,8 @@ class BaseReportSection:
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 9),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 4),
+            ('LEFTPADDING', (0, 0), (-1, -1), 3),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
             ('FONTSIZE', (0, 1), (-1, -1), 8),
             ('TOPPADDING', (0, 1), (-1, -1), 2),
             ('BOTTOMPADDING', (0, 1), (-1, -1), 2),

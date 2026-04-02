@@ -10,6 +10,7 @@ from plugins.debrief.app.utility.base_report_section import BaseReportSection
 
 OUTPUT_CHAR_LIMIT = 500
 TRUNCATED_MSG = '... <font color="maroon"><i>(output truncated)</i></font>'
+_OUTPUT_STYLE = ParagraphStyle(name='StepOutput', fontSize=8, wordWrap='CJK')
 
 
 class DebriefReportSection(BaseReportSection):
@@ -54,7 +55,7 @@ class DebriefReportSection(BaseReportSection):
                 output_html = escape(output)
             # Wrap output as a pre-built Paragraph so markup (TRUNCATED_MSG) is preserved
             # while other cells use default escaping via escape_html=True
-            output_para = Paragraph(output_html, ParagraphStyle(name='Output', fontSize=8, wordWrap='CJK'))
+            output_para = Paragraph(output_html, _OUTPUT_STYLE)
             data.append([
                 getattr(link.ability, 'name', '') or '',
                 self.status_name(link.status),

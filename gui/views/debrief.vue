@@ -568,7 +568,6 @@ export default {
         topoVisitedHosts: new Set(),
         topoRevealedHosts: new Set(),
         topoNewestEdge: -1,
-        topoBeaconEdge: -1,
         topoBeaconEdges: new Set(),
         topoBeaconDotT: {},  // edgeIdx -> t value (0=source, 1=target)
         topoBeaconDotColor: '#44AA99',  // current beacon dot color (green=success, red=failure)
@@ -694,7 +693,7 @@ export default {
                 this.topoVisitedHosts = new Set();
                 this.topoActiveHost = null;
                 this.topoNewestEdge = -1;
-                this.topoBeaconEdge = -1;
+
                 this.topoCommandEdges = new Set();
                 this.topoCommandDotT = {};
                 this.topoStepCounts = {};
@@ -1158,7 +1157,7 @@ export default {
             this.topoSelectedHost = null;
             this.topoActiveHost = null;
             this.topoNewestEdge = -1;
-            this.topoBeaconEdge = -1;
+
             this.topoCommandEdges = new Set();
             this.topoCommandDotT = {};
             this.topoStepCounts = {};
@@ -1177,7 +1176,7 @@ export default {
                 this.topoVisitedHosts = new Set();
                 this.topoActiveHost = null;
                 this.topoNewestEdge = -1;
-                this.topoBeaconEdge = -1;
+
                 this.topoCommandEdges = new Set();
                 this.topoCommandDotT = {};
                 this.topoStepCounts = {};
@@ -1241,7 +1240,7 @@ export default {
             this.topoVisitedHosts = new Set();
             this.topoActiveHost = null;
             this.topoNewestEdge = -1;
-            this.topoBeaconEdge = -1;
+
             this.topoCommandEdges = new Set();
             this.topoCommandDotT = {};
             this.topoStepCounts = {};
@@ -1261,7 +1260,7 @@ export default {
             this.topoVisitedHosts = new Set(allHosts);
             this.topoActiveHost = null;
             this.topoNewestEdge = -1;
-            this.topoBeaconEdge = -1;
+
             this.topoCommandEdges = new Set();
             this.topoCommandDotT = {};
             this.topoStepCounts = {};
@@ -1349,7 +1348,7 @@ export default {
 
             // If this is a newly revealed host, show the edge + batch-reveal discovered hosts
             this.topoNewestEdge = -1;
-            this.topoBeaconEdge = -1;
+
             this.topoCommandEdges = new Set();
             this.topoCommandDotT = {};
             if (!wasRevealed) {

@@ -258,8 +258,8 @@ class DebriefGui(BaseWorld):
         story_obj.append(Spacer(1, 36))
         styles = getSampleStyleSheet()
 
-        # Decide if Detections is the only section (controls first page orientation)
-        sections = list(sections or [])
+        # Filter out hidden sections server-side (defence in depth)
+        sections = [s for s in (sections or []) if s not in self._HIDDEN_SECTIONS]
         detections_only = (len(sections) == 1 and sections[0] == 'ttps-detections')
 
         # # Always render Detections last if present (unless it's the only section)

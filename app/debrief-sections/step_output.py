@@ -2,6 +2,7 @@ import logging
 
 from html import escape
 from reportlab.lib.units import inch
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import Paragraph
 from reportlab.platypus.flowables import KeepTogetherSplitAtTop
 
@@ -48,20 +49,23 @@ class DebriefReportSection(BaseReportSection):
             if not output:
                 continue
             if len(output) > OUTPUT_CHAR_LIMIT:
-                output = escape(output[:OUTPUT_CHAR_LIMIT]) + TRUNCATED_MSG
+                output_html = escape(output[:OUTPUT_CHAR_LIMIT]) + TRUNCATED_MSG
             else:
-                output = escape(output)
+                output_html = escape(output)
+            # Wrap output as a pre-built Paragraph so markup (TRUNCATED_MSG) is preserved
+            # while other cells use default escaping via escape_html=True
+            output_para = Paragraph(output_html, ParagraphStyle(name='Output', fontSize=8, wordWrap='CJK'))
             data.append([
                 getattr(link.ability, 'name', '') or '',
                 self.status_name(link.status),
                 link.paw,
-                output,
+                output_para,
             ])
 
         if len(data) == 1:
             return None  # no output to show
 
-        return self.generate_table(data, [1.2*inch, .6*inch, .6*inch, 4.6*inch], escape_html=False)
+        return self.generate_table(data, [1.2*inch, .6*inch, .6*inch, 4.6*inch])
 
     def _get_output(self, link):
         """Decode link output, returning empty string if unavailable."""

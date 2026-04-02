@@ -1,4 +1,5 @@
 import html
+import os
 
 from lxml import etree as ET
 from reportlab.lib import colors
@@ -118,14 +119,19 @@ class Story:
 
     SVG_NS = 'http://www.w3.org/2000/svg'
     _icon_cache = {}
+    # Allowlisted icon filenames → safe on-disk paths
+    _ICON_DIR = os.path.join('plugins', 'debrief', 'static', 'img')
+    _ALLOWED_ICONS = {'linux.svg', 'windows.svg', 'darwin.svg', 'cloud.svg', 'unknown.svg'}
 
     @classmethod
-    def _load_icon_svg(cls, icon_path):
-        """Read an SVG icon file and return its root element for inlining."""
-        if icon_path in cls._icon_cache:
-            return cls._icon_cache[icon_path]
+    def _load_icon_svg(cls, icon_key):
+        """Read an allowlisted SVG icon file and return its root element."""
+        if icon_key in cls._icon_cache:
+            return cls._icon_cache[icon_key]
+        if icon_key not in cls._ALLOWED_ICONS:
+            return None
         try:
-            import os
+            icon_path = os.path.join(cls._ICON_DIR, icon_key)
             if not os.path.isfile(icon_path):
                 return None
             parser = ET.XMLParser(
@@ -133,8 +139,8 @@ class Story:
                 dtd_validation=False, load_dtd=False,
             )
             tree = ET.parse(icon_path, parser)
-            cls._icon_cache[icon_path] = tree.getroot()
-            return cls._icon_cache[icon_path]
+            cls._icon_cache[icon_key] = tree.getroot()
+            return cls._icon_cache[icon_key]
         except Exception:
             return None
 
@@ -150,25 +156,24 @@ class Story:
         root = svg.getroot()
         ns = Story.SVG_NS
 
-        # Inline external <image> icons that have data-icon-path attributes
-        for img_el in root.iter('{%s}image' % ns):
-            icon_path = img_el.get('data-icon-path')
-            if not icon_path:
+        # Inline external <image> icons that have data-icon-key attributes
+        import copy as copy_mod
+        for img_el in list(root.iter('{%s}image' % ns)):
+            icon_key = img_el.get('data-icon-key')
+            if not icon_key:
                 continue
 
-            icon_root = Story._load_icon_svg(icon_path)
+            icon_root = Story._load_icon_svg(icon_key)
             if icon_root is None:
                 continue
 
-            # Get placement from the <image> element
             x = float(img_el.get('x', 0))
             y = float(img_el.get('y', 0))
             w = float(img_el.get('width', 40))
             h = float(img_el.get('height', 40))
 
-            # Create an inline <svg> with the icon's viewBox and content
             vb = icon_root.get('viewBox', '0 0 512 512')
-            inline_svg = ET.SubElement(img_el.getparent(), '{%s}svg' % ns)
+            inline_svg = ET.Element('{%s}svg' % ns)
             inline_svg.set('data-inlined-icon', 'true')
             inline_svg.set('viewBox', vb)
             inline_svg.set('x', str(x))
@@ -176,13 +181,13 @@ class Story:
             inline_svg.set('width', str(w))
             inline_svg.set('height', str(h))
 
-            # Copy all children from the icon SVG
-            import copy
             for child in icon_root:
-                inline_svg.append(copy.deepcopy(child))
+                inline_svg.append(copy_mod.deepcopy(child))
 
-            # Remove the original <image> element
-            img_el.getparent().remove(img_el)
+            # Insert at the same position as the <image> to preserve z-order
+            parent = img_el.getparent()
+            parent.insert(list(parent).index(img_el), inline_svg)
+            parent.remove(img_el)
 
         # Legacy D3 graph icon adjustment (skip inlined topology icons)
         for icon_svg in root.iter('{%s}svg' % ns):

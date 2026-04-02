@@ -930,13 +930,14 @@ export default {
                     el.setAttribute('stroke-width', '2');
                 });
 
-                // Remove image icons — the Python backend will inline them from disk
+                // Tag image icons with a safe icon key for the Python backend to inline
+                const allowedIcons = new Set(['linux.svg', 'windows.svg', 'darwin.svg', 'cloud.svg', 'unknown.svg']);
                 newSvg.querySelectorAll('.topo-host-icon').forEach((el) => {
-                    // Convert href to a relative file path the backend can resolve
                     const href = el.getAttribute('href') || '';
-                    // /debrief/img/linux.svg → plugins/debrief/static/img/linux.svg
-                    const filePath = href.replace('/debrief/', 'plugins/debrief/static/');
-                    el.setAttribute('data-icon-path', filePath);
+                    const iconName = (href.split('/').pop() || '').trim();
+                    if (allowedIcons.has(iconName)) {
+                        el.setAttribute('data-icon-key', iconName);
+                    }
                 });
 
                 // Make zone bands visible on white background

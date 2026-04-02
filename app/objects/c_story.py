@@ -1,3 +1,5 @@
+import html
+
 from lxml import etree as ET
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
@@ -16,11 +18,8 @@ class Story:
         self.story_arr.append(Spacer(1, spacing))
 
     def append_text(self, text, style, space):
-        self.story_arr.append(Paragraph(text, style))
+        self.story_arr.append(Paragraph(html.escape(text), style))
         self.story_arr.append(Spacer(1, space))
-
-    def get_description(self, desc):
-        return self._descriptions(desc)
 
     def page_break(self):
         self.story_arr.append(PageBreak())
@@ -143,19 +142,20 @@ class Story:
     _TABLE_STYLE = ParagraphStyle(name='Table', fontSize=8, wordWrap='CJK')
 
     @staticmethod
-    def get_table_object(val):
+    def get_table_object(val, escape_html=True):
         style = Story._TABLE_STYLE
         if type(val) is str:
-            return Paragraph(val, style)
+            escaped = html.escape(val) if escape_html else val
+            return Paragraph(escaped, style)
         elif type(val) is list:
-            list_string = ''
-            for list_item in val:
-                list_string += list_item + '<br/>'
-            return Paragraph(list_string, style)
+            escaped = [html.escape(list_item) for list_item in val] if escape_html else val
+            return Paragraph('<br/>'.join(escaped), style)
         elif type(val) is dict:
             dict_string = ''
             for k, v in val.items():
-                dict_string += '<font color=grey>' + k + '</font><br/>'
+                escaped_key = html.escape(k) if escape_html else k
+                dict_string += '<font color=grey>' + escaped_key + '</font><br/>'
                 for list_item in v:
-                    dict_string += '&nbsp;&nbsp;&nbsp;' + list_item + '<br/>'
+                    escaped = html.escape(list_item) if escape_html else list_item
+                    dict_string += '&nbsp;&nbsp;&nbsp;' + escaped + '<br/>'
             return Paragraph(dict_string, style)

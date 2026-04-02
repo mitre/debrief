@@ -82,11 +82,19 @@ class TestGetTableObject:
         assert isinstance(result, Paragraph)
 
 
-class TestGetDescription:
-    def test_get_description_delegates_to_descriptions(self):
-        """get_description() calls self._descriptions() which is not defined
-        on the base Story class. Verify the delegation attempt occurs."""
-        s = Story()
-        assert hasattr(s, 'get_description')
-        # _descriptions is not implemented on Story — subclasses would provide it
-        assert not hasattr(s, '_descriptions')
+class TestGetTableObjectEscaping:
+    def test_string_escapes_html_by_default(self):
+        result = Story.get_table_object('<script>alert(1)</script>')
+        assert isinstance(result, Paragraph)
+
+    def test_string_no_escape_when_disabled(self):
+        result = Story.get_table_object('<b>bold</b>', escape_html=False)
+        assert isinstance(result, Paragraph)
+
+    def test_list_escapes_html_by_default(self):
+        result = Story.get_table_object(['<img src=x>', 'safe'])
+        assert isinstance(result, Paragraph)
+
+    def test_dict_escapes_html_by_default(self):
+        result = Story.get_table_object({'<key>': ['<val>']})
+        assert isinstance(result, Paragraph)

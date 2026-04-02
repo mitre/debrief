@@ -47,5 +47,5 @@ class DebriefReportSection(BaseReportSection):
             ])
 
         return self.generate_table(steps, [
-            .7*inch, .55*inch, .55*inch, .65*inch, .85*inch, .75*inch, 2.45*inch, .5*inch
+            .7*inch, .6*inch, .5*inch, .65*inch, .9*inch, .8*inch, 2.45*inch, .4*inch
         ])

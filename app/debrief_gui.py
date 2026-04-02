@@ -190,6 +190,11 @@ class DebriefGui(BaseWorld):
         with open(filepath, 'wb') as f:
             f.write(content)
 
+    # D3 force-directed graph sections removed from PDF — their layouts are
+    # non-deterministic and unreadable in print. The equivalent table sections
+    # (steps-table, tactic-technique-table) convey the same data.
+    _HIDDEN_SECTIONS = {'steps-graph', 'tactic-graph', 'technique-graph', 'fact-graph'}
+
     def _load_report_sections(self, plugins):
         if not self.loaded_report_sections:
             for plugin in plugins:
@@ -204,7 +209,8 @@ class DebriefGui(BaseWorld):
                                 module_obj = module.DebriefReportSection()
                                 safe_id = re.sub('[^A-Za-z0-9-_:.]', '', re.sub(r'\s+', '-', module_obj.id))
                                 self.report_section_modules[safe_id] = module_obj
-                                self.report_section_names.append({'key': safe_id, 'name': module_obj.display_name})
+                                if safe_id not in self._HIDDEN_SECTIONS:
+                                    self.report_section_names.append({'key': safe_id, 'name': module_obj.display_name})
                             except Exception as e:
                                 self.log.error('Skipping debrief section %s due to error: %r', module_name, e)
             self.log.debug('Finished loading debrief report sections.')
@@ -252,8 +258,8 @@ class DebriefGui(BaseWorld):
         story_obj.append(Spacer(1, 36))
         styles = getSampleStyleSheet()
 
-        # Decide if Detections is the only section (controls first page orientation)
-        sections = list(sections or [])
+        # Filter out hidden sections server-side (defence in depth)
+        sections = [s for s in (sections or []) if s not in self._HIDDEN_SECTIONS]
         detections_only = (len(sections) == 1 and sections[0] == 'ttps-detections')
 
         # # Always render Detections last if present (unless it's the only section)
@@ -325,9 +331,20 @@ class DebriefGui(BaseWorld):
                     for f in cover_flowables:
                         story_obj.append(f)
 
-            # ---- SECTIONS: append each section’s flowables ----
+            # ---- STATISTICS: render right after cover ----
+            stats_module = self.report_section_modules.get('statistics')
+            if stats_module and 'statistics' in sections:
+                self.log.debug('Generating statistics section (after cover)')
+                stats_flowables = await stats_module.generate_section_elements(
+                    styles, operations=operations, agents=agents,
+                    graph_files=graph_files, selected_sections=sections
+                )
+                for f in stats_flowables:
+                    story_obj.append(f)
+
+            # ---- SECTIONS: append each section's flowables ----
             for section in sections:
-                if section == 'main-summary':
+                if section in ('main-summary', 'statistics'):
                     continue
 
                 section_module = self.report_section_modules.get(section)

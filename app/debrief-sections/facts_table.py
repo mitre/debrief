@@ -143,5 +143,5 @@ class DebriefReportSection(BaseReportSection):
             fact_table_row = self._generate_fact_table_row(f, include_agent_links, link_by_id, op_source_id, white_traits)
             fact_data.append(fact_table_row)
 
-        # Slightly wider Source/Command columns
-        return self.generate_table(fact_data, [1*inch, 1.8*inch, .6*inch, 1.3*inch, 2.3*inch], escape_html=False)
+        # Score/Source at minimum width; Trait/Value/Command expand to fill
+        return self.generate_table(fact_data, [1.1*inch, 2.1*inch, .4*inch, .55*inch, 2.85*inch], escape_html=False)

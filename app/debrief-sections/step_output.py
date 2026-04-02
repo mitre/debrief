@@ -2,6 +2,7 @@ import logging
 
 from html import escape
 from reportlab.lib.units import inch
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import Paragraph
 from reportlab.platypus.flowables import KeepTogetherSplitAtTop
 
@@ -9,6 +10,7 @@ from plugins.debrief.app.utility.base_report_section import BaseReportSection
 
 OUTPUT_CHAR_LIMIT = 500
 TRUNCATED_MSG = '... <font color="maroon"><i>(output truncated)</i></font>'
+_OUTPUT_STYLE = ParagraphStyle(name='StepOutput', fontSize=8, wordWrap='CJK')
 
 
 class DebriefReportSection(BaseReportSection):
@@ -28,13 +30,16 @@ class DebriefReportSection(BaseReportSection):
             return flowable_list
 
         for op in kwargs.get('operations', []):
+            table = self._generate_output_table(op)
+            if table is None:
+                continue  # skip section entirely when no output captured
             flowable_list.append(
                 KeepTogetherSplitAtTop([
-                    Paragraph(self.section_title % op.name.upper(), styles['Heading2']),
+                    Paragraph(self.section_title % escape(op.name.upper()), styles['Heading2']),
                     Paragraph(self.description, styles['Normal'])
                 ])
             )
-            flowable_list.append(self._generate_output_table(op))
+            flowable_list.append(table)
 
         return flowable_list
 
@@ -45,20 +50,23 @@ class DebriefReportSection(BaseReportSection):
             if not output:
                 continue
             if len(output) > OUTPUT_CHAR_LIMIT:
-                output = output[:OUTPUT_CHAR_LIMIT] + TRUNCATED_MSG
+                output_html = escape(output[:OUTPUT_CHAR_LIMIT]) + TRUNCATED_MSG
             else:
-                output = escape(output)
+                output_html = escape(output)
+            # Wrap output as a pre-built Paragraph so markup (TRUNCATED_MSG) is preserved
+            # while other cells use default escaping via escape_html=True
+            output_para = Paragraph(output_html, _OUTPUT_STYLE)
             data.append([
                 getattr(link.ability, 'name', '') or '',
                 self.status_name(link.status),
                 link.paw,
-                output,
+                output_para,
             ])
 
         if len(data) == 1:
-            data.append(['No output captured', '', '', ''])
+            return None  # no output to show
 
-        return self.generate_table(data, [1.2*inch, .6*inch, .6*inch, 4.6*inch], escape_html=False)
+        return self.generate_table(data, [1.2*inch, .6*inch, .6*inch, 4.6*inch])
 
     def _get_output(self, link):
         """Decode link output, returning empty string if unavailable."""

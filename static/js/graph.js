@@ -306,16 +306,16 @@ function writeGraph(graph) {
                 ret += 'created: ' + d['timestamp'] + '<br/>';
                 break;
             case 'tactic':
-            case 'technique_name':
-                let p = d['attrs'][d['type']]
-                ret += d['type'] + ': ' + p + '<br/>';
-                ret += 'created: ' + d['timestamp'] + '<br/>';
-                for (let attr in d['attrs']) {
-                    if (attr != d['type']) {
-                        ret += sanitize(attr) + ': ' + sanitize(d['attrs'][attr]) + '<br/>';
+                case 'technique_name':
+                    let p = d['attrs'][d['type']]
+                    ret += sanitize(d['type']) + ': ' + sanitize(p) + '<br/>';  // FIXED
+                    ret += 'created: ' + sanitize(d['timestamp']) + '<br/>';    // harden timestamp too
+                    for (let attr in d['attrs']) {
+                        if (attr != d['type']) {
+                            ret += sanitize(attr) + ': ' + sanitize(d['attrs'][attr]) + '<br/>';
+                        }
                     }
-                }
-                break;
+                    break;
             default:
                 ret += d['timestamp'] ? 'created: ' + d['timestamp'] + '<br/>' : '';
                 for (let attr in d['attrs']) {

@@ -1,5 +1,5 @@
+import html
 import logging
-
 from app.utility.base_service import BaseService
 
 
@@ -10,24 +10,20 @@ class DebriefService(BaseService):
         self.file_svc = services.get('file_svc')
         self.data_svc = services.get('data_svc')
         self.log = logging.getLogger('debrief_svc')
-
     async def build_steps_d3(self, operation_ids):
         graph_output = dict(nodes=[], links=[])
         id_store = dict(c2=0)
         graph_output['nodes'].append(dict(name="C2 Server", type='c2', label='server', id=0, img='server',
                                           attrs={k: v for k, v in self.get_config().items() if k.startswith('app.')}))
-
         operations = []
         for op_id in operation_ids:
             matches = await self.data_svc.locate('operations', match=dict(id=op_id))
             if matches:
                 operations.append(matches[0])
-
         for operation in operations:
             # Add operation node
             graph_output['nodes'].append(dict(name=operation.name, type='operation', id=operation.id, img='operation',
                                               timestamp=self._format_timestamp(operation.created)))
-
             # Add agents for this operation
             agents = [x for x in operation.agents if x]
             self._add_agents_to_d3(agents, id_store, graph_output)
@@ -35,7 +31,6 @@ class DebriefService(BaseService):
                 graph_output['links'].append(dict(source=operation.id,
                                                   target=id_store['agent' + agent.unique],
                                                   type='has_agent'))
-
             # Add steps
             previous_link_graph_id = None
             for link in operation.chain:
@@ -45,20 +40,17 @@ class DebriefService(BaseService):
                                                   status=link.status, operation=operation.id, img=link.ability.tactic,
                                                   attrs=dict(status=link.status, name=display_name),
                                                   timestamp=self._format_timestamp(link.created)))
-
                 if not previous_link_graph_id:
                     graph_output['links'].append(dict(source=operation.id, target=link_graph_id, type='next_link'))
                 else:
                     graph_output['links'].append(dict(source=previous_link_graph_id, target=link_graph_id,
                                                       type='next_link'))
                 previous_link_graph_id = link_graph_id
-
                 # Link the step to the corresponding agent
                 for agent in agents:
                     if agent.paw == link.paw:
                         graph_output['links'].append(dict(source=id_store['agent' + agent.unique], target=link_graph_id,
                                                           type='next_link'))
-
         return graph_output
 
     async def build_attackpath_d3(self, operation_ids):
@@ -67,20 +59,19 @@ class DebriefService(BaseService):
         graph_output['nodes'].append(dict(name="C2 Server", type='c2', label='server', id=0, img='server',
                                           attrs={config: value for config, value in self.get_config().items() if
                                                  config.startswith('app.')}))
-
         operations = [op for op_id in operation_ids for op in await self.data_svc.locate('operations',
                                                                                          match=dict(id=op_id))]
-
         agents = [x for xs in map(lambda o: o.agents, operations) for x in xs]
         self._add_agents_to_d3(agents, id_store, graph_output)
-
         for agent in agents:
             if agent.origin_link_id:
                 operation = await self.app_svc.find_op_with_link(agent.origin_link_id)
                 if operation in operations:
                     link = next(lnk for lnk in operation.chain if lnk.id == agent.origin_link_id)
                     link_graph_id = id_store['link' + link.unique] = max(id_store.values()) + 1
-                    graph_output['nodes'].append(dict(type='link', name=link.ability.technique_name, id=link_graph_id,
+                    # PATCH: escape technique_name before placing in graph node
+                    safe_technique_name = html.escape(str(link.ability.technique_name or ''))
+                    graph_output['nodes'].append(dict(type='link', name=safe_technique_name, id=link_graph_id,
                                                       status=link.status, operation=operation.id,
                                                       img=link.ability.tactic,
                                                       attrs=dict(status=link.status, name=link.ability.name),
@@ -94,7 +85,6 @@ class DebriefService(BaseService):
     async def build_fact_d3(self, operation_ids):
         graph_output = dict(nodes=[], links=[])
         id_store = dict(default=0)
-
         for op_id in operation_ids:
             operation = (await self.data_svc.locate('operations', match=dict(id=op_id)))[0]
             graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation',
@@ -107,11 +97,9 @@ class DebriefService(BaseService):
                             attrs=self._get_pub_attrs(fact), img='fact',
                             timestamp=fact.created.strftime('%Y-%m-%dT%H:%M:%S'))
                 op_nodes.append(node)
-
                 if fact in operation.source.facts:
                     d3_link = dict(source=op_id, target=node_id, type='relationship')
                     op_links.append(d3_link)
-
             all_relationships = await operation.all_relationships()
             for relationship in all_relationships:
                 if relationship.edge and relationship.target.value:
@@ -119,12 +107,9 @@ class DebriefService(BaseService):
                                    target=id_store.get('fact' + relationship.target.unique),
                                    type='relationship')
                     op_links.append(d3_link)
-
             self._link_nontargeted_facts(op_nodes, op_links, op_id)
-
             graph_output['nodes'].extend([n for n in op_nodes if n not in graph_output['nodes']])
             graph_output['links'].extend([lnk for lnk in op_links if lnk not in graph_output['links']])
-
         return graph_output
 
     async def build_tactic_d3(self, operation_ids):
@@ -136,7 +121,6 @@ class DebriefService(BaseService):
     async def _build_prop_d3(self, operation_ids, prop):
         graph_output = dict(nodes=[], links=[])
         id_store = dict(default=0)
-
         for op_id in operation_ids:
             operation = (await self.data_svc.locate('operations', match=dict(id=op_id)))[0]
             graph_output['nodes'].append(dict(name=operation.name, type='operation', id=op_id, img='operation',
@@ -146,12 +130,13 @@ class DebriefService(BaseService):
                 for p, lnks in self._get_by_prop_order(operation.chain, prop):
                     i = max(id_store.values()) + 1
                     prop_graph_id = id_store[prop + p + str(i)] = i
-                    p_attrs = {prop: p}
+                    # PATCH: escape p before placing into graph node name and attrs
+                    p_safe = html.escape(str(p))
+                    p_attrs = {prop: p_safe}
                     p_attrs.update({lnk.unique: lnk.ability.name for lnk in lnks})
-                    graph_output['nodes'].append(dict(type=prop, name=p, id=prop_graph_id, operation=op_id,
+                    graph_output['nodes'].append(dict(type=prop, name=p_safe, id=prop_graph_id, operation=op_id,
                                                       attrs=p_attrs, img=p,
                                                       timestamp=self._format_timestamp(lnks[0].created)))
-
                     if not previous_prop_graph_id:
                         graph_output['links'].append(dict(source=op_id, target=prop_graph_id, type='next_link'))
                     else:
@@ -169,7 +154,6 @@ class DebriefService(BaseService):
                             type='agent', img=agent.platform, timestamp=agent.created.strftime('%Y-%m-%dT%H:%M:%S'),
                             attrs=dict(host=agent.host, group=agent.group, platform=agent.platform, paw=agent.paw))
                 graph_output['nodes'].append(node)
-
                 link = dict(source=0, target=id_store['agent' + agent.unique], type='agent_contact')
                 graph_output['links'].append(link)
 
@@ -194,7 +178,6 @@ class DebriefService(BaseService):
             techniques={exact_tid: link.ability.technique_name} if key_by_tid else {link.ability.technique_name: exact_tid},
             steps={operation.name: [link.ability.name]}
         )
-
     @staticmethod
     def _update_tactic_entry(tactic_entry_dict, op_name, link, key_by_tid=False):
         technique_info = tactic_entry_dict['techniques']
@@ -250,12 +233,10 @@ class DebriefService(BaseService):
             matches = await self.data_svc.locate('operations', match=dict(id=op_id))
             if matches:
                 operations.append(matches[0])
-
         hosts = {}       # keyed by agent paw or discovered-ip
         edges = []
         steps_by_host = {}
         all_ips = {}     # ip -> host_id mapping for subnet grouping
-
         # --- Compromised hosts (agents) ---
         paw_to_host = {}
         for op in operations:
@@ -281,7 +262,6 @@ class DebriefService(BaseService):
                 paw_to_host[paw] = paw
                 for ip in ips:
                     all_ips[ip] = paw
-
         # --- C2 node ---
         c2_config = {k: v for k, v in self.get_config().items() if k.startswith('app.')}
         hosts['c2'] = dict(
@@ -296,17 +276,15 @@ class DebriefService(BaseService):
             step_count=0,
             origin_agent=None,
         )
-
+        
         # --- Steps by host ---
         # Also build an ordered list of (step_index, paw, step_data) for replay sequencing
         replay_sequence = []  # ordered list of {paw, step, index}
-
         for op in operations:
             for agent in (op.agents or []):
                 paw = agent.paw
                 if paw not in steps_by_host:
                     steps_by_host[paw] = []
-
             step_idx = 0
             for link in (op.chain or []):
                 if link.cleanup:
@@ -330,7 +308,6 @@ class DebriefService(BaseService):
                 step_idx += 1
                 if paw in hosts:
                     hosts[paw]['step_count'] = len(steps_by_host[paw])
-
         # --- Build edges from chain order + origin_link_id ---
         # First: explicit lateral movement via origin_link_id
         agents_with_origin = set()
@@ -348,7 +325,6 @@ class DebriefService(BaseService):
                                 technique=f'{origin_link.ability.technique_id} {origin_link.ability.technique_name}',
                             ))
                             agents_with_origin.add(agent.paw)
-
         # Second: agents without origin_link_id connect directly to C2
         # Only agents with an explicit origin_link_id (lateral movement) get
         # agent-to-agent edges (handled above). All others beacon to C2 directly.
@@ -364,7 +340,6 @@ class DebriefService(BaseService):
                                           type='initial_access', technique='Initial Access'))
                         edge_pairs.add(edge_pair)
                 seen_paws.add(paw)
-
         # Third: fallback — if no chain at all, create edges from agent order
         # This handles fabricated operations where agents exist but no steps ran
         if not replay_sequence and not edges:
@@ -394,7 +369,6 @@ class DebriefService(BaseService):
                         ),
                         index=i,
                     ))
-
         # --- Discovered hosts (from operation facts + knowledge svc) ---
         discovered_ips = set()
         knowledge_svc = self.services.get('knowledge_svc')
@@ -422,7 +396,6 @@ class DebriefService(BaseService):
                 value = str(getattr(fact, 'value', '') or '')
                 if not value:
                     continue
-
                 # remote.host.ip or remote.host.fqdn → discovered host
                 if trait == 'remote.host.ip' and value not in all_ips and value not in discovered_ips:
                     discovered_ips.add(value)
@@ -442,19 +415,16 @@ class DebriefService(BaseService):
                         intel=[],
                     )
                     all_ips[value] = host_id
-
                 # Collect intel for discovered hosts
                 if trait.startswith('remote.host.') and value in all_ips:
                     hid = all_ips[value]
                     if hid.startswith('discovered-') and 'intel' in hosts.get(hid, {}):
                         hosts[hid]['intel'].append(dict(trait=trait, value=value))
-
         # --- Build subnets from IPs ---
         # Each host goes in ONE subnet only (its primary/first non-docker IP).
         # Docker bridge IPs (172.17-31.x.x) are deprioritized.
         subnet_map = {}  # cidr -> set of host_ids
         assigned_hosts = set()
-
         for host_id, host in hosts.items():
             if host_id == 'c2':
                 continue
@@ -478,12 +448,10 @@ class DebriefService(BaseService):
                 assigned_hosts.add(host_id)
                 # Store primary IP on host for display
                 host['primary_ip'] = primary_ip
-
         # Hosts with no valid IP go to "Unknown" subnet
         ungrouped = [hid for hid in hosts if hid != 'c2' and hid not in assigned_hosts]
         if ungrouped:
             subnet_map['Unknown'] = set(ungrouped)
-
         # Also include empty subnets from agent secondary IPs (networks the agent can see)
         for host_id, host in hosts.items():
             if host_id == 'c2':
@@ -492,7 +460,6 @@ class DebriefService(BaseService):
                 subnet_cidr = self._ip_to_subnet(ip)
                 if subnet_cidr and subnet_cidr not in subnet_map:
                     subnet_map[subnet_cidr] = set()  # empty subnet — visible but no hosts
-
         # Order subnets by chain appearance (first agent in each subnet determines position)
         subnet_order = []
         seen_subnets = set()
@@ -510,19 +477,16 @@ class DebriefService(BaseService):
             if cidr not in seen_subnets:
                 subnet_order.append(cidr)
                 seen_subnets.add(cidr)
-
         subnets = [
             dict(cidr=cidr, label=cidr, hosts=sorted(subnet_map.get(cidr, set())))
             for cidr in subnet_order
         ]
-
         # --- Compute path_to_c2 for each host (for beacon animation) ---
         # Build parent map from edges: target → source
         parent_map = {}
         for e in edges:
             if e['target'] != 'c2':
                 parent_map[e['target']] = e['source']
-
         path_to_c2 = {}
         for host_id in hosts:
             if host_id == 'c2':
@@ -535,7 +499,6 @@ class DebriefService(BaseService):
                 current = parent_map[current]
                 path.append(current)
             path_to_c2[host_id] = path  # e.g. ['db01', 'dc01', 'proxy01', 'web01', 'c2']
-
         return dict(
             subnets=subnets,
             hosts=hosts,
@@ -544,7 +507,7 @@ class DebriefService(BaseService):
             replay_sequence=replay_sequence,
             path_to_c2=path_to_c2,
         )
-
+        
     @staticmethod
     def _ip_to_subnet(ip_str):
         """Convert an IP string to a /24 subnet string."""

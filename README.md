@@ -1,4 +1,4 @@
-# MITRE Caldera Plugin: Debrief
+# Caldera Plugin: Debrief
 
 A plugin for [MITRE Caldera](https://github.com/mitre/caldera)
 

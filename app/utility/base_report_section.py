@@ -1,14 +1,18 @@
+import logging
+
 from reportlab.lib import colors
 from reportlab.lib.units import inch
 from reportlab.platypus import Image, Paragraph, Spacer, Table, TableStyle
 from reportlab.platypus.flowables import KeepTogetherSplitAtTop
-from svglib.svglib import svg2rlg
 
 from plugins.debrief.app.objects.c_story import Story
 from plugins.debrief.attack_mapper import get_attack18
 
 # Available content width for portrait pages (letter 8.5" - 2×0.75" margins)
 PORTRAIT_CONTENT_WIDTH = 7.0 * inch
+
+SVGLIB_MISSING = ('Graph not included: the "svglib" package is not installed. '
+                  'Install it with: pip install -r plugins/debrief/requirements.txt')
 
 
 class BaseReportSection:
@@ -41,11 +45,15 @@ class BaseReportSection:
     def generate_grouped_graph_section_flowables(self, styles, graph_path, graph_width):
         """Return grouped flowable containing section title, description, and specified graph."""
 
+        graph = self.generate_graph(graph_path, graph_width)
+        if graph is None:
+            graph = Paragraph(SVGLIB_MISSING, styles['Normal'])
+
         return self.group_elements([
             Paragraph(self.section_title, styles['Heading2']),
             Paragraph(self.description, styles['Normal']),
             Spacer(1, 10),
-            self.generate_graph(graph_path, graph_width)
+            graph
         ])
 
     @staticmethod
@@ -56,6 +64,16 @@ class BaseReportSection:
 
     @staticmethod
     def generate_graph(svg_path, width):
+        """Return the graph as an image, or None when svglib is not installed."""
+
+        # svglib is LGPL, so some Caldera builds leave it out. Importing it here
+        # keeps the sections that draw no graph working without it.
+        try:
+            from svglib.svglib import svg2rlg
+        except ImportError:
+            logging.getLogger('debrief_report_section').warning(SVGLIB_MISSING)
+            return None
+
         Story.adjust_icon_svgs(svg_path)
         graph = svg2rlg(svg_path)
         aspect = graph.height / float(graph.width)

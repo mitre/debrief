@@ -1,11 +1,15 @@
 """Tests for app/utility/base_report_section.py — BaseReportSection."""
+import importlib
+import logging
+import sys
+
 import pytest
 from unittest.mock import patch, MagicMock
 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus.flowables import KeepTogetherSplitAtTop
 
-from plugins.debrief.app.utility.base_report_section import BaseReportSection
+from plugins.debrief.app.utility.base_report_section import BaseReportSection, SVGLIB_MISSING
 
 
 @pytest.fixture
@@ -79,3 +83,70 @@ class TestGenerateTable:
         data = [['Col1'], ['row1'], ['row2'], ['row3']]
         result = section.generate_table(data, '*')
         assert isinstance(result, Table)
+
+
+SVG = ('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">'
+       '<rect x="10" y="10" width="180" height="80" fill="maroon"/></svg>')
+
+
+@pytest.fixture
+def svg_path(tmp_path):
+    path = tmp_path / 'graph.svg'
+    path.write_text(SVG)
+    return str(path)
+
+
+@pytest.fixture
+def without_svglib(monkeypatch):
+    """Make ``import svglib`` fail, as it does where the package is not installed."""
+    for name in [m for m in sys.modules if m == 'svglib' or m.startswith('svglib.')]:
+        monkeypatch.delitem(sys.modules, name)
+    monkeypatch.setitem(sys.modules, 'svglib', None)
+
+
+class TestGenerateGraph:
+    def test_renders_svg_with_aspect_ratio_kept(self, svg_path):
+        pytest.importorskip('svglib')
+        from reportlab.platypus import Image
+
+        graph = BaseReportSection.generate_graph(svg_path, 400)
+
+        assert isinstance(graph, Image)
+        assert (graph.drawWidth, graph.drawHeight) == (400, 200)
+
+    def test_graph_section_builds_into_a_pdf(self, section, svg_path, tmp_path):
+        pytest.importorskip('svglib')
+        from reportlab.platypus import SimpleDocTemplate
+        out = tmp_path / 'report.pdf'
+
+        flowable = section.generate_grouped_graph_section_flowables(getSampleStyleSheet(), svg_path, 400)
+        SimpleDocTemplate(str(out)).build([flowable])
+
+        assert out.read_bytes().startswith(b'%PDF')
+
+    def test_returns_none_and_logs_without_svglib(self, without_svglib, svg_path, caplog):
+        with caplog.at_level(logging.WARNING, logger='debrief_report_section'):
+            assert BaseReportSection.generate_graph(svg_path, 400) is None
+
+        assert SVGLIB_MISSING in caplog.text
+
+    def test_graph_section_shows_note_without_svglib(self, without_svglib, section, svg_path, tmp_path):
+        from reportlab.platypus import Paragraph, SimpleDocTemplate
+        out = tmp_path / 'report.pdf'
+
+        flowable = section.generate_grouped_graph_section_flowables(getSampleStyleSheet(), svg_path, 400)
+        last = flowable._content[-1]
+        SimpleDocTemplate(str(out)).build([flowable])
+
+        assert isinstance(last, Paragraph)
+        assert last.text == SVGLIB_MISSING
+        assert out.read_bytes().startswith(b'%PDF')
+
+
+def test_module_imports_without_svglib(without_svglib, monkeypatch):
+    name = 'plugins.debrief.app.utility.base_report_section'
+    monkeypatch.delitem(sys.modules, name)
+
+    module = importlib.import_module(name)
+
+    assert module.BaseReportSection.__name__ == 'BaseReportSection'

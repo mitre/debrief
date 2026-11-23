@@ -1,4 +1,4 @@
 aiohttp-jinja2>=1.5
-lxml>=4.9
-reportlab>=4.0
-svglib>=1.5
+lxml>=6.0
+reportlab>=4.4.3
+svglib>=2.3.1

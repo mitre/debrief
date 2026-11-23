@@ -67,6 +67,8 @@ From your Caldera virtual environment:
 pip install -r plugins/debrief/requirements.txt
 ```
 
+`svglib` draws the graphs in PDF reports. It is licensed under the LGPL 3.0, so some Caldera builds, such as the Apache Caldera Docker images, do not install it. Without it, a PDF report is still built, with a note in place of each graph.
+
 ### Build the Vue UI
 
 Debrief uses the Magma Vue.js framework. Rebuild Magma to include the debrief plugin UI:
